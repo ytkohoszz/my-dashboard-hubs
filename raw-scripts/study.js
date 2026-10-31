@@ -1,6 +1,6 @@
 // =====================================================================
-// УЧЁБА: АКТИВНЫЕ ПРОЕКТЫ (+ ГРАФ ПО КЛИКУ) → MY-SR-TRAINER → ЗАВЕРШЁННЫЕ ПРОЕКТЫ
-// Требуется включённый my-sr-trainer 0.1.2 или совместимый.
+// УЧЁБА: ВИТРИНА ПРОЕКТОВ (СВЯЗКА С MY-STUDY-COMPILER) → MY-SR-TRAINER → ЗАВЕРШЁННЫЕ
+// Требуются включённые плагины my-study-compiler (0.3.2+) и my-sr-trainer (0.1.2+).
 // =====================================================================
 
 const AREA = "Учёба";
@@ -8,17 +8,70 @@ const TARGET_FOLDER = "Знания";
 const DECKS_FOLDER = "Знания/Карточки";
 const KNOWLEDGE_FOLDER = '"Знания"';
 
-const MATERIAL_TYPES = ["Термин", "Алгоритм", "Заметка", "Источник", "Расчёт", "Рисунок", "Схема", "Таблица", "Конспект"];
-const PRESET_WORK_TYPES = ["Проект", "Лабораторная работа", "Конференция", "Диссертация", "Курсовая работа", "Статья", "Экзамен", "Зачёт", "Практика"];
+const KEYS = {
+  area: "направление",
+  type: "тип",
+  parent: "родитель",
+  status: "статус",
+  deadline: "дедлайн",
+  deadlineAlt: "срок",
+  discipline: "дисциплина",
+  icon: "иконка",
+  templateFlag: "шаблон",
+  finishedAt: "дата_завершения",
+  start: "начало",
+  finishedLegacy: "завершено"
+};
+
+const ROOT_STATUS_ACTIVE = "В работе";
+const ROOT_STATUS_DONE = "Завершён";
+
+const ROOT_DONE_STATUSES = [
+  "выполнено",
+  "выполнен",
+  "завершён",
+  "завершена",
+  "завершено",
+  "сдана",
+  "сдан",
+  "готово",
+  "архив",
+  "отменён",
+  "отменена",
+  "done"
+];
+
+const LEGACY_MATERIAL_TYPES = [
+  "Источник",
+  "Термин",
+  "Рисунок",
+  "Схема",
+  "Таблица",
+  "Конспект",
+  "Заметка",
+  "Расчёт",
+  "Алгоритм"
+];
+const LEGACY_MATERIAL_TYPES_LOWER = new Set(LEGACY_MATERIAL_TYPES.map(t => t.toLowerCase()));
+
+const PRESET_WORK_TYPES = [
+  "Проект",
+  "Лабораторная работа",
+  "Конференция",
+  "Диссертация",
+  "Курсовая работа",
+  "Статья",
+  "Экзамен",
+  "Зачёт",
+  "Практика"
+];
 const QUICK_ICONS = ["📁", "🧪", "🎤", "🎓", "📄", "📐", "⚡", "🔬", "📊", "🏛️", "🚀", "📌"];
-const TEMPLATE_PREFIX = "Учёба — ";
-const TEMPLATE_FOLDERS = ["Шаблоны"];
-const DONE = ["завершён", "завершена", "сдана", "сдан", "готово", "архив", "отменён", "отменена"];
+
+const DEFAULT_EXCLUDED_FOLDERS = ["Templates", "Шаблоны", "Знания/Карточки", "Знания/Сборки"];
+const DEFAULT_EXCLUDED_PREFIXES = ["Учёба — ", "Шаблон", "Template"];
+const DEFAULT_EXCLUDED_TAGS = ["шаблон", "template"];
 
 const INBOX_LIMIT = 10;
-const SOON_DAYS = 14;
-const FALLBACK_COLOR = "#8a8f98";
-
 const MATURE_DAYS = 21;
 const HINT_SEP = " // ";
 
@@ -28,13 +81,12 @@ const plural = (n, f) => {
   return a > 10 && a < 20 ? f[2] : b > 1 && b < 5 ? f[1] : b === 1 ? f[0] : f[2];
 };
 
-
+const normalizeSpaces = s => String(s ?? "").replace(/\s+/g, " ").trim();
 const today = dv.date("today").startOf("day");
 const todayISO = today.toISODate();
-const typeOf = p => String(p.тип ?? "").trim();
+const typeOf = p => normalizeSpaces(p[KEYS.type]);
 const toISO = v => { if (!v) return null; const d = dv.date(v); return d && d.isValid ? d.toISODate() : null; };
 const flat = v => v == null ? [] : (dv.isArray(v) ? Array.from(v).flatMap(flat) : [v]);
-const isTemplate = p => p.file.name.startsWith(TEMPLATE_PREFIX) || TEMPLATE_FOLDERS.some(f => p.file.path.startsWith(f + "/"));
 const cleanLineText = s => String(s ?? "").replace(/\r?\n|\r/g, " ").replace(/\s+/g, " ").trim();
 
 function stripOuterWikiBrackets(str) {
@@ -44,42 +96,163 @@ function stripOuterWikiBrackets(str) {
   return s;
 }
 
-const parentPaths = p => flat(p.родитель).map(x => {
+function getCompilerPlugin() {
+  return app.plugins?.plugins?.["my-study-compiler"] ?? null;
+}
+
+function openStudyCompiler(options = {}) {
+  const plugin = getCompilerPlugin();
+  if (!plugin || typeof plugin.openCompiler !== "function") {
+    notify("Включи плагин «Конструктор учебных проектов» (my-study-compiler) в настройках Obsidian.");
+    return;
+  }
+  try {
+    plugin.openCompiler(options);
+  } catch (error) {
+    notify("Не удалось открыть конструктор: " + (error instanceof Error ? error.message : String(error)));
+  }
+}
+
+function getEffectiveCompilerSettings() {
+  const s = getCompilerPlugin()?.settings;
+  return {
+    studyAreaName: typeof s?.studyAreaName === "string" && s.studyAreaName.trim() ? s.studyAreaName.trim() : AREA,
+    newNoteFolder: typeof s?.newNoteFolder === "string" && s.newNoteFolder.trim() ? s.newNoteFolder.trim() : TARGET_FOLDER,
+    excludedFolders: Array.isArray(s?.excludedFolders) && s.excludedFolders.length ? s.excludedFolders : DEFAULT_EXCLUDED_FOLDERS,
+    excludedTitlePrefixes: Array.isArray(s?.excludedTitlePrefixes) && s.excludedTitlePrefixes.length ? s.excludedTitlePrefixes : DEFAULT_EXCLUDED_PREFIXES,
+    excludedTags: Array.isArray(s?.excludedTags) && s.excludedTags.length ? s.excludedTags : DEFAULT_EXCLUDED_TAGS
+  };
+}
+
+function isCardDeckPage(p, fm) {
+  const flag = fm ? fm["колода_карточек"] : p.колода_карточек;
+  const sub = fm ? fm["подтип"] : p.подтип;
+  return Boolean(flag) || normalizeSpaces(sub).toLowerCase() === "карточки";
+}
+
+function isTemplateOrExcludedPage(p, settings) {
+  const fileObj = app.vault.getAbstractFileByPath(p.file.path);
+  const cache = fileObj ? app.metadataCache.getFileCache(fileObj) : null;
+  const fm = cache?.frontmatter || {};
+
+  if (isCardDeckPage(p, fm)) return true;
+
+  const excludedFolders = settings.excludedFolders
+    .map(f => String(f).trim().replace(/^\/+|\/+$/g, "").toLowerCase())
+    .filter(Boolean);
+
+  const pathLower = p.file.path.toLowerCase();
+  const folderSegments = pathLower.split("/").slice(0, -1);
+  for (const exFolder of excludedFolders) {
+    if (pathLower.startsWith(exFolder + "/") || folderSegments.includes(exFolder)) {
+      return true;
+    }
+  }
+
+  const prefixes = settings.excludedTitlePrefixes
+    .map(pr => String(pr).trim().toLowerCase())
+    .filter(Boolean);
+  const baseLower = p.file.name.toLowerCase();
+  if (prefixes.some(pref => baseLower.startsWith(pref))) {
+    return true;
+  }
+
+  const excludedTags = settings.excludedTags
+    .map(t => String(t).trim().replace(/^#/, "").toLowerCase())
+    .filter(Boolean);
+  const pageTags = flat(p.file?.tags ?? p.tags).map(t => String(t).replace(/^#/, "").toLowerCase());
+  if (pageTags.some(t => excludedTags.includes(t))) {
+    return true;
+  }
+
+  const noteTypeLower = normalizeSpaces(fm[KEYS.type] ?? p[KEYS.type]).toLowerCase();
+  if (noteTypeLower === "шаблон" || noteTypeLower === "template") {
+    return true;
+  }
+  const tplFlag = fm[KEYS.templateFlag] ?? p[KEYS.templateFlag];
+  if (tplFlag === true || String(tplFlag ?? "").toLowerCase() === "true") {
+    return true;
+  }
+
+  return false;
+}
+
+function isRootStatusCompleted(status) {
+  const clean = normalizeSpaces(status).toLowerCase();
+  if (!clean) return false;
+  return ROOT_DONE_STATUSES.includes(clean);
+}
+
+const parentPaths = p => flat(p[KEYS.parent]).map(x => {
   if (x && typeof x === "object" && x.path) return x.path;
-  const s = stripOuterWikiBrackets(x).split("|")[0].split("#")[0].trim();
+  const s = stripOuterWikiBrackets(x).split("|")[0]?.split("#")[0]?.trim();
   if (!s) return null;
+  const direct = app.vault.getAbstractFileByPath(s);
+  if (direct) return direct.path;
+  const withMd = app.vault.getAbstractFileByPath(s.endsWith(".md") ? s : s + ".md");
+  if (withMd) return withMd.path;
   const f = app.metadataCache.getFirstLinkpathDest(s, p.file.path);
   return f ? f.path : null;
 }).filter(Boolean);
 
-const isWorkNote = p => {
-  const t = typeOf(p);
-  if (!t || MATERIAL_TYPES.includes(t)) return false;
-  if (parentPaths(p).length > 0) return false;
-  return PRESET_WORK_TYPES.includes(t) || p.статус != null;
-};
+const HASH_PALETTE = [
+  "var(--color-blue, #599ed6)",
+  "var(--color-green, #4aab80)",
+  "var(--color-purple, #9c83e8)",
+  "var(--color-orange, #e5a158)",
+  "var(--color-cyan, #4fb3d9)",
+  "var(--color-pink, #d882b6)",
+  "var(--color-yellow, #d4c05a)",
+  "var(--color-red, #e06c75)"
+];
+
+function pickStableHashColor(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  const idx = Math.abs(h) % HASH_PALETTE.length;
+  return HASH_PALETTE[idx] || "var(--color-blue, #599ed6)";
+}
 
 function getWorkMeta(typeStr, customIcon) {
-  const raw = String(typeStr || "Проект").trim();
+  const raw = normalizeSpaces(typeStr);
   const low = raw.toLowerCase();
-  let icon = "📁";
-  let color = "#599ed6";
-  let shortLabel = raw === "Лабораторная работа" ? "Лабораторная" : raw;
+  let icon = "📌";
+  let color = raw ? pickStableHashColor(low) : "var(--text-muted)";
+  const shortLabel = raw === "Лабораторная работа" ? "Лабораторная" : (raw || "без типа");
 
   if (low.includes("лаб") || low.includes("лр") || low.includes("опыт") || low.includes("эксперим")) {
-    icon = "🧪"; color = "#4aab80";
+    icon = "🧪"; color = "var(--color-green, #4aab80)";
   } else if (low.includes("конф") || low.includes("доклад") || low.includes("выступ") || low.includes("семинар")) {
-    icon = "🎤"; color = "#e06c75";
+    icon = "🎤"; color = "var(--color-red, #e06c75)";
   } else if (low.includes("диплом") || low.includes("диссер") || low.includes("магист") || low.includes("вкр")) {
-    icon = "🎓"; color = "#e5a158";
+    icon = "🎓"; color = "var(--color-orange, #e5a158)";
   } else if (low.includes("стать") || low.includes("публик") || low.includes("тезис") || low.includes("нир")) {
-    icon = "📄"; color = "#9c83e8";
-  } else if (low.includes("курс") || low.includes("рефер") || low.includes("чертеж") || low.includes("расчетно")) {
-    icon = "📐"; color = "#d69852";
+    icon = "📄"; color = "var(--color-purple, #9c83e8)";
+  } else if (low.includes("курс") || low.includes("рефер") || low.includes("чертеж")) {
+    icon = "📐"; color = "var(--color-orange, #d69852)";
   } else if (low.includes("экзам") || low.includes("зачет") || low.includes("зачёт") || low.includes("коллок") || low.includes("тест")) {
-    icon = "⚡"; color = "#e5a158";
+    icon = "⚡"; color = "var(--color-orange, #e5a158)";
   } else if (low.includes("практ") || low.includes("стажир")) {
-    icon = "🔬"; color = "#69b5aa";
+    icon = "🔬"; color = "var(--color-cyan, #69b5aa)";
+  } else if (low.includes("проект")) {
+    icon = "📁"; color = "var(--color-blue, #599ed6)";
+  } else if (low.includes("термин")) {
+    icon = "🔤"; color = "var(--color-cyan, #4fb3d9)";
+  } else if (low.includes("источник") || low.includes("книг") || low.includes("литерат")) {
+    icon = "📚"; color = "var(--color-yellow, #d4c05a)";
+  } else if (low.includes("конспект") || low.includes("лекц")) {
+    icon = "📝"; color = "var(--color-green, #8bac5e)";
+  } else if (low.includes("рисунок") || low.includes("схема") || low.includes("граф")) {
+    icon = "🖼"; color = "var(--color-cyan, #69b5aa)";
+  } else if (low.includes("таблица")) {
+    icon = "📊"; color = "var(--color-blue, #5c8df6)";
+  } else if (low.includes("расчёт") || low.includes("расчет") || low.includes("формул")) {
+    icon = "🧮"; color = "var(--color-red, #e06c75)";
+  } else if (low.includes("алгоритм") || low.includes("метод")) {
+    icon = "⚙️"; color = "var(--color-purple, #9c83e8)";
   }
 
   if (customIcon && String(customIcon).trim()) {
@@ -89,17 +262,46 @@ function getWorkMeta(typeStr, customIcon) {
   return { icon, color, label: icon + " " + shortLabel };
 }
 
-const TYPE_COLORS = {
-  "Термин": "#4fb3d9",
-  "Алгоритм": "#9c83e8",
-  "Заметка": "#4aab80",
-  "Источник": "#d4c05a",
-  "Расчёт": "#e06c75",
-  "Рисунок": "#69b5aa",
-  "Схема": "#d69852",
-  "Таблица": "#5c8df6",
-  "Конспект": "#8bac5e"
-};
+function daysUntilISO(iso) {
+  const parts = String(iso || "").split("-").map(Number);
+  const y = parts[0], m = parts[1], d = parts[2];
+  if (!y || !m || !d) return 999;
+  const now = new Date();
+  const todayLocalMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const targetLocalMidnight = new Date(y, m - 1, d);
+  return Math.round((targetLocalMidnight.getTime() - todayLocalMidnight.getTime()) / 86400000);
+}
+
+function pluralizeDays(n) {
+  return Math.abs(Math.trunc(n)) + " " + plural(n, ["день", "дня", "дней"]);
+}
+
+function getDeadlineTone(iso, isCompleted) {
+  if (!iso || isCompleted) return "none";
+  const diff = daysUntilISO(iso);
+  if (diff < 0) return "overdue";
+  if (diff <= 7) return "soon";
+  return "far";
+}
+
+function formatDeadlineBadge(iso, isCompleted) {
+  if (!iso) return "";
+  if (isCompleted) {
+    return iso.slice(8, 10) + "." + iso.slice(5, 7) + "." + iso.slice(0, 4);
+  }
+  const diff = daysUntilISO(iso);
+  if (diff === 0) return "сегодня";
+  if (diff === 1) return "завтра";
+  if (diff > 1) return "осталось " + pluralizeDays(diff);
+  if (diff === -1) return "просрочено на 1 день";
+  return "просрочено на " + pluralizeDays(Math.abs(diff));
+}
+
+function formatFullDateTooltip(iso) {
+  const parts = String(iso || "").split("-");
+  if (parts.length !== 3) return String(iso || "");
+  return "Срок: " + parts[2] + "." + parts[1] + "." + parts[0];
+}
 
 async function saveProp(path, fn) {
   const f = app.vault.getAbstractFileByPath(path);
@@ -118,24 +320,40 @@ async function ensureFolderExists(folderPath) {
   }
 }
 
-// --- Состояние проектов и графа ---
-if (!window.__dhStudyUiState) {
+// --- Состояние витрины проектов ---
+if (!window.__dhStudyUiState || typeof window.__dhStudyUiState !== "object") {
   window.__dhStudyUiState = {
-    expandedPaths: new Set(),
     localOverrides: new Map(),
     localCreatedNotes: [],
-    localGraphCoords: new Map(),
-    graphViewTransform: new Map(),
     openDeadlineFor: null,
-    openAddMatFor: null,
     renamingWorkPath: null,
     showNewWorkBar: false,
-    selectedGraphWorkPath: null,
     completedSectionOpen: false
   };
+} else {
+  const s = window.__dhStudyUiState;
+  if (!(s.localOverrides instanceof Map)) s.localOverrides = new Map();
+  if (!Array.isArray(s.localCreatedNotes)) s.localCreatedNotes = [];
+  if (s.openDeadlineFor === undefined) s.openDeadlineFor = null;
+  if (s.renamingWorkPath === undefined) s.renamingWorkPath = null;
+  if (s.showNewWorkBar === undefined) s.showNewWorkBar = false;
+  if (s.completedSectionOpen === undefined) s.completedSectionOpen = false;
+  for (const deadKey of [
+    "expandedPaths",
+    "localGraphCoords",
+    "graphViewTransform",
+    "openAddMatFor",
+    "selectedGraphWorkPath",
+    "graphForces",
+    "graphLayout",
+    "graphView",
+    "graphSettingsOpen"
+  ]) {
+    delete s[deadKey];
+  }
 }
 const uiState = window.__dhStudyUiState;
-const { localOverrides, localCreatedNotes, localGraphCoords, expandedPaths, graphViewTransform } = uiState;
+const { localOverrides, localCreatedNotes } = uiState;
 
 // --- Состояние тем, форм и списка карточек ---
 function ensureStudyCardsState() {
@@ -222,36 +440,62 @@ function enqueueDiskWrite(taskFn) {
   return next;
 }
 
-
-const root = dv.container.createDiv({ cls: "dh dh-study-section", attr: { style: "margin: 8px 0 25px 0;" } });
+const root = dv.container.createDiv({ cls: "dh dh-study-section", attr: { style: "margin: 8px 0 24px 0;" } });
 
 // --- Единая таблица стилей страницы ---
 const STUDY_HUB_CSS = [
-  ".dashboard-home .dh-study-section { box-sizing: border-box; }",
+  ".dashboard-home .dh-study-section { --dh-sp-s1: 4px; --dh-sp-s2: 8px; --dh-sp-s3: 12px; --dh-sp-s4: 16px; --dh-sp-fs: 0.92rem; --dh-sp-fs-sm: 0.78rem; --dh-sp-fs-xs: 0.72rem; box-sizing: border-box; }",
+  ".dashboard-home .dh-study-section * { box-sizing: border-box; }",
   ".dashboard-home .dh-study-section button, .dashboard-home .dh-study-section select { touch-action: manipulation; }",
-  ".dashboard-home .dh-study-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 295px), 1fr)); gap: 14px; margin-bottom: 18px; align-items: start; }",
-  ".dashboard-home .dh-study-card { position: relative; padding: 15px 16px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 10px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; transition: border-color 0.16s ease, box-shadow 0.16s ease; box-sizing: border-box; min-width: 0; }",
-  ".dashboard-home .dh-study-card:hover { border-color: color-mix(in srgb, var(--card-accent, #599ed6) 55%, var(--background-modifier-border)); }",
-  ".dashboard-home .dh-study-title-link { font-size: 1.02rem; font-weight: 700; color: var(--text-normal); text-decoration: none; line-height: 1.32; flex: 1; min-width: 0; overflow-wrap: anywhere; word-break: break-word; }",
-  ".dashboard-home .dh-study-title-link:hover { color: var(--text-accent); }",
-  ".dashboard-home .dh-study-rel-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 10px !important; height: auto !important; min-height: 32px; border-radius: 6px !important; background: var(--background-primary) !important; border: 1px solid var(--background-modifier-border) !important; font-size: 0.78rem !important; color: var(--text-normal) !important; cursor: pointer; user-select: none; text-align: left; box-shadow: none !important; transition: border-color 0.15s ease, background-color 0.15s ease; }",
-  ".dashboard-home .dh-study-rel-toggle:hover { border-color: color-mix(in srgb, var(--card-accent, #599ed6) 65%, var(--background-modifier-border)) !important; background: color-mix(in srgb, var(--card-accent, #599ed6) 6%, var(--background-primary)) !important; }",
-  ".dashboard-home .dh-study-rel-toggle.is-open { border-color: color-mix(in srgb, var(--card-accent, #599ed6) 65%, var(--background-modifier-border)) !important; }",
-  ".dashboard-home .dh-study-rel-toggle.is-empty { color: var(--text-muted) !important; }",
-  ".dashboard-home .dh-study-rel-left { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-weight: 600; }",
-  ".dashboard-home .dh-study-rel-toggle.is-empty .dh-study-rel-left { font-weight: 500; }",
-  ".dashboard-home .dh-study-rel-right { display: inline-flex; align-items: center; gap: 7px; font-size: 0.71rem; color: var(--text-muted); flex-shrink: 0; }",
-  ".dashboard-home .dh-study-rel-arrow { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; font-size: 0.72rem; color: var(--text-muted); transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.15s ease; }",
-  ".dashboard-home .dh-study-rel-toggle.is-open .dh-study-rel-arrow { transform: rotate(180deg); color: var(--text-normal); }",
-  ".dashboard-home .dh-study-rel-collapse { display: grid; grid-template-rows: 0fr; opacity: 0; margin-top: 0; transition: grid-template-rows 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.18s ease, margin-top 0.18s ease; }",
-  ".dashboard-home .dh-study-rel-collapse.is-open { grid-template-rows: 1fr; opacity: 1; margin-top: 6px; }",
-  ".dashboard-home .dh-study-rel-inner { overflow: hidden; min-height: 0; }",
-  ".dashboard-home .dh-study-rel-drawer { display: flex; flex-direction: column; gap: 4px; max-height: 250px; overflow-y: auto; padding: 6px; background: var(--background-primary); border-radius: 6px; border: 1px solid color-mix(in srgb, var(--card-accent, #599ed6) 40%, var(--background-modifier-border)); }",
-  ".dashboard-home .dh-study-rel-item { display: flex; justify-content: space-between; align-items: center; gap: 6px; padding: 5px 8px; background: var(--background-secondary); border-radius: 5px; cursor: pointer; text-decoration: none !important; transition: background-color 0.12s ease; }",
-  ".dashboard-home .dh-study-rel-item:hover { background: var(--background-modifier-hover); }",
-  ".dashboard-home .dh-study-rel-empty { padding: 10px 12px; border-radius: 6px; background: var(--background-primary); border: 1px dashed var(--background-modifier-border); font-size: 0.76rem; color: var(--text-muted); line-height: 1.35; }",
-  ".dashboard-home .dh-study-add-trigger { width: 100%; height: 28px; font-size: 0.78rem; font-weight: 500; color: var(--text-muted); background: transparent; border: 1px dashed var(--background-modifier-border); border-radius: 6px; cursor: pointer; transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease; }",
-  ".dashboard-home .dh-study-add-trigger:hover { color: var(--text-normal); border-color: var(--card-accent, var(--interactive-accent)); background: color-mix(in srgb, var(--card-accent, #599ed6) 6%, transparent); }",
+  ".dashboard-home .dh-sp-topbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--dh-sp-s2) var(--dh-sp-s3); margin-bottom: var(--dh-sp-s3); }",
+  ".dashboard-home .dh-sp-topbar-left { display: flex; align-items: baseline; gap: var(--dh-sp-s2); flex-wrap: wrap; }",
+  ".dashboard-home .dh-sp-heading { font-size: var(--dh-sp-fs); font-weight: 600; color: var(--text-normal); }",
+  ".dashboard-home .dh-sp-summary { font-size: var(--dh-sp-fs-sm); color: var(--text-muted); }",
+  ".dashboard-home .dh-sp-topbar-actions { display: flex; align-items: center; gap: var(--dh-sp-s2); flex-wrap: wrap; }",
+  ".dashboard-home .dh-sp-btn { min-height: 32px; padding: 0 var(--dh-sp-s3); border-radius: 8px; font-size: var(--dh-sp-fs-sm); font-weight: 500; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-normal); cursor: pointer; box-shadow: none; transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.12s ease; }",
+  ".dashboard-home .dh-sp-btn:hover { background: var(--background-modifier-hover); }",
+  ".dashboard-home .dh-sp-btn:active { transform: scale(0.97); }",
+  ".dashboard-home .dh-sp-btn.is-accent { color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); border-color: color-mix(in srgb, var(--interactive-accent) 32%, transparent); }",
+  ".dashboard-home .dh-sp-btn.is-accent:hover { background: color-mix(in srgb, var(--interactive-accent) 20%, transparent); }",
+  ".dashboard-home .dh-sp-btn.is-active { border-color: var(--interactive-accent); color: var(--interactive-accent); }",
+  ".dashboard-home .dh-sp-new-box { padding: var(--dh-sp-s3) var(--dh-sp-s4); margin-bottom: var(--dh-sp-s4); background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 10px; display: flex; flex-direction: column; gap: var(--dh-sp-s2); animation: dh-sp-fade-in 0.18s ease-out; }",
+  "@keyframes dh-sp-fade-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }",
+  ".dashboard-home .dh-sp-new-row { display: flex; gap: var(--dh-sp-s2); align-items: center; flex-wrap: wrap; }",
+  ".dashboard-home .dh-sp-icon-pick-btn { width: 32px; height: 32px; min-height: 32px; padding: 0; border-radius: 8px; font-size: var(--dh-sp-fs); display: inline-flex; align-items: center; justify-content: center; background: var(--background-primary); border: 1px solid var(--background-modifier-border); cursor: pointer; box-shadow: none; }",
+  ".dashboard-home .dh-sp-input { height: 32px; min-height: 32px; padding: 0 var(--dh-sp-s2); border-radius: 8px; font-size: var(--dh-sp-fs-sm); }",
+  ".dashboard-home .dh-sp-icons-bar { display: flex; gap: var(--dh-sp-s1); align-items: center; flex-wrap: wrap; padding-top: var(--dh-sp-s2); border-top: 1px solid var(--background-modifier-border); }",
+  ".dashboard-home .dh-sp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: var(--dh-sp-s3); margin-bottom: var(--dh-sp-s4); align-items: stretch; }",
+  ".dashboard-home .dh-sp-card { position: relative; padding: var(--dh-sp-s3) var(--dh-sp-s4); background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 10px; display: flex; flex-direction: column; justify-content: space-between; gap: var(--dh-sp-s2); min-width: 0; transition: border-color 0.16s ease, background-color 0.16s ease; }",
+  ".dashboard-home .dh-sp-card:hover { border-color: color-mix(in srgb, var(--card-accent, var(--interactive-accent)) 45%, var(--background-modifier-border)); }",
+  ".dashboard-home .dh-sp-card-head { display: flex; justify-content: space-between; align-items: center; gap: var(--dh-sp-s2); min-height: 24px; }",
+  ".dashboard-home .dh-sp-card-badges { display: flex; align-items: center; gap: var(--dh-sp-s2); min-width: 0; flex-wrap: wrap; }",
+  ".dashboard-home .dh-sp-type-pill { font-size: var(--dh-sp-fs-xs); font-weight: 500; padding: 2px var(--dh-sp-s2); border-radius: 6px; background: color-mix(in srgb, var(--card-accent, #599ed6) 14%, transparent); color: color-mix(in srgb, var(--card-accent, #599ed6) 85%, var(--text-normal)); white-space: nowrap; }",
+  ".dashboard-home .dh-sp-discipline { font-size: var(--dh-sp-fs-xs); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+  ".dashboard-home .dh-sp-card-tools { display: flex; align-items: center; gap: var(--dh-sp-s1); flex-shrink: 0; }",
+  ".dashboard-home .dh-sp-tool-btn { min-width: 24px; height: 24px; min-height: 24px; padding: 0 var(--dh-sp-s1); border-radius: 6px; font-size: var(--dh-sp-fs-xs); background: transparent; border: none; box-shadow: none; color: var(--text-muted); opacity: 0; cursor: pointer; transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease; }",
+  ".dashboard-home .dh-sp-card:hover .dh-sp-tool-btn, .dashboard-home .dh-sp-card:focus-within .dh-sp-tool-btn, .dashboard-home .dh-sp-tool-btn.is-visible { opacity: 1; }",
+  ".dashboard-home .dh-sp-tool-btn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }",
+  ".dashboard-home .dh-sp-tool-btn.is-danger { opacity: 1; color: var(--text-error, #e06c75); background: color-mix(in srgb, var(--text-error, #e06c75) 14%, transparent); padding: 0 var(--dh-sp-s2); }",
+  "@media (hover: none) { .dashboard-home .dh-sp-tool-btn { opacity: 0.65; } }",
+  ".dashboard-home .dh-sp-deadline { height: 24px; min-height: 24px; padding: 0 var(--dh-sp-s2); border-radius: 6px; font-size: var(--dh-sp-fs-xs); font-weight: 500; border: none; box-shadow: none; cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums; transition: background-color 0.15s ease; }",
+  ".dashboard-home .dh-sp-deadline.is-far { color: var(--color-green, #4aab80); background: color-mix(in srgb, var(--color-green, #4aab80) 14%, transparent); }",
+  ".dashboard-home .dh-sp-deadline.is-soon { color: var(--color-orange, #e5a158); background: color-mix(in srgb, var(--color-orange, #e5a158) 16%, transparent); }",
+  ".dashboard-home .dh-sp-deadline.is-overdue { color: var(--text-error, #e06c75); background: color-mix(in srgb, var(--text-error, #e06c75) 16%, transparent); }",
+  ".dashboard-home .dh-sp-title-link { font-size: var(--dh-sp-fs); font-weight: 600; color: var(--text-normal); text-decoration: none; line-height: 1.35; overflow-wrap: anywhere; word-break: break-word; }",
+  ".dashboard-home .dh-sp-title-link:hover { color: var(--text-accent); }",
+  ".dashboard-home .dh-sp-meta-line { font-size: var(--dh-sp-fs-xs); color: var(--text-muted); display: flex; align-items: center; gap: var(--dh-sp-s2); flex-wrap: wrap; }",
+  ".dashboard-home .dh-sp-date-popover { padding: var(--dh-sp-s2); background: var(--background-primary); border-radius: 8px; border: 1px solid var(--background-modifier-border); display: flex; flex-wrap: wrap; gap: var(--dh-sp-s1); align-items: center; justify-content: space-between; animation: dh-sp-fade-in 0.16s ease-out; }",
+  ".dashboard-home .dh-sp-card-footer { display: flex; align-items: center; gap: var(--dh-sp-s2); padding-top: var(--dh-sp-s1); }",
+  ".dashboard-home .dh-sp-open-btn { flex: 1; height: 32px; min-height: 32px; padding: 0 var(--dh-sp-s3); border-radius: 8px; font-size: var(--dh-sp-fs-sm); font-weight: 500; color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); border: none; box-shadow: none; cursor: pointer; text-align: center; transition: background-color 0.15s ease, transform 0.12s ease; }",
+  ".dashboard-home .dh-sp-open-btn:hover { background: color-mix(in srgb, var(--interactive-accent) 20%, transparent); }",
+  ".dashboard-home .dh-sp-open-btn:active { transform: scale(0.98); }",
+  ".dashboard-home .dh-sp-plus-btn { width: 32px; height: 32px; min-height: 32px; padding: 0; border-radius: 8px; font-size: var(--dh-sp-fs); font-weight: 500; color: var(--text-muted); background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease; }",
+  ".dashboard-home .dh-sp-plus-btn:hover { color: var(--text-normal); background: var(--background-modifier-hover); }",
+  ".dashboard-home .dh-sp-plus-btn:active { transform: scale(0.95); }",
+  ".dashboard-home .dh-sp-orphans { padding: var(--dh-sp-s3) var(--dh-sp-s4); margin-bottom: var(--dh-sp-s4); background: var(--background-secondary); border-radius: 10px; border: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: var(--dh-sp-s2); }",
+  ".dashboard-home .dh-sp-orphan-row { display: flex; gap: var(--dh-sp-s2); align-items: center; padding: var(--dh-sp-s1) 0; border-top: 1px solid var(--background-modifier-border); flex-wrap: wrap; }",
+  ".dashboard-home .dh-sp-done-details { padding: var(--dh-sp-s3) var(--dh-sp-s4); background: var(--background-secondary); border-radius: 10px; border: 1px solid var(--background-modifier-border); }",
+  ".dashboard-home .dh-sp-done-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--dh-sp-s2); padding: var(--dh-sp-s2) var(--dh-sp-s3); background: var(--background-primary); border-radius: 8px; border: 1px solid var(--background-modifier-border); }",
   ".dashboard-home .dh-study-cards-hub { display: flex; flex-direction: column; gap: 14px; margin: 0 0 18px 0; box-sizing: border-box; }",
   ".dashboard-home .dh-study-cards-hub .dsc-panel { padding: 14px 16px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 10px; box-sizing: border-box; }",
   ".dashboard-home .dh-study-cards-hub .dsc-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }",
@@ -272,8 +516,11 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-study-cards-hub .dsc-btn-sec { flex: 1; min-width: 100px; height: 34px; font-size: 0.78rem; font-weight: 600; padding: 0 10px; border-radius: 7px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-normal); cursor: pointer; }",
   ".dashboard-home .dh-study-cards-hub .dsc-btn-sec.is-active { border-color: #599ed6; color: #599ed6; }",
   ".dashboard-home .dh-study-cards-hub .dsc-drawer { margin-top: 12px; padding: 12px 14px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-top: 2px solid #9c83e8; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }",
+  "@media (prefers-reduced-motion: reduce) {",
+  "  .dashboard-home .dh-study-section *, .dashboard-home .dh-sp-new-box, .dashboard-home .dh-sp-date-popover { transition: none !important; animation: none !important; }",
+  "}",
   "@media (max-width: 640px) {",
-  "  .dashboard-home .dh-study-grid { grid-template-columns: 1fr; }",
+  "  .dashboard-home .dh-sp-grid { grid-template-columns: 1fr; }",
   "  .dashboard-home .dh-study-cards-hub .dsc-panel { padding: 10px 12px; }",
   "  .dashboard-home .dh-study-cards-hub .dsc-summary-grid { grid-template-columns: 1fr 1fr; gap: 8px; }",
   "  .dashboard-home .dh-study-cards-hub .dsc-actions-box { grid-column: 1 / -1; padding: 8px 10px; }",
@@ -301,10 +548,18 @@ const openNote = (el, path) => {
 };
 
 // =====================================================================
-// ДАННЫЕ ПРОЕКТОВ И СИЛОВОЙ ГРАФ
+// ДАННЫЕ ПРОЕКТОВ И МАТЕРИАЛОВ (СИНХРОНИЗИРОВАНО С MY-STUDY-COMPILER)
 // =====================================================================
 function getDataset() {
-  const rawPages = dv.pages().where(p => String(p.направление ?? "").trim() === AREA && !isTemplate(p)).array();
+  const cfg = getEffectiveCompilerSettings();
+  const areaName = cfg.studyAreaName;
+
+  const rawPages = dv.pages().where(p => {
+    const areas = flat(p[KEYS.area]).map(x => String(x).trim());
+    if (!areas.includes(areaName)) return false;
+    return !isTemplateOrExcludedPage(p, cfg);
+  }).array();
+
   const merged = [...rawPages];
   localCreatedNotes.forEach(cn => {
     if (!merged.some(p => p.file.path === cn.file.path)) merged.push(cn);
@@ -321,10 +576,10 @@ function getDataset() {
 
   activeAll.forEach(p => {
     const ov = localOverrides.get(p.file.path);
-    const ps = ov?.parents ? ov.parents : parentPaths(p);
-    const uniquePs = [...new Set(ps)];
-    parentsOf.set(p.file.path, uniquePs);
-    uniquePs.forEach(pp => link(p.file.path, pp));
+    const rawPs = ov?.parents ? ov.parents : parentPaths(p);
+    const validPs = [...new Set(rawPs)].filter(pp => pp !== p.file.path && byPath.has(pp));
+    parentsOf.set(p.file.path, validPs);
+    validPs.forEach(pp => link(p.file.path, pp));
   });
 
   function descendants(path) {
@@ -339,601 +594,100 @@ function getDataset() {
     return [...seen];
   }
 
-  const getStatus = p => localOverrides.get(p.file.path)?.статус ?? p.статус;
+  const getStatus = p => {
+    const ov = localOverrides.get(p.file.path);
+    if (ov && KEYS.status in ov) return ov[KEYS.status];
+    return p[KEYS.status];
+  };
+
   const getDeadlineISO = p => {
     const ov = localOverrides.get(p.file.path);
-    if (ov && "срок" in ov) return ov.срок;
-    return toISO(p.срок);
+    if (ov && KEYS.deadline in ov) return ov[KEYS.deadline];
+    if (ov && KEYS.deadlineAlt in ov) return ov[KEYS.deadlineAlt];
+    return toISO(p[KEYS.deadline]) || toISO(p[KEYS.deadlineAlt]);
   };
+
   const getStartISO = p => {
     const ov = localOverrides.get(p.file.path);
-    if (ov && "начало" in ov) return ov.начало;
-    return toISO(p.начало) || toISO(p.дата) || toISO(p.file?.ctime) || todayISO;
+    if (ov && KEYS.start in ov) return ov[KEYS.start];
+    return toISO(p[KEYS.start]) || toISO(p.дата) || toISO(p.file?.ctime) || todayISO;
   };
+
   const getFinishedISO = p => {
     const ov = localOverrides.get(p.file.path);
-    if (ov && "завершено" in ov) return ov.завершено;
-    return toISO(p.завершено) || toISO(p.file?.mtime) || todayISO;
+    if (ov && KEYS.finishedAt in ov) return ov[KEYS.finishedAt];
+    if (ov && KEYS.finishedLegacy in ov) return ov[KEYS.finishedLegacy];
+    return toISO(p[KEYS.finishedAt]) || toISO(p[KEYS.finishedLegacy]) || toISO(p.file?.mtime) || todayISO;
   };
+
   const getDisplayName = p => localOverrides.get(p.file.path)?.newName ?? p.file.name;
 
-  function buildHierarchyTree(rootPath) {
-    const result = [];
-    const visited = new Set([rootPath]);
+  const roots = [];
+  const orphans = [];
+  const rootPathsSet = new Set();
 
-    function walk(currentPath, depth) {
-      const directKids = (children.get(currentPath) ?? [])
-        .map(kPath => byPath.get(kPath))
-        .filter(k => k && !isWorkNote(k))
-        .sort((a, b) => getDisplayName(a).localeCompare(getDisplayName(b), "ru"));
+  activeAll.forEach(p => {
+    const ps = parentsOf.get(p.file.path) ?? [];
+    if (ps.length > 0) return;
 
-      directKids.forEach(kid => {
-        if (visited.has(kid.file.path)) return;
-        visited.add(kid.file.path);
-        const hasSubKids = (children.get(kid.file.path) ?? []).some(sub => !visited.has(sub) && byPath.has(sub));
-        result.push({ note: kid, depth, parentPath: currentPath, hasSubKids });
-        walk(kid.file.path, depth + 1);
-      });
-    }
+    const hasChildren = (children.get(p.file.path)?.length ?? 0) > 0;
+    const statusStr = normalizeSpaces(getStatus(p));
+    const deadlineIso = getDeadlineISO(p);
+    const hasRootMarkers = Boolean(statusStr || deadlineIso);
+    const isLegacyLeafMaterial =
+      !hasChildren &&
+      !hasRootMarkers &&
+      LEGACY_MATERIAL_TYPES_LOWER.has(typeOf(p).toLowerCase());
 
-    walk(rootPath, 0);
-    return result;
-  }
-
-  const isActive = p => !DONE.includes(String(getStatus(p) ?? "").trim().toLowerCase());
-  const works = activeAll
-    .filter(p => isWorkNote(p) && isActive(p))
-    .sort((a, b) => (getDeadlineISO(a) ?? "9999").localeCompare(getDeadlineISO(b) ?? "9999"));
-
-  const completedWorks = activeAll
-    .filter(p => isWorkNote(p) && !isActive(p))
-    .sort((a, b) => (getFinishedISO(b) ?? "").localeCompare(getFinishedISO(a) ?? ""));
-
-  const materials = activeAll.filter(p => !isWorkNote(p));
-  return { byPath, parentsOf, children, link, descendants, buildHierarchyTree, getDeadlineISO, getStartISO, getFinishedISO, getDisplayName, works, completedWorks, materials };
-}
-
-const GRAPH_DEFAULT_FORCES = { center: 0.05, repel: 500, linkForce: 1, linkDist: 110, showLinks: true };
-
-function renderProjectGraph(container, workNote, dataset, controlsHost) {
-  container.empty();
-  const { byPath, children, descendants, getDisplayName } = dataset;
-  const rootPath = workNote.file.path;
-  const allNodePaths = [rootPath, ...descendants(rootPath)].filter(p => byPath.has(p));
-
-  if (allNodePaths.length <= 1) {
-    container.createDiv({
-      text: "Привязанных заметок пока нет — добавь материалы к проекту, чтобы увидеть связи на графе.",
-      attr: { style: "padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.82rem;" }
-    });
-    return;
-  }
-
-  if (!uiState.graphForces) uiState.graphForces = { ...GRAPH_DEFAULT_FORCES };
-  if (!uiState.graphLayout) uiState.graphLayout = new Map();
-  if (!uiState.graphView) uiState.graphView = new Map();
-  const forces = uiState.graphForces;
-
-  const H = 460;
-  const W = Math.max(600, Math.round(container.clientWidth || 860));
-
-  const nodeSet = new Set(allNodePaths);
-  const edges = [];
-  const edgeSet = new Set();
-  allNodePaths.forEach(parentP => {
-    (children.get(parentP) ?? []).forEach(childP => {
-      if (!nodeSet.has(childP)) return;
-      edgeSet.add(parentP + "->" + childP);
-      edges.push({ source: parentP, target: childP, kind: "hierarchy" });
-    });
-  });
-  allNodePaths.forEach(parentP => {
-    const resolved = app.metadataCache.resolvedLinks?.[parentP] || {};
-    Object.keys(resolved).forEach(targetP => {
-      if (!nodeSet.has(targetP) || targetP === parentP) return;
-      const k1 = parentP + "->" + targetP, k2 = targetP + "->" + parentP;
-      if (edgeSet.has(k1) || edgeSet.has(k2)) return;
-      edgeSet.add(k1);
-      edges.push({ source: parentP, target: targetP, kind: "wikilink" });
-    });
-  });
-
-  const deg = new Map(allNodePaths.map(p => [p, 0]));
-  edges.forEach(e => {
-    deg.set(e.source, deg.get(e.source) + 1);
-    deg.set(e.target, deg.get(e.target) + 1);
-  });
-
-  const levelMap = new Map([[rootPath, 0]]);
-  const kidsOf = new Map();
-  const queue = [rootPath];
-  while (queue.length) {
-    const cur = queue.shift();
-    const ks = (children.get(cur) ?? [])
-      .filter(k => nodeSet.has(k) && !levelMap.has(k))
-      .sort((a, b) => getDisplayName(byPath.get(a)).localeCompare(getDisplayName(byPath.get(b)), "ru"));
-    kidsOf.set(cur, ks);
-    ks.forEach(k => { levelMap.set(k, levelMap.get(cur) + 1); queue.push(k); });
-  }
-  const leaves = new Map();
-  const countLeaves = p => {
-    const ks = kidsOf.get(p) ?? [];
-    const n = ks.length ? ks.reduce((a, k) => a + countLeaves(k), 0) : 1;
-    leaves.set(p, n);
-    return n;
-  };
-  countLeaves(rootPath);
-
-  const initPos = new Map([[rootPath, { x: W / 2, y: H / 2 }]]);
-  const placeKids = (p, a0, a1) => {
-    const ks = kidsOf.get(p) ?? [];
-    if (!ks.length) return;
-    const total = ks.reduce((a, k) => a + leaves.get(k), 0);
-    let a = a0;
-    ks.forEach(k => {
-      const span = (a1 - a0) * leaves.get(k) / total;
-      const mid = a + span / 2;
-      const R = (levelMap.get(k) ?? 1) * forces.linkDist;
-      initPos.set(k, { x: W / 2 + R * Math.cos(mid), y: H / 2 + R * Math.sin(mid) * 0.8 });
-      placeKids(k, a, a + span);
-      a += span;
-    });
-  };
-  placeKids(rootPath, -Math.PI / 2, 1.5 * Math.PI);
-
-  let cache = uiState.graphLayout.get(rootPath);
-  if (!cache) { cache = new Map(); uiState.graphLayout.set(rootPath, cache); }
-  const hasCache = allNodePaths.every(p => cache.has(p));
-
-  const rootWorkMeta = getWorkMeta(typeOf(workNote), workNote.иконка);
-  const sim = allNodePaths.map(path => {
-    const note = byPath.get(path);
-    const isRoot = path === rootPath;
-    const name = getDisplayName(note);
-    const short = name.length > 26 ? name.slice(0, 24) + "…" : name;
-    const c = cache.get(path) || initPos.get(path) || { x: W / 2, y: H / 2 };
-    const r = isRoot ? 11 : Math.min(11, 4.5 + Math.sqrt(deg.get(path)) * 1.9);
-    return {
-      path, note, isRoot, name, short,
-      type: typeOf(note) || "Заметка",
-      x: c.x, y: c.y, vx: 0, vy: 0, fixed: false, hover: false,
-      r, lw: Math.max(2 * r + 4, short.length * 5.4)
-    };
-  });
-  const nodeById = new Map(sim.map(n => [n.path, n]));
-  const links = edges.map(e => {
-    const ds = deg.get(e.source), dt = deg.get(e.target);
-    return { ...e, s: nodeById.get(e.source), t: nodeById.get(e.target), bias: ds / (ds + dt), k: 1 / Math.min(ds, dt) };
-  });
-
-  let alpha = hasCache ? 0.2 : 1;
-  const step = () => {
-    const f = forces;
-    const activeLinks = f.showLinks ? links : links.filter(l => l.kind === "hierarchy");
-
-    sim.forEach(n => {
-      n.vx += (W / 2 - n.x) * f.center * alpha;
-      n.vy += (H / 2 - n.y) * f.center * alpha;
-    });
-
-    for (let i = 0; i < sim.length; i++) {
-      for (let j = i + 1; j < sim.length; j++) {
-        const a = sim[i], b = sim[j];
-        let dx = b.x - a.x, dy = b.y - a.y, d2 = dx * dx + dy * dy;
-        if (d2 < 1) { dx = (i % 2 ? 1 : -1) * 0.5; dy = 0.5; d2 = 0.5; }
-        if (d2 > 360000) continue;
-        const k = f.repel * alpha / d2;
-        a.vx -= dx * k; a.vy -= dy * k;
-        b.vx += dx * k; b.vy += dy * k;
-      }
-    }
-
-    activeLinks.forEach(l => {
-      const s = l.s, t = l.t;
-      let dx = t.x + t.vx - s.x - s.vx, dy = t.y + t.vy - s.y - s.vy;
-      const d = Math.sqrt(dx * dx + dy * dy) || 1;
-      const target = l.kind === "hierarchy" ? f.linkDist : f.linkDist * 1.5;
-      const str = f.linkForce * (l.kind === "hierarchy" ? l.k : l.k * 0.25);
-      const m = (d - target) / d * alpha * str;
-      dx *= m; dy *= m;
-      t.vx -= dx * l.bias; t.vy -= dy * l.bias;
-      s.vx += dx * (1 - l.bias); s.vy += dy * (1 - l.bias);
-    });
-
-    for (let i = 0; i < sim.length; i++) {
-      for (let j = i + 1; j < sim.length; j++) {
-        const a = sim[i], b = sim[j];
-        const dx = b.x - a.x, dy = b.y - a.y;
-        const ox = (a.lw + b.lw) / 2 + 4 - Math.abs(dx);
-        const oy = a.r + b.r + 18 - Math.abs(dy);
-        if (ox <= 0 || oy <= 0) continue;
-        const wa = a.fixed ? 0 : (b.fixed ? 1 : 0.5);
-        const wb = b.fixed ? 0 : (a.fixed ? 1 : 0.5);
-        if (ox < oy) {
-          const dir = dx < 0 ? -1 : 1;
-          a.x -= dir * ox * wa * 0.7; b.x += dir * ox * wb * 0.7;
-        } else {
-          const dir = dy < 0 ? -1 : 1;
-          a.y -= dir * oy * wa * 0.7; b.y += dir * oy * wb * 0.7;
-        }
-      }
-    }
-
-    sim.forEach(n => {
-      if (n.fixed) { n.vx = 0; n.vy = 0; return; }
-      n.vx *= 0.55; n.vy *= 0.55;
-      n.x += n.vx; n.y += n.vy;
-    });
-    alpha += (0 - alpha) * 0.0228;
-  };
-
-  const warmSteps = hasCache ? 60 : 320;
-  for (let i = 0; i < warmSteps; i++) step();
-
-  const viewBoxState = uiState.graphView.get(rootPath) || { vx: 0, vy: 0, vw: W, vh: H };
-  const needFit = !uiState.graphView.has(rootPath);
-  uiState.graphView.set(rootPath, viewBoxState);
-
-  const svgWrap = container.createDiv({
-    attr: { style: "position: relative; width: 100%; background: var(--background-primary); border-radius: 8px; border: 1px solid var(--background-modifier-border); overflow: hidden;" }
-  });
-  const svg = svgWrap.createSvg("svg", {
-    attr: {
-      viewBox: viewBoxState.vx + " " + viewBoxState.vy + " " + viewBoxState.vw + " " + viewBoxState.vh,
-      style: "width: 100%; height: " + H + "px; display: block; user-select: none; touch-action: pan-y; cursor: default;"
+    if (isLegacyLeafMaterial) {
+      orphans.push(p);
+    } else {
+      roots.push(p);
+      rootPathsSet.add(p.file.path);
     }
   });
-  const edgesLayer = svg.createSvg("g");
-  const nodesLayer = svg.createSvg("g");
 
-  const edgeEls = links.map(l => {
-    const hier = l.kind === "hierarchy";
-    l.baseStroke = hier ? "var(--text-muted)" : "var(--interactive-accent)";
-    l.baseWidth = hier ? "1.2" : "1";
-    l.baseOpacity = hier ? "0.5" : "0.45";
-    l.el = edgesLayer.createSvg("line", {
-      attr: {
-        stroke: l.baseStroke,
-        "stroke-width": l.baseWidth,
-        "stroke-dasharray": hier ? "none" : "3 3",
-        "stroke-linecap": "round",
-        opacity: l.baseOpacity
-      }
+  const byDisplayName = (a, b) => getDisplayName(a).localeCompare(getDisplayName(b), "ru", { numeric: true });
+
+  const works = roots
+    .filter(p => !isRootStatusCompleted(getStatus(p)))
+    .sort((a, b) => {
+      const dA = getDeadlineISO(a) ?? "9999-99-99";
+      const dB = getDeadlineISO(b) ?? "9999-99-99";
+      if (dA !== dB) return dA.localeCompare(dB);
+      return byDisplayName(a, b);
     });
-    return l;
-  });
-  const syncLinkVisibility = () => {
-    edgeEls.forEach(l => { l.el.style.display = (l.kind === "wikilink" && !forces.showLinks) ? "none" : ""; });
-  };
-  syncLinkVisibility();
 
-  let dragging = null;
-  let panning = null;
-  const presentMaterialTypes = new Set();
-
-  const toGraph = (clientX, clientY) => {
-    const rect = svg.getBoundingClientRect();
-    return {
-      x: viewBoxState.vx + (clientX - rect.left) / (rect.width || W) * viewBoxState.vw,
-      y: viewBoxState.vy + (clientY - rect.top) / (rect.height || H) * viewBoxState.vh
-    };
-  };
-
-  const updateLabels = () => {
-    const rect = svg.getBoundingClientRect();
-    const scale = (rect.width || W) / viewBoxState.vw;
-    sim.forEach(n => {
-      if (n.hover || !n.textEl) return;
-      n.textEl.style.opacity = (scale >= 0.6 || n.isRoot || deg.get(n.path) >= 3) ? "1" : "0";
+  const completedWorks = roots
+    .filter(p => isRootStatusCompleted(getStatus(p)))
+    .sort((a, b) => {
+      const fA = getFinishedISO(a) ?? "";
+      const fB = getFinishedISO(b) ?? "";
+      if (fA && fB && fA !== fB) return fB.localeCompare(fA);
+      return byDisplayName(a, b);
     });
+
+  orphans.sort((a, b) => (b.file?.mtime?.toMillis?.() ?? 0) - (a.file?.mtime?.toMillis?.() ?? 0) || byDisplayName(a, b));
+
+  const materials = activeAll.filter(p => !rootPathsSet.has(p.file.path));
+
+  return {
+    cfg,
+    byPath,
+    parentsOf,
+    children,
+    link,
+    descendants,
+    getStatus,
+    getDeadlineISO,
+    getStartISO,
+    getFinishedISO,
+    getDisplayName,
+    works,
+    completedWorks,
+    orphans,
+    materials
   };
-  const applyViewBox = () => {
-    svg.setAttribute("viewBox", viewBoxState.vx.toFixed(1) + " " + viewBoxState.vy.toFixed(1) + " " + viewBoxState.vw.toFixed(1) + " " + viewBoxState.vh.toFixed(1));
-    updateLabels();
-  };
-
-  const zoomAt = (factor, px, py) => {
-    const v = viewBoxState;
-    const nvw = Math.max(W / 8, Math.min(W * 6, v.vw * factor));
-    const f = nvw / v.vw;
-    v.vx = px - (px - v.vx) * f;
-    v.vy = py - (py - v.vy) * f;
-    v.vw = nvw;
-    v.vh = v.vh * f;
-    applyViewBox();
-  };
-  const zoomCenter = factor => zoomAt(factor, viewBoxState.vx + viewBoxState.vw / 2, viewBoxState.vy + viewBoxState.vh / 2);
-
-  const fitGraph = () => {
-    const rect = svg.getBoundingClientRect();
-    const aspect = rect.width && rect.height ? rect.width / rect.height : W / H;
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    sim.forEach(n => {
-      const hw = Math.max(n.r, n.lw / 2);
-      minX = Math.min(minX, n.x - hw); maxX = Math.max(maxX, n.x + hw);
-      minY = Math.min(minY, n.y - n.r - 6); maxY = Math.max(maxY, n.y + n.r + 20);
-    });
-    const pad = 28;
-    minX -= pad; maxX += pad; minY -= pad; maxY += pad;
-    let fw = maxX - minX, fh = maxY - minY;
-    fw = Math.max(fw, (rect.width || W) / 1.6);
-    if (fw / fh > aspect) fh = fw / aspect; else fw = fh * aspect;
-    Object.assign(viewBoxState, { vx: (minX + maxX) / 2 - fw / 2, vy: (minY + maxY) / 2 - fh / 2, vw: fw, vh: fh });
-    applyViewBox();
-  };
-
-  const ALPHA_MIN = 0.002;
-  let running = false;
-  let render = () => {};
-  const tick = () => {
-    if (!svg.isConnected) { running = false; return; }
-    step();
-    render();
-    if (alpha > ALPHA_MIN || dragging) requestAnimationFrame(tick);
-    else running = false;
-  };
-  const kick = (a = 0.5) => {
-    alpha = Math.max(alpha, a);
-    if (!running) { running = true; requestAnimationFrame(tick); }
-  };
-
-  sim.forEach(n => {
-    const color = n.isRoot ? rootWorkMeta.color : (TYPE_COLORS[n.type] || FALLBACK_COLOR);
-    if (!n.isRoot) presentMaterialTypes.add(n.type);
-    n.color = color;
-
-    const g = nodesLayer.createSvg("g", {
-      attr: {
-        tabindex: "0",
-        role: "link",
-        "aria-label": n.name + " (" + (n.isRoot ? (typeOf(n.note) || "Проект") : n.type) + ")",
-        style: "cursor: grab; touch-action: none; outline: none;"
-      }
-    });
-    g.createSvg("title").setText(n.name + " · " + (n.isRoot ? (typeOf(n.note) || "Проект") : n.type));
-
-    if (n.isRoot) {
-      g.createSvg("circle", { attr: { cx: 0, cy: 0, r: n.r + 5, fill: color, opacity: "0.22" } });
-    }
-    const circle = g.createSvg("circle", {
-      attr: {
-        cx: 0, cy: 0, r: n.r, fill: color,
-        stroke: n.isRoot ? "var(--text-normal)" : "var(--background-primary)",
-        "stroke-width": n.isRoot ? "2.2" : "1.8"
-      }
-    });
-    const textEl = g.createSvg("text", {
-      attr: {
-        x: 0, y: n.r + 12,
-        "text-anchor": "middle",
-        fill: n.isRoot ? "var(--text-normal)" : "var(--text-muted)",
-        "font-size": n.isRoot ? "12px" : "10.5px",
-        "font-weight": n.isRoot ? "700" : "500",
-        style: "paint-order: stroke; stroke: var(--background-primary); stroke-width: 5px; stroke-linecap: round; stroke-linejoin: round; pointer-events: none;"
-      }
-    });
-    textEl.setText(n.short);
-    n.g = g; n.circle = circle; n.textEl = textEl;
-
-    const highlight = () => {
-      if (dragging) return;
-      n.hover = true;
-      nodesLayer.appendChild(g);
-      circle.setAttribute("r", String(n.r + 2));
-      textEl.setAttribute("fill", "var(--text-normal)");
-      textEl.setAttribute("font-weight", "700");
-      textEl.style.opacity = "1";
-      textEl.setText(n.name);
-      const connected = new Set([n.path]);
-      edgeEls.forEach(l => {
-        if (l.s === n || l.t === n) {
-          connected.add(l.source); connected.add(l.target);
-          l.el.style.opacity = "0.95";
-          l.el.style.strokeWidth = "2";
-          l.el.style.stroke = color;
-        } else {
-          l.el.style.opacity = "0.08";
-        }
-      });
-      sim.forEach(o => { o.g.style.opacity = connected.has(o.path) ? "1" : "0.2"; });
-    };
-    const resetHighlight = () => {
-      if (dragging) return;
-      n.hover = false;
-      circle.setAttribute("r", String(n.r));
-      textEl.setAttribute("fill", n.isRoot ? "var(--text-normal)" : "var(--text-muted)");
-      textEl.setAttribute("font-weight", n.isRoot ? "700" : "500");
-      textEl.setText(n.short);
-      edgeEls.forEach(l => {
-        l.el.style.opacity = l.baseOpacity;
-        l.el.style.strokeWidth = l.baseWidth;
-        l.el.style.stroke = l.baseStroke;
-      });
-      sim.forEach(o => { o.g.style.opacity = "1"; });
-      updateLabels();
-    };
-    g.onmouseenter = highlight;
-    g.onmouseleave = resetHighlight;
-    g.onfocus = highlight;
-    g.onblur = resetHighlight;
-
-    g.onkeydown = e => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        e.stopPropagation();
-        app.workspace.openLinkText(n.path, "", e.ctrlKey || e.metaKey);
-      }
-    };
-
-    g.onpointerdown = e => {
-      if (e.button !== 0 && e.pointerType === "mouse") return;
-      e.stopPropagation();
-      g.setPointerCapture(e.pointerId);
-      g.style.cursor = "grabbing";
-      const p0 = toGraph(e.clientX, e.clientY);
-      dragging = { n, pointerId: e.pointerId, sx: e.clientX, sy: e.clientY, ox: n.x - p0.x, oy: n.y - p0.y, moved: false };
-      n.fixed = true;
-      kick(0.3);
-    };
-    g.onpointermove = e => {
-      if (!dragging || dragging.n !== n || e.pointerId !== dragging.pointerId) return;
-      if (Math.abs(e.clientX - dragging.sx) > 4 || Math.abs(e.clientY - dragging.sy) > 4) dragging.moved = true;
-      if (!dragging.moved) return;
-      const p = toGraph(e.clientX, e.clientY);
-      n.x = p.x + dragging.ox;
-      n.y = p.y + dragging.oy;
-      kick(0.3);
-    };
-    const finish = (e, cancelled) => {
-      if (!dragging || dragging.n !== n) return;
-      try { g.releasePointerCapture(e.pointerId); } catch {}
-      g.style.cursor = "grab";
-      const wasMoved = dragging.moved;
-      dragging = null;
-      n.fixed = false;
-      if (!cancelled && !wasMoved) app.workspace.openLinkText(n.path, "", e.ctrlKey || e.metaKey);
-      kick(0.3);
-    };
-    g.onpointerup = e => finish(e, false);
-    g.onpointercancel = e => finish(e, true);
-  });
-
-  render = () => {
-    sim.forEach(n => {
-      n.g.setAttribute("transform", "translate(" + n.x.toFixed(1) + ", " + n.y.toFixed(1) + ")");
-      cache.set(n.path, { x: n.x, y: n.y });
-    });
-    links.forEach(l => {
-      l.el.setAttribute("x1", l.s.x.toFixed(1));
-      l.el.setAttribute("y1", l.s.y.toFixed(1));
-      l.el.setAttribute("x2", l.t.x.toFixed(1));
-      l.el.setAttribute("y2", l.t.y.toFixed(1));
-    });
-  };
-  render();
-  if (needFit) fitGraph(); else updateLabels();
-
-  svg.onwheel = e => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-    const p = toGraph(e.clientX, e.clientY);
-    zoomAt(e.deltaY > 0 ? 1.12 : 0.88, p.x, p.y);
-  };
-  svg.onpointerdown = e => {
-    if (e.target !== svg || e.button !== 0) return;
-    svg.setPointerCapture(e.pointerId);
-    svg.style.cursor = "grabbing";
-    const rect = svg.getBoundingClientRect();
-    panning = {
-      pointerId: e.pointerId, startX: e.clientX, startY: e.clientY,
-      origVx: viewBoxState.vx, origVy: viewBoxState.vy,
-      scaleX: viewBoxState.vw / (rect.width || W),
-      scaleY: viewBoxState.vh / (rect.height || H)
-    };
-  };
-  svg.onpointermove = e => {
-    if (!panning || e.pointerId !== panning.pointerId) return;
-    viewBoxState.vx = panning.origVx - (e.clientX - panning.startX) * panning.scaleX;
-    viewBoxState.vy = panning.origVy - (e.clientY - panning.startY) * panning.scaleY;
-    applyViewBox();
-  };
-  const stopPan = e => {
-    if (!panning) return;
-    try { svg.releasePointerCapture(e.pointerId); } catch {}
-    svg.style.cursor = "default";
-    panning = null;
-  };
-  svg.onpointerup = stopPan;
-  svg.onpointercancel = stopPan;
-
-  const panel = svgWrap.createDiv({
-    attr: {
-      style: "position: absolute; top: 8px; left: 8px; z-index: 2; display: " + (uiState.graphSettingsOpen ? "flex" : "none") + "; flex-direction: column; gap: 6px; width: 230px; padding: 10px 12px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 8px; font-size: 0.74rem; color: var(--text-muted);"
-    }
-  });
-  const sliderDefs = [
-    { key: "center", label: "Центр", min: 0, max: 0.2, step: 0.005 },
-    { key: "repel", label: "Отталкивание", min: 100, max: 1500, step: 10 },
-    { key: "linkForce", label: "Сила связи", min: 0.1, max: 2, step: 0.05 },
-    { key: "linkDist", label: "Длина связи", min: 50, max: 250, step: 5 }
-  ];
-  const sliderRefs = [];
-  sliderDefs.forEach(def => {
-    const row = panel.createDiv({ attr: { style: "display: flex; flex-direction: column; gap: 2px;" } });
-    const head = row.createDiv({ attr: { style: "display: flex; justify-content: space-between;" } });
-    head.createSpan({ text: def.label });
-    const val = head.createSpan({ text: String(forces[def.key]) });
-    const inp = row.createEl("input", {
-      attr: { type: "range", min: String(def.min), max: String(def.max), step: String(def.step), value: String(forces[def.key]) }
-    });
-    inp.oninput = () => {
-      forces[def.key] = Number(inp.value);
-      val.setText(inp.value);
-      kick(0.7);
-    };
-    sliderRefs.push({ def, inp, val });
-  });
-  const linksRow = panel.createEl("label", { attr: { style: "display: flex; align-items: center; gap: 6px; cursor: pointer;" } });
-  const linksChk = linksRow.createEl("input", { attr: { type: "checkbox" } });
-  linksChk.checked = Boolean(forces.showLinks);
-  linksRow.createSpan({ text: "Показывать ссылки [[...]]" });
-  linksChk.onchange = () => {
-    forces.showLinks = linksChk.checked;
-    syncLinkVisibility();
-    kick(0.7);
-  };
-  const defaultsBtn = panel.createEl("button", {
-    text: "По умолчанию",
-    attr: { type: "button", style: "font-size: 0.72rem; height: 24px; cursor: pointer;" }
-  });
-  defaultsBtn.onclick = () => {
-    Object.assign(forces, GRAPH_DEFAULT_FORCES);
-    sliderRefs.forEach(({ def, inp, val }) => { inp.value = String(forces[def.key]); val.setText(String(forces[def.key])); });
-    linksChk.checked = forces.showLinks;
-    syncLinkVisibility();
-    kick(0.8);
-  };
-
-  if (controlsHost) {
-    const mkBtn = (text, title, fn, extraStyle = "") => {
-      const b = controlsHost.createEl("button", {
-        cls: "dh-chip",
-        text,
-        attr: { type: "button", title, style: "font-size: 0.76rem; padding: 3px 8px; color: var(--text-muted); cursor: pointer; " + extraStyle }
-      });
-      b.onclick = fn;
-      return b;
-    };
-    mkBtn("−", "Отдалить (Ctrl + колесо)", () => zoomCenter(1.2));
-    mkBtn("+", "Приблизить (Ctrl + колесо)", () => zoomCenter(0.82));
-    mkBtn("⊡ Вписать", "Вписать весь граф в область просмотра", () => fitGraph());
-    mkBtn("⚙", "Силы графа: центр, отталкивание, сила и длина связи", () => {
-      uiState.graphSettingsOpen = !uiState.graphSettingsOpen;
-      panel.style.display = uiState.graphSettingsOpen ? "flex" : "none";
-    });
-  }
-
-  const legendBar = svgWrap.createDiv({
-    attr: { style: "display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; padding: 6px 12px; background: var(--background-secondary); border-top: 1px solid var(--background-modifier-border); font-size: 0.72rem; color: var(--text-muted);" }
-  });
-  const nodesLegend = legendBar.createDiv({ attr: { style: "display: flex; gap: 10px; align-items: center; flex-wrap: wrap;" } });
-  const rootItem = nodesLegend.createSpan({ attr: { style: "display: inline-flex; align-items: center; gap: 5px; font-weight: 600; color: var(--text-normal);" } });
-  rootItem.createSpan({ attr: { style: "width: 9px; height: 9px; border-radius: 50%; background: " + rootWorkMeta.color + "; border: 1.5px solid var(--text-normal); display: inline-block;" } });
-  rootItem.createSpan({ text: typeOf(workNote) || "Проект" });
-
-  Object.entries(TYPE_COLORS).forEach(([tName, col]) => {
-    if (presentMaterialTypes.size > 0 && !presentMaterialTypes.has(tName)) return;
-    const item = nodesLegend.createSpan({ attr: { style: "display: inline-flex; align-items: center; gap: 5px;" } });
-    item.createSpan({ attr: { style: "width: 8px; height: 8px; border-radius: 50%; background: " + col + "; display: inline-block;" } });
-    item.createSpan({ text: tName });
-  });
-
-  const edgesLegend = legendBar.createDiv({ attr: { style: "display: flex; gap: 10px; align-items: center; flex-wrap: wrap;" } });
-  edgesLegend.createSpan({ text: "── Иерархия", attr: { style: "color: var(--text-muted);" } });
-  if (edges.some(e => e.kind === "wikilink")) {
-    edgesLegend.createSpan({ text: "╌╌ Ссылка [[...]]", attr: { style: "color: var(--interactive-accent);" } });
-  }
-  edgesLegend.createSpan({ text: "Ctrl + колесо — масштаб", attr: { style: "color: var(--text-faint);" } });
 }
 
 // =====================================================================
@@ -2089,7 +1843,7 @@ async function renderCardsSection(cardsContainer, activeProjects) {
 }
 
 // =====================================================================
-// ГЛАВНАЯ ФУНКЦИЯ ОТРИСОВКИ ВСЕЙ СТРАНИЦЫ УЧЁБЫ
+// ГЛАВНАЯ ФУНКЦИЯ ОТРИСОВКИ ВИТРИНЫ УЧЁБЫ
 // =====================================================================
 async function renderAll() {
   try {
@@ -2097,34 +1851,51 @@ async function renderAll() {
     injectStudyStyles(root);
 
     const dataset = getDataset();
-    const { byPath, parentsOf, link, descendants, buildHierarchyTree, getDeadlineISO, getStartISO, getFinishedISO, getDisplayName, works: ws, completedWorks: doneWs, materials: ms } = dataset;
-    const inbox = ms.filter(p => (parentsOf.get(p.file.path) ?? []).length === 0)
-      .sort((a, b) => b.file.mtime.toMillis() - a.file.mtime.toMillis());
-
-    if (uiState.selectedGraphWorkPath && !ws.some(w => w.file.path === uiState.selectedGraphWorkPath)) {
-      uiState.selectedGraphWorkPath = null;
-    }
+    const {
+      cfg,
+      byPath,
+      link,
+      descendants,
+      getDeadlineISO,
+      getStartISO,
+      getFinishedISO,
+      getDisplayName,
+      works: ws,
+      completedWorks: doneWs,
+      orphans: inbox,
+      materials: ms
+    } = dataset;
 
     // -------------------------------------------------------------------
     // 1. ВЕРХНЯЯ ПАНЕЛЬ И СЕТКА АКТИВНЫХ ПРОЕКТОВ
     // -------------------------------------------------------------------
-    const topBar = root.createDiv({
-      attr: { style: "display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;" }
-    });
+    const topBar = root.createDiv({ cls: "dh-sp-topbar" });
 
-    const statsLine = topBar.createDiv({ attr: { style: "display: flex; align-items: center; gap: 12px; flex-wrap: wrap;" } });
-    statsLine.createSpan({ text: "🎯 Активные проекты", attr: { style: "font-size: 1.05rem; font-weight: 700; color: var(--text-normal);" } });
+    const statsLine = topBar.createDiv({ cls: "dh-sp-topbar-left" });
+    statsLine.createSpan({ cls: "dh-sp-heading", text: "Активные проекты" });
     statsLine.createSpan({
+      cls: "dh-sp-summary",
       text: ws.length + " в работе · " + ms.length + " " + plural(ms.length, ["материал", "материала", "материалов"]) +
-        (inbox.length ? " · " + inbox.length + " не разобрано" : "") +
-        (doneWs.length ? " · " + doneWs.length + " завершено" : ""),
-      attr: { style: "font-size: 0.8rem; color: var(--text-muted);" }
+        (inbox.length ? " · " + inbox.length + " без родителя" : "") +
+        (doneWs.length ? " · " + doneWs.length + " завершено" : "")
     });
 
-    const toggleNewBtn = topBar.createEl("button", {
-      cls: "dh-chip" + (uiState.showNewWorkBar ? " is-active" : ""),
-      text: uiState.showNewWorkBar ? "✕ Закрыть" : "+ Добавить",
-      attr: { type: "button", style: "font-size: 0.78rem; padding: 4px 12px; cursor: pointer;" }
+    const topActions = topBar.createDiv({ cls: "dh-sp-topbar-actions" });
+
+    const openCompilerTopBtn = topActions.createEl("button", {
+      cls: "dh-sp-btn is-accent",
+      text: "Конструктор",
+      attr: {
+        type: "button",
+        title: "Открыть рабочее дерево и граф в плагине Конструктор учебных проектов"
+      }
+    });
+    openCompilerTopBtn.onclick = () => openStudyCompiler();
+
+    const toggleNewBtn = topActions.createEl("button", {
+      cls: "dh-sp-btn" + (uiState.showNewWorkBar ? " is-active" : ""),
+      text: uiState.showNewWorkBar ? "✕ Закрыть" : "＋ Проект",
+      attr: { type: "button", title: "Создать новый учебный проект" }
     });
     toggleNewBtn.onclick = () => {
       uiState.showNewWorkBar = !uiState.showNewWorkBar;
@@ -2132,33 +1903,25 @@ async function renderAll() {
     };
 
     if (uiState.showNewWorkBar) {
-      const nwContainer = root.createDiv({
-        cls: "dh-panel",
-        attr: { style: "padding: 10px 14px; margin-bottom: 14px; background: var(--background-secondary); border-radius: 8px; border: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: 8px;" }
-      });
-
-      const nwBox = nwContainer.createDiv({
-        attr: { style: "display: flex; gap: 8px; align-items: center; flex-wrap: wrap;" }
-      });
+      const nwContainer = root.createDiv({ cls: "dh-sp-new-box" });
+      const nwBox = nwContainer.createDiv({ cls: "dh-sp-new-row" });
 
       let manualChosenIcon = null;
 
       const iconPreviewBtn = nwBox.createEl("button", {
+        cls: "dh-sp-icon-pick-btn",
         text: "📁",
-        attr: {
-          type: "button",
-          title: "Выбрать иконку",
-          style: "font-size: 1rem; width: 32px; height: 30px; padding: 0; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;"
-        }
+        attr: { type: "button", title: "Выбрать иконку" }
       });
 
       const nwTypeInput = nwBox.createEl("input", {
+        cls: "dh-sp-input",
         attr: {
           type: "text",
           value: "Проект",
-          placeholder: "Тип (Проект, ЛР, Конференция, Курсовая...)",
+          placeholder: "Тип (Проект, Диссертация, Статья...)",
           list: "dh-study-work-types",
-          style: "width: 195px; font-size: 0.82rem; height: 30px; padding: 2px 10px;"
+          style: "width: 195px;"
         }
       });
 
@@ -2174,25 +1937,29 @@ async function renderAll() {
       nwTypeInput.onfocus = () => nwTypeInput.select();
 
       const nwName = nwBox.createEl("input", {
-        attr: { type: "text", placeholder: "Название работы...", style: "flex: 1; min-width: 180px; font-size: 0.82rem; height: 30px; padding: 2px 10px;" }
+        cls: "dh-sp-input",
+        attr: { type: "text", placeholder: "Название проекта...", style: "flex: 1; min-width: 180px;" }
       });
       const nwDays = nwBox.createEl("input", {
-        attr: { type: "number", min: "1", placeholder: "Срок (дней)", style: "width: 105px; font-size: 0.82rem; height: 30px; padding: 2px 8px;" }
+        cls: "dh-sp-input",
+        attr: { type: "number", min: "1", placeholder: "Дней до срока", style: "width: 115px;" }
       });
       const nwCreate = nwBox.createEl("button", {
         cls: "dh-btn mod-cta",
         text: "Создать",
-        attr: { type: "button", style: "font-size: 0.8rem; height: 30px; padding: 0 14px;" }
+        attr: { type: "button", style: "height: 32px; padding: 0 14px; font-size: 0.78rem; border-radius: 8px;" }
       });
 
       const iconPickerBar = nwContainer.createDiv({
-        attr: { style: "display: none; gap: 5px; align-items: center; flex-wrap: wrap; padding-top: 4px; border-top: 1px dashed var(--background-modifier-border);" }
+        cls: "dh-sp-icons-bar",
+        attr: { style: "display: none;" }
       });
-      iconPickerBar.createSpan({ text: "Выбери значок:", attr: { style: "font-size: 0.72rem; color: var(--text-muted); margin-right: 4px;" } });
+      iconPickerBar.createSpan({ text: "Значок:", attr: { style: "font-size: 0.72rem; color: var(--text-muted); margin-right: 4px;" } });
       QUICK_ICONS.forEach(ic => {
         const ib = iconPickerBar.createEl("button", {
+          cls: "dh-sp-icon-pick-btn",
           text: ic,
-          attr: { type: "button", style: "font-size: 0.9rem; width: 28px; height: 26px; padding: 0; border-radius: 5px; cursor: pointer;" }
+          attr: { type: "button", style: "width: 28px; height: 28px; min-height: 28px;" }
         });
         ib.onclick = () => {
           manualChosenIcon = ic;
@@ -2207,32 +1974,45 @@ async function renderAll() {
 
       const doCreateNewWork = async () => {
         if (nwCreate.disabled) return;
-        const title = nwName.value.trim().replace(/[\\/:*?"<>|]/g, "");
-        if (!title) { notify("Введи название."); return; }
-        const rawType = nwTypeInput.value.trim() || "Проект";
+        const title = normalizeSpaces(nwName.value).replace(/[\\/:*?"<>|]/g, "");
+        if (!title) { notify("Введи название проекта."); return; }
+        const rawType = normalizeSpaces(nwTypeInput.value) || "Проект";
         const daysVal = Number(nwDays.value);
-        const deadlineISO = daysVal > 0 ? today.plus({ days: daysVal }).toISODate() : "";
-        const path = TARGET_FOLDER + "/" + title + ".md";
+        const deadlineISO = Number.isFinite(daysVal) && daysVal > 0 ? today.plus({ days: Math.round(daysVal) }).toISODate() : "";
+        const folder = cfg.newNoteFolder.replace(/\/+$/, "");
+        const path = folder + "/" + title + ".md";
         if (app.vault.getAbstractFileByPath(path)) { notify("Такая заметка уже есть."); return; }
 
         nwCreate.disabled = true;
         try {
-          const iconLine = manualChosenIcon ? "иконка: " + JSON.stringify(manualChosenIcon) + "\n" : "";
-          const deadlineLine = deadlineISO ? 'срок: "' + deadlineISO + '"' : "срок: ";
-          const fm = "---\nнаправление: " + AREA + "\nтип: " + JSON.stringify(rawType) + "\n" + iconLine + 'статус: в работе\nначало: "' + todayISO + '"\n' + deadlineLine + "\nзавершено: \nдисциплина: \n---\n\n# " + title + "\n";
-          const f = await app.vault.create(path, fm);
+          await ensureFolderExists(folder);
+          const lines = [
+            "---",
+            KEYS.area + ": " + JSON.stringify(cfg.studyAreaName),
+            KEYS.type + ": " + JSON.stringify(rawType)
+          ];
+          if (manualChosenIcon) {
+            lines.push(KEYS.icon + ": " + JSON.stringify(manualChosenIcon));
+          }
+          lines.push(KEYS.status + ": " + JSON.stringify(ROOT_STATUS_ACTIVE));
+          lines.push(KEYS.start + ': "' + todayISO + '"');
+          if (deadlineISO) {
+            lines.push(KEYS.deadline + ': "' + deadlineISO + '"');
+          }
+          lines.push("---", "", "# " + title, "");
+
+          const f = await app.vault.create(path, lines.join("\n"));
           localCreatedNotes.push({
             file: { name: title, path: f.path, ctime: dv.date("now"), mtime: dv.date("now") },
-            направление: AREA,
-            тип: rawType,
-            иконка: manualChosenIcon || undefined,
-            статус: "в работе",
-            начало: todayISO,
-            срок: deadlineISO
+            [KEYS.area]: cfg.studyAreaName,
+            [KEYS.type]: rawType,
+            [KEYS.icon]: manualChosenIcon || undefined,
+            [KEYS.status]: ROOT_STATUS_ACTIVE,
+            [KEYS.start]: todayISO,
+            [KEYS.deadline]: deadlineISO || undefined
           });
           uiState.showNewWorkBar = false;
-          uiState.selectedGraphWorkPath = f.path;
-          notify("Создано: «" + title + "» (" + rawType + ")");
+          notify("Создан проект: «" + title + "»");
           renderAll();
         } catch (e) {
           nwCreate.disabled = false;
@@ -2247,554 +2027,339 @@ async function renderAll() {
       };
     }
 
-    const grid = root.createDiv({ cls: "dh-study-grid" });
-
-    ws.forEach((p, cardIdx) => {
-      const workMeta = getWorkMeta(typeOf(p), p.иконка);
-      const accent = workMeta.color;
-      const iso = getDeadlineISO(p);
-      const startIso = getStartISO(p);
-      const isEditingDate = uiState.openDeadlineFor === p.file.path;
-      const isAddingMat = uiState.openAddMatFor === p.file.path;
-      const isRenaming = uiState.renamingWorkPath === p.file.path;
-      const isExpanded = expandedPaths.has(p.file.path);
-      const isGraphActive = uiState.selectedGraphWorkPath === p.file.path;
-      const currentTitle = getDisplayName(p);
-
-      const treeItems = buildHierarchyTree(p.file.path);
-
-      const card = grid.createDiv({
-        cls: "dh-card dh-study-card",
-        attr: {
-          style: "border-top: 3px solid " + accent + "; --card-accent: " + accent + ";"
-        }
+    if (ws.length === 0) {
+      root.createDiv({
+        text: "Активных проектов сейчас нет. Нажми «＋ Проект» выше, чтобы создать новый проект.",
+        attr: { style: "padding: 16px; margin-bottom: 16px; font-size: 0.78rem; color: var(--text-muted); background: var(--background-secondary); border-radius: 10px; border: 1px dashed var(--background-modifier-border); text-align: center;" }
       });
+    } else {
+      const grid = root.createDiv({ cls: "dh-sp-grid" });
 
-      const topSection = card.createDiv({ attr: { style: "display: flex; flex-direction: column; gap: 6px;" } });
-      const headerRow = topSection.createDiv({ attr: { style: "display: flex; justify-content: space-between; align-items: center; gap: 6px;" } });
+      ws.forEach(p => {
+        const workMeta = getWorkMeta(typeOf(p), p[KEYS.icon]);
+        const accent = workMeta.color;
+        const iso = getDeadlineISO(p);
+        const startIso = getStartISO(p);
+        const isEditingDate = uiState.openDeadlineFor === p.file.path;
+        const isRenaming = uiState.renamingWorkPath === p.file.path;
+        const currentTitle = getDisplayName(p);
+        const matCount = descendants(p.file.path).length;
+        const activeDays = startIso ? Math.max(1, Math.ceil(today.diff(dv.date(startIso), "days").days) + 1) : 1;
 
-      const leftBadges = headerRow.createDiv({ attr: { style: "display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" } });
-      leftBadges.createSpan({
-        text: workMeta.label,
-        attr: { style: "font-size: 0.68rem; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: " + accent + "18; color: " + accent + ";" }
-      });
-
-      if (typeof p.дисциплина === "string" && p.дисциплина.trim()) {
-        leftBadges.createSpan({ text: p.дисциплина.trim(), attr: { style: "font-size: 0.72rem; color: var(--text-muted);" } });
-      }
-
-      const rightControls = headerRow.createDiv({ attr: { style: "display: flex; align-items: center; gap: 3px; flex-shrink: 0;" } });
-
-      let deadlineLabel = "📅 Срок";
-      let deadlineColor = "var(--text-muted)";
-      let deadlineBg = "var(--background-primary)";
-
-      if (iso) {
-        const left = Math.ceil(dv.date(iso).diff(today, "days").days);
-        const urgent = left <= SOON_DAYS;
-        deadlineLabel = left > 0 ? "⏳ " + left + " дн." : left === 0 ? "🔥 Сегодня!" : "⚠️ −" + Math.abs(left) + " дн.";
-        deadlineColor = urgent ? "#d85b57" : accent;
-        deadlineBg = urgent ? "#d85b5720" : accent + "18";
-      }
-
-      const deadlineBtn = rightControls.createEl("button", {
-        text: deadlineLabel,
-        attr: {
-          type: "button",
-          title: "Изменить дедлайн",
-          style: "font-size: 0.7rem; font-weight: 600; padding: 2px 8px; height: 22px; border-radius: 5px; background: " + deadlineBg + "; color: " + deadlineColor + "; border: 1px solid " + (isEditingDate ? deadlineColor : "transparent") + "; cursor: pointer;"
-        }
-      });
-      deadlineBtn.onclick = e => {
-        e.stopPropagation();
-        uiState.openDeadlineFor = isEditingDate ? null : p.file.path;
-        renderAll();
-      };
-
-      const graphBtn = rightControls.createEl("button", {
-        text: "🕸️",
-        attr: {
-          type: "button",
-          title: isGraphActive ? "Скрыть граф проекта" : "Открыть граф этого проекта",
-          style: "font-size: 0.72rem; width: 22px; height: 22px; padding: 0; border-radius: 5px; background: " + (isGraphActive ? accent + "28" : "transparent") + "; border: 1px solid " + (isGraphActive ? accent : "transparent") + "; cursor: pointer;"
-        }
-      });
-      graphBtn.onclick = e => {
-        e.stopPropagation();
-        uiState.selectedGraphWorkPath = isGraphActive ? null : p.file.path;
-        renderAll();
-      };
-
-      const doneBtn = rightControls.createEl("button", {
-        text: "✓",
-        attr: {
-          type: "button",
-          title: "Завершить проект",
-          style: "font-size: 0.72rem; width: 22px; height: 22px; padding: 0; border-radius: 5px; background: transparent; color: var(--text-muted); border: 1px solid transparent; cursor: pointer;"
-        }
-      });
-      doneBtn.onmouseenter = () => { doneBtn.style.color = "#4aab80"; doneBtn.style.borderColor = "#4aab8055"; };
-      doneBtn.onmouseleave = () => { doneBtn.style.color = "var(--text-muted)"; doneBtn.style.borderColor = "transparent"; };
-      doneBtn.onclick = async e => {
-        e.stopPropagation();
-        if (doneBtn.disabled) return;
-        doneBtn.disabled = true;
-        try {
-          await saveProp(p.file.path, fm => {
-            fm["статус"] = "завершён";
-            if (!fm["начало"]) fm["начало"] = startIso;
-            fm["завершено"] = todayISO;
-          });
-          localOverrides.set(p.file.path, {
-            ...(localOverrides.get(p.file.path) || {}),
-            статус: "завершён",
-            начало: startIso,
-            завершено: todayISO
-          });
-          if (uiState.selectedGraphWorkPath === p.file.path) uiState.selectedGraphWorkPath = null;
-          uiState.completedSectionOpen = true;
-          notify("Проект «" + currentTitle + "» завершён!");
-          renderAll();
-        } catch (err) {
-          doneBtn.disabled = false;
-          notify("Ошибка завершения: " + err.message);
-        }
-      };
-
-      let confirmTrash = false;
-      const delBtn = rightControls.createEl("button", {
-        text: "✕",
-        attr: {
-          type: "button",
-          title: "Удалить проект в корзину",
-          style: "font-size: 0.72rem; height: 22px; padding: 0 5px; border-radius: 5px; background: transparent; color: var(--text-faint); border: 1px solid transparent; cursor: pointer;"
-        }
-      });
-      delBtn.onclick = async e => {
-        e.stopPropagation();
-        if (delBtn.disabled) return;
-        if (!confirmTrash) {
-          confirmTrash = true;
-          const n = descendants(p.file.path).length;
-          delBtn.textContent = n ? "Удалить? (связано: " + n + ")" : "Удалить?";
-          delBtn.style.color = "#d85b57";
-          delBtn.style.borderColor = "#d85b5766";
-          setTimeout(() => {
-            if (delBtn.disabled) return;
-            confirmTrash = false;
-            delBtn.textContent = "✕";
-            delBtn.style.color = "var(--text-faint)";
-            delBtn.style.borderColor = "transparent";
-          }, 3000);
-          return;
-        }
-        delBtn.disabled = true;
-        try {
-          const f = app.vault.getAbstractFileByPath(p.file.path);
-          if (f) await app.vault.trash(f, true);
-          localOverrides.set(p.file.path, { deleted: true });
-          expandedPaths.delete(p.file.path);
-          if (uiState.selectedGraphWorkPath === p.file.path) uiState.selectedGraphWorkPath = null;
-          notify("Удалено: «" + currentTitle + "»");
-          renderAll();
-        } catch (err) {
-          delBtn.disabled = false;
-          notify("Ошибка удаления: " + err.message);
-        }
-      };
-
-      if (!isRenaming) {
-        const titleRow = topSection.createDiv({
-          attr: { style: "display: flex; align-items: center; justify-content: space-between; gap: 6px;" }
+        const card = grid.createDiv({
+          cls: "dh-sp-card",
+          attr: { style: "--card-accent: " + accent + ";" }
         });
 
-        const titleLink = titleRow.createEl("a", {
-          cls: "internal-link dh-study-title-link",
-          text: currentTitle,
-          attr: { href: p.file.path }
-        });
-        openNote(titleLink, p.file.path);
+        // Шапка карточки: тип, дисциплина, срок и тихие действия
+        const headRow = card.createDiv({ cls: "dh-sp-card-head" });
+        const leftBadges = headRow.createDiv({ cls: "dh-sp-card-badges" });
+        leftBadges.createSpan({ cls: "dh-sp-type-pill", text: workMeta.label });
 
-        const editTitleBtn = titleRow.createEl("button", {
+        const disc = typeof p[KEYS.discipline] === "string" ? p[KEYS.discipline].trim() : "";
+        if (disc) {
+          leftBadges.createSpan({ cls: "dh-sp-discipline", text: disc });
+        }
+
+        const rightControls = headRow.createDiv({ cls: "dh-sp-card-tools" });
+
+        if (iso) {
+          const tone = getDeadlineTone(iso, false);
+          const toneCls = tone === "overdue" ? " is-overdue" : tone === "soon" ? " is-soon" : " is-far";
+          const dlBtn = rightControls.createEl("button", {
+            cls: "dh-sp-deadline" + toneCls,
+            text: formatDeadlineBadge(iso, false),
+            attr: {
+              type: "button",
+              title: formatFullDateTooltip(iso) + " · нажми, чтобы изменить"
+            }
+          });
+          dlBtn.onclick = e => {
+            e.stopPropagation();
+            uiState.openDeadlineFor = isEditingDate ? null : p.file.path;
+            renderAll();
+          };
+        } else {
+          const setDlBtn = rightControls.createEl("button", {
+            cls: "dh-sp-tool-btn" + (isEditingDate ? " is-visible" : ""),
+            text: "📅",
+            attr: { type: "button", title: "Назначить срок" }
+          });
+          setDlBtn.onclick = e => {
+            e.stopPropagation();
+            uiState.openDeadlineFor = isEditingDate ? null : p.file.path;
+            renderAll();
+          };
+        }
+
+        const editTitleBtn = rightControls.createEl("button", {
+          cls: "dh-sp-tool-btn",
           text: "✎",
-          attr: {
-            type: "button",
-            title: "Переименовать проект",
-            style: "font-size: 0.78rem; width: 22px; height: 22px; padding: 0; border-radius: 4px; background: transparent; color: var(--text-muted); border: none; opacity: 0.55; cursor: pointer; flex-shrink: 0; transition: opacity 0.15s ease;"
-          }
+          attr: { type: "button", title: "Переименовать проект" }
         });
-        editTitleBtn.onmouseenter = () => { editTitleBtn.style.opacity = "1"; editTitleBtn.style.color = "var(--text-normal)"; };
-        editTitleBtn.onmouseleave = () => { editTitleBtn.style.opacity = "0.55"; editTitleBtn.style.color = "var(--text-muted)"; };
         editTitleBtn.onclick = e => {
           e.stopPropagation();
           uiState.renamingWorkPath = p.file.path;
           renderAll();
         };
-      } else {
-        const renameRow = topSection.createDiv({ attr: { style: "display: flex; gap: 5px; align-items: center;" } });
-        const rnInput = renameRow.createEl("input", {
-          attr: { type: "text", value: currentTitle, style: "flex: 1; min-width: 100px; font-size: 0.88rem; font-weight: 600; height: 28px; padding: 2px 8px;" }
-        });
-        setTimeout(() => { rnInput.focus(); rnInput.select(); }, 20);
 
-        const rnSave = renameRow.createEl("button", {
-          cls: "dh-btn mod-cta",
+        const doneBtn = rightControls.createEl("button", {
+          cls: "dh-sp-tool-btn",
           text: "✓",
-          attr: { type: "button", title: "Сохранить новое название", style: "font-size: 0.78rem; height: 28px; padding: 0 10px;" }
+          attr: { type: "button", title: "Завершить проект" }
         });
-        const rnCancel = renameRow.createEl("button", {
-          text: "✕",
-          attr: { type: "button", style: "font-size: 0.78rem; height: 28px; padding: 0 7px; background: transparent; border: none; color: var(--text-muted); cursor: pointer;" }
-        });
-
-        const doRename = async () => {
-          if (rnSave.disabled) return;
-          const nextName = rnInput.value.trim().replace(/[\\/:*?"<>|]/g, "");
-          if (!nextName || nextName === currentTitle) {
-            uiState.renamingWorkPath = null;
+        doneBtn.onclick = async e => {
+          e.stopPropagation();
+          if (doneBtn.disabled) return;
+          doneBtn.disabled = true;
+          try {
+            await saveProp(p.file.path, fm => {
+              fm[KEYS.status] = ROOT_STATUS_DONE;
+              if (!fm[KEYS.start]) fm[KEYS.start] = startIso;
+              fm[KEYS.finishedAt] = todayISO;
+            });
+            localOverrides.set(p.file.path, {
+              ...(localOverrides.get(p.file.path) || {}),
+              [KEYS.status]: ROOT_STATUS_DONE,
+              [KEYS.start]: startIso,
+              [KEYS.finishedAt]: todayISO
+            });
+            uiState.completedSectionOpen = true;
+            notify("Проект «" + currentTitle + "» перенесён в завершённые");
             renderAll();
+          } catch (err) {
+            doneBtn.disabled = false;
+            notify("Ошибка завершения: " + err.message);
+          }
+        };
+
+        let confirmTrash = false;
+        const delBtn = rightControls.createEl("button", {
+          cls: "dh-sp-tool-btn",
+          text: "✕",
+          attr: { type: "button", title: "Удалить проект в корзину" }
+        });
+        delBtn.onclick = async e => {
+          e.stopPropagation();
+          if (delBtn.disabled) return;
+          if (!confirmTrash) {
+            confirmTrash = true;
+            delBtn.textContent = matCount ? "Удалить? (" + matCount + ")" : "Удалить?";
+            delBtn.classList.add("is-danger");
+            setTimeout(() => {
+              if (delBtn.disabled || !delBtn.isConnected) return;
+              confirmTrash = false;
+              delBtn.textContent = "✕";
+              delBtn.classList.remove("is-danger");
+            }, 3000);
             return;
           }
-          const f = app.vault.getAbstractFileByPath(p.file.path);
-          if (!f) return;
-          const folderPrefix = f.parent && f.parent.path !== "/" ? f.parent.path + "/" : "";
-          const newPath = folderPrefix + nextName + ".md";
-          if (app.vault.getAbstractFileByPath(newPath)) {
-            notify("Файл с таким названием уже существует.");
-            return;
-          }
-          rnSave.disabled = true;
+          delBtn.disabled = true;
           try {
-            const oldPath = p.file.path;
-            await app.fileManager.renameFile(f, newPath);
-            localOverrides.set(oldPath, { ...(localOverrides.get(oldPath) || {}), newName: nextName });
-            if (expandedPaths.delete(oldPath)) expandedPaths.add(newPath);
-            if (uiState.selectedGraphWorkPath === oldPath) uiState.selectedGraphWorkPath = newPath;
-            for (const m of [localGraphCoords, graphViewTransform]) {
-              if (m.has(oldPath)) { m.set(newPath, m.get(oldPath)); m.delete(oldPath); }
-            }
-            uiState.renamingWorkPath = null;
-            notify("Переименовано в «" + nextName + "»");
+            const f = app.vault.getAbstractFileByPath(p.file.path);
+            if (f) await app.vault.trash(f, true);
+            localOverrides.set(p.file.path, { deleted: true });
+            notify("Удалено: «" + currentTitle + "»");
             renderAll();
-          } catch (e) {
-            rnSave.disabled = false;
-            notify("Ошибка переименования: " + e.message);
+          } catch (err) {
+            delBtn.disabled = false;
+            notify("Ошибка удаления: " + err.message);
           }
         };
 
-        rnSave.onclick = doRename;
-        rnCancel.onclick = () => { uiState.renamingWorkPath = null; renderAll(); };
-        rnInput.onkeydown = e => {
-          if (e.key === "Enter") doRename();
-          if (e.key === "Escape") { uiState.renamingWorkPath = null; renderAll(); }
-        };
-      }
-
-      if (isEditingDate) {
-        const datePopover = topSection.createDiv({
-          attr: { style: "padding: 8px 10px; background: var(--background-primary); border-radius: 6px; border: 1px solid var(--background-modifier-border); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; margin-top: 2px;" }
-        });
-
-        const applyDeadline = async (newIso) => {
-          await saveProp(p.file.path, fm => { fm["срок"] = newIso || null; });
-          localOverrides.set(p.file.path, { ...(localOverrides.get(p.file.path) || {}), срок: newIso || null });
-          uiState.openDeadlineFor = null;
-          renderAll();
-        };
-
-        const presets = datePopover.createDiv({ attr: { style: "display: flex; gap: 4px; flex-wrap: wrap;" } });
-        [
-          { label: "+3 дн.", d: 3 },
-          { label: "+7 дн.", d: 7 },
-          { label: "+14 дн.", d: 14 },
-          { label: "+30 дн.", d: 30 }
-        ].forEach(pr => {
-          const b = presets.createEl("button", {
-            text: pr.label,
-            attr: { type: "button", style: "font-size: 0.72rem; padding: 2px 7px; height: 24px; border-radius: 4px; cursor: pointer;" }
+        // Название проекта или инлайн-переименование
+        if (!isRenaming) {
+          const titleLink = card.createEl("a", {
+            cls: "internal-link dh-sp-title-link",
+            text: currentTitle,
+            attr: { href: p.file.path }
           });
-          b.onclick = () => applyDeadline(today.plus({ days: pr.d }).toISODate());
-        });
-
-        const rightDate = datePopover.createDiv({ attr: { style: "display: flex; gap: 4px; align-items: center;" } });
-        const dInp = rightDate.createEl("input", {
-          attr: { type: "date", value: iso || "", style: "font-size: 0.74rem; height: 24px; padding: 0 6px; border-radius: 4px;" }
-        });
-        dInp.onchange = () => applyDeadline(dInp.value);
-
-        if (iso) {
-          const clr = rightDate.createEl("button", {
-            text: "Сброс",
-            attr: { type: "button", style: "font-size: 0.7rem; height: 24px; padding: 0 6px; color: var(--text-muted); cursor: pointer;" }
+          openNote(titleLink, p.file.path);
+        } else {
+          const renameRow = card.createDiv({ cls: "dh-sp-new-row" });
+          const rnInput = renameRow.createEl("input", {
+            cls: "dh-sp-input",
+            attr: { type: "text", value: currentTitle, style: "flex: 1; min-width: 100px; font-weight: 600;" }
           });
-          clr.onclick = () => applyDeadline(null);
-        }
-      }
+          setTimeout(() => { rnInput.focus(); rnInput.select(); }, 20);
 
-      const middleSection = card.createDiv({
-        attr: { style: "display: flex; flex-direction: column;" }
-      });
+          const rnSave = renameRow.createEl("button", {
+            cls: "dh-btn mod-cta",
+            text: "✓",
+            attr: { type: "button", title: "Сохранить название", style: "height: 32px; padding: 0 10px; font-size: 0.78rem; border-radius: 8px;" }
+          });
+          const rnCancel = renameRow.createEl("button", {
+            cls: "dh-sp-btn",
+            text: "✕",
+            attr: { type: "button", style: "padding: 0 8px;" }
+          });
 
-      const drawerId = "dh-study-rel-drawer-" + cardIdx;
-      const activeDays = startIso ? Math.max(1, Math.ceil(today.diff(dv.date(startIso), "days").days) + 1) : 1;
-
-      const relToggleBtn = middleSection.createEl("button", {
-        cls: "dh-study-rel-toggle" + (isExpanded ? " is-open" : "") + (treeItems.length === 0 ? " is-empty" : ""),
-        attr: {
-          type: "button",
-          "aria-expanded": String(isExpanded),
-          "aria-controls": drawerId
-        }
-      });
-
-      const relLeft = relToggleBtn.createSpan({ cls: "dh-study-rel-left" });
-      relLeft.createSpan({
-        text: treeItems.length > 0 ? "Связанные заметки · " + treeItems.length : "Связанные заметки · 0"
-      });
-
-      const relRight = relToggleBtn.createSpan({ cls: "dh-study-rel-right" });
-      relRight.createSpan({ text: "в работе " + activeDays + " дн." });
-      relRight.createSpan({
-        cls: "dh-study-rel-arrow",
-        text: "▾",
-        attr: { "aria-hidden": "true" }
-      });
-
-      const collapseWrap = middleSection.createDiv({
-        cls: "dh-study-rel-collapse" + (isExpanded ? " is-open" : ""),
-        attr: {
-          id: drawerId,
-          "aria-hidden": String(!isExpanded)
-        }
-      });
-
-      const collapseInner = collapseWrap.createDiv({ cls: "dh-study-rel-inner" });
-
-      if (treeItems.length > 0) {
-        const hierarchyDrawer = collapseInner.createDiv({ cls: "dh-study-rel-drawer" });
-
-        treeItems.forEach(({ note: m, depth, hasSubKids }) => {
-          const mType = typeOf(m) || "Заметка";
-          const mColor = TYPE_COLORS[mType] || FALLBACK_COLOR;
-          const indentPx = depth * 16;
-
-          const item = hierarchyDrawer.createEl("a", {
-            cls: "internal-link dh-study-rel-item",
-            attr: {
-              href: m.file.path,
-              style: "margin-left: " + indentPx + "px; border-left: 2px solid " + (depth > 0 ? mColor : accent) + ";"
+          const doRename = async () => {
+            if (rnSave.disabled) return;
+            const nextName = normalizeSpaces(rnInput.value).replace(/[\\/:*?"<>|]/g, "");
+            if (!nextName || nextName === currentTitle) {
+              uiState.renamingWorkPath = null;
+              renderAll();
+              return;
             }
-          });
-          openNote(item, m.file.path);
-
-          const leftName = item.createDiv({ attr: { style: "display: flex; align-items: center; gap: 5px; min-width: 0; flex: 1;" } });
-          if (depth > 0) {
-            leftName.createSpan({ text: "└", attr: { style: "color: var(--text-faint); font-family: monospace; font-size: 0.75rem;" } });
-          } else if (hasSubKids) {
-            leftName.createSpan({ text: "📂", attr: { style: "font-size: 0.72rem;" } });
-          }
-
-          leftName.createSpan({
-            text: getDisplayName(m),
-            attr: {
-              title: getDisplayName(m),
-              style: "font-size: 0.8rem; font-weight: " + (hasSubKids ? "600" : "500") + "; color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+            const f = app.vault.getAbstractFileByPath(p.file.path);
+            if (!f) return;
+            const folderPrefix = f.parent && f.parent.path !== "/" ? f.parent.path + "/" : "";
+            const newPath = folderPrefix + nextName + ".md";
+            if (app.vault.getAbstractFileByPath(newPath)) {
+              notify("Файл с таким названием уже существует.");
+              return;
             }
-          });
+            rnSave.disabled = true;
+            try {
+              const oldPath = p.file.path;
+              await app.fileManager.renameFile(f, newPath);
+              localOverrides.set(oldPath, { ...(localOverrides.get(oldPath) || {}), newName: nextName });
+              uiState.renamingWorkPath = null;
+              notify("Переименовано в «" + nextName + "»");
+              renderAll();
+            } catch (e) {
+              rnSave.disabled = false;
+              notify("Ошибка переименования: " + e.message);
+            }
+          };
 
-          item.createSpan({
-            text: mType,
-            attr: { style: "font-size: 0.64rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: " + mColor + "18; color: " + mColor + "; flex-shrink: 0;" }
-          });
-        });
-      } else {
-        collapseInner.createDiv({
-          cls: "dh-study-rel-empty",
-          text: "Привязанных заметок пока нет. Добавь материал через кнопку ниже или привяжи существующую заметку из блока «Неразобранные»."
-        });
-      }
+          rnSave.onclick = doRename;
+          rnCancel.onclick = () => { uiState.renamingWorkPath = null; renderAll(); };
+          rnInput.onkeydown = e => {
+            if (e.key === "Enter") doRename();
+            if (e.key === "Escape") { uiState.renamingWorkPath = null; renderAll(); }
+          };
+        }
 
-      relToggleBtn.onclick = e => {
-        e.stopPropagation();
-        const nowOpen = !expandedPaths.has(p.file.path);
-        if (nowOpen) expandedPaths.add(p.file.path);
-        else expandedPaths.delete(p.file.path);
+        // Поповер изменения срока
+        if (isEditingDate) {
+          const datePopover = card.createDiv({ cls: "dh-sp-date-popover" });
 
-        relToggleBtn.classList.toggle("is-open", nowOpen);
-        relToggleBtn.setAttribute("aria-expanded", String(nowOpen));
-        collapseWrap.classList.toggle("is-open", nowOpen);
-        collapseWrap.setAttribute("aria-hidden", String(!nowOpen));
-      };
-
-      const footerSection = card.createDiv({ attr: { style: "border-top: 1px solid var(--background-modifier-border); padding-top: 8px;" } });
-
-      if (!isAddingMat) {
-        const triggerAdd = footerSection.createEl("button", {
-          cls: "dh-study-add-trigger",
-          text: "+ Добавить материал",
-          attr: { type: "button" }
-        });
-        triggerAdd.onclick = e => {
-          e.stopPropagation();
-          uiState.openAddMatFor = p.file.path;
-          renderAll();
-        };
-      } else {
-        const addForm = footerSection.createDiv({ attr: { style: "display: flex; flex-direction: column; gap: 6px;" } });
-        const row1 = addForm.createDiv({ attr: { style: "display: flex; gap: 5px; align-items: center; flex-wrap: wrap;" } });
-
-        const matTypeSel = row1.createEl("select", { cls: "dropdown", attr: { style: "font-size: 0.75rem; height: 28px; padding: 0 18px 0 6px; max-width: 105px;" } });
-        MATERIAL_TYPES.forEach(mt => matTypeSel.createEl("option", { text: mt, value: mt }));
-
-        const matNameInp = row1.createEl("input", {
-          attr: { type: "text", placeholder: "Название заметки...", style: "flex: 1; min-width: 110px; font-size: 0.78rem; height: 28px; padding: 2px 8px;" }
-        });
-        setTimeout(() => matNameInp.focus(), 20);
-
-        const row2 = addForm.createDiv({ attr: { style: "display: flex; gap: 5px; align-items: center;" } });
-        const parentSel = row2.createEl("select", { cls: "dropdown", attr: { style: "flex: 1; min-width: 0; font-size: 0.74rem; height: 26px;" } });
-        parentSel.createEl("option", { text: "↳ В корень: " + currentTitle, value: p.file.path });
-        treeItems.forEach(ti => {
-          parentSel.createEl("option", { text: "  ".repeat(ti.depth + 1) + "↳ Внутрь: " + getDisplayName(ti.note), value: ti.note.file.path });
-        });
-
-        const createBtn = row2.createEl("button", {
-          cls: "dh-btn mod-cta",
-          text: "Создать",
-          attr: { type: "button", style: "font-size: 0.75rem; height: 26px; padding: 0 10px; flex-shrink: 0;" }
-        });
-
-        const cancelBtn = row2.createEl("button", {
-          text: "✕",
-          attr: { type: "button", style: "font-size: 0.75rem; height: 26px; padding: 0 6px; background: transparent; border: none; color: var(--text-muted); cursor: pointer; flex-shrink: 0;" }
-        });
-        cancelBtn.onclick = e => {
-          e.stopPropagation();
-          uiState.openAddMatFor = null;
-          renderAll();
-        };
-
-        const doCreateMat = async () => {
-          if (createBtn.disabled) return;
-          const mTitle = matNameInp.value.trim().replace(/[\\/:*?"<>|]/g, "");
-          if (!mTitle) { notify("Введи название материала."); return; }
-          const mType = matTypeSel.value;
-          const chosenParentNote = byPath.get(parentSel.value) || p;
-          const mPath = TARGET_FOLDER + "/" + mTitle + ".md";
-          if (app.vault.getAbstractFileByPath(mPath)) { notify("Заметка с таким именем уже есть."); return; }
-
-          createBtn.disabled = true;
-          try {
-            const disc = typeof p.дисциплина === "string" && p.дисциплина.trim() ? p.дисциплина.trim() : "";
-            const fm = "---\nнаправление: " + AREA + "\nтип: " + JSON.stringify(mType) + '\nродитель: "[[' + chosenParentNote.file.name + ']]"\n' + (disc ? "дисциплина: " + JSON.stringify(disc) + "\n" : "") + "---\n\n# " + mTitle + "\n\n";
-            const newFile = await app.vault.create(mPath, fm);
-            localCreatedNotes.push({ file: { name: mTitle, path: newFile.path, mtime: dv.date("now") }, направление: AREA, тип: mType, родитель: "[[" + chosenParentNote.file.name + "]]", дисциплина: disc });
-            localOverrides.set(newFile.path, { parents: [chosenParentNote.file.path] });
-            uiState.openAddMatFor = null;
-            expandedPaths.add(p.file.path);
-            notify("Создано: «" + mTitle + "» → «" + chosenParentNote.file.name + "»");
+          const applyDeadline = async newIso => {
+            await saveProp(p.file.path, fm => {
+              if (newIso) {
+                fm[KEYS.deadline] = newIso;
+                if (KEYS.deadlineAlt in fm) delete fm[KEYS.deadlineAlt];
+              } else {
+                delete fm[KEYS.deadline];
+                delete fm[KEYS.deadlineAlt];
+              }
+            });
+            localOverrides.set(p.file.path, {
+              ...(localOverrides.get(p.file.path) || {}),
+              [KEYS.deadline]: newIso || null,
+              [KEYS.deadlineAlt]: null
+            });
+            uiState.openDeadlineFor = null;
             renderAll();
-          } catch (e) {
-            createBtn.disabled = false;
-            notify("Ошибка: " + e.message);
+          };
+
+          const presets = datePopover.createDiv({ attr: { style: "display: flex; gap: 4px; flex-wrap: wrap;" } });
+          [
+            { label: "+3 дн.", d: 3 },
+            { label: "+7 дн.", d: 7 },
+            { label: "+14 дн.", d: 14 },
+            { label: "+30 дн.", d: 30 }
+          ].forEach(pr => {
+            const b = presets.createEl("button", {
+              cls: "dh-sp-btn",
+              text: pr.label,
+              attr: { type: "button", style: "min-height: 24px; padding: 0 8px; font-size: 0.72rem;" }
+            });
+            b.onclick = () => applyDeadline(today.plus({ days: pr.d }).toISODate());
+          });
+
+          const rightDate = datePopover.createDiv({ attr: { style: "display: flex; gap: 4px; align-items: center;" } });
+          const dInp = rightDate.createEl("input", {
+            attr: { type: "date", value: iso || "", style: "font-size: 0.72rem; height: 24px; padding: 0 6px; border-radius: 6px;" }
+          });
+          dInp.onchange = () => applyDeadline(dInp.value);
+
+          if (iso) {
+            const clr = rightDate.createEl("button", {
+              cls: "dh-sp-btn",
+              text: "Сброс",
+              attr: { type: "button", style: "min-height: 24px; padding: 0 8px; font-size: 0.72rem; color: var(--text-muted);" }
+            });
+            clr.onclick = () => applyDeadline(null);
           }
-        };
-
-        createBtn.onclick = e => { e.stopPropagation(); doCreateMat(); };
-        matNameInp.onkeydown = e => {
-          if (e.key === "Enter") { e.stopPropagation(); doCreateMat(); }
-          if (e.key === "Escape") { e.stopPropagation(); uiState.openAddMatFor = null; renderAll(); }
-        };
-      }
-    });
-
-    // -------------------------------------------------------------------
-    // 2. ГРАФ ВЫБРАННОГО ПРОЕКТА (ПОЯВЛЯЕТСЯ ТОЛЬКО ПО КЛИКУ НА 🕸️)
-    // -------------------------------------------------------------------
-    const targetGraphWork = uiState.selectedGraphWorkPath ? byPath.get(uiState.selectedGraphWorkPath) : null;
-    if (targetGraphWork) {
-      const workMeta = getWorkMeta(typeOf(targetGraphWork), targetGraphWork.иконка);
-      const count = descendants(targetGraphWork.file.path).length;
-
-      const graphPanel = root.createDiv({
-        cls: "dh-panel",
-        attr: {
-          style: "padding: 14px 16px; margin-bottom: 18px; background: var(--background-secondary); border-radius: 10px; border: 1px solid var(--background-modifier-border); border-top: 3px solid " + workMeta.color + ";"
         }
-      });
 
-      const graphHeader = graphPanel.createDiv({
-        attr: { style: "display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;" }
-      });
+        // Строка сводки
+        const metaLine = card.createDiv({ cls: "dh-sp-meta-line" });
+        metaLine.createSpan({
+          text: (matCount > 0 ? "Материалов: " + matCount : "Материалов пока нет") + " · в работе " + activeDays + " дн."
+        });
 
-      const titleLeft = graphHeader.createDiv({ attr: { style: "display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;" } });
-      titleLeft.createSpan({
-        text: "🕸️ " + getDisplayName(targetGraphWork),
-        attr: { style: "font-size: 0.98rem; font-weight: 700; color: var(--text-normal);" }
-      });
-      titleLeft.createSpan({
-        text: count + " " + plural(count, ["связанная заметка", "связанные заметки", "связанных заметок"]),
-        attr: { style: "font-size: 0.76rem; color: var(--text-muted);" }
-      });
+        // Нижний ряд: одна главная кнопка «Открыть в конструкторе» + кнопка «＋»
+        const footerRow = card.createDiv({ cls: "dh-sp-card-footer" });
+        const openInPluginBtn = footerRow.createEl("button", {
+          cls: "dh-sp-open-btn",
+          text: "Открыть в конструкторе",
+          attr: {
+            type: "button",
+            title: "Открыть дерево и граф проекта «" + currentTitle + "» в конструкторе"
+          }
+        });
+        openInPluginBtn.onclick = e => {
+          e.stopPropagation();
+          openStudyCompiler({ rootPath: p.file.path });
+        };
 
-      const rightControls = graphHeader.createDiv({ cls: "dh-chips", attr: { style: "display: flex; gap: 6px; flex-wrap: wrap; align-items: center;" } });
-      const viewToolsGroup = rightControls.createDiv({ attr: { style: "display: inline-flex; gap: 4px; align-items: center;" } });
-
-      const resetLayoutBtn = rightControls.createEl("button", {
-        cls: "dh-chip",
-        text: "↺ Авто",
-        attr: { type: "button", title: "Сбросить расположение узлов к автоматической раскладке", style: "font-size: 0.74rem; padding: 3px 8px; color: var(--text-muted); cursor: pointer;" }
+        const quickAddInPluginBtn = footerRow.createEl("button", {
+          cls: "dh-sp-plus-btn",
+          text: "＋",
+          attr: {
+            type: "button",
+            title: "Добавить материал в проект «" + currentTitle + "» через конструктор",
+            "aria-label": "Добавить материал в конструкторе"
+          }
+        });
+        quickAddInPluginBtn.onclick = e => {
+          e.stopPropagation();
+          openStudyCompiler({ rootPath: p.file.path, addUnder: p.file.path });
+        };
       });
-      resetLayoutBtn.onclick = async () => {
-        if (resetLayoutBtn.disabled) return;
-        resetLayoutBtn.disabled = true;
-        localGraphCoords.set(targetGraphWork.file.path, {});
-        graphViewTransform.delete(targetGraphWork.file.path);
-        uiState.graphLayout?.delete(targetGraphWork.file.path);
-        uiState.graphView?.delete(targetGraphWork.file.path);
-        try {
-          await saveProp(targetGraphWork.file.path, fm => { delete fm["граф_координаты"]; });
-        } catch {}
-        renderAll();
-      };
-
-      const closeGraphBtn = rightControls.createEl("button", {
-        cls: "dh-chip",
-        text: "✕ Скрыть",
-        attr: { type: "button", title: "Скрыть граф", style: "font-size: 0.74rem; padding: 3px 9px; color: var(--text-muted); cursor: pointer;" }
-      });
-      closeGraphBtn.onclick = () => {
-        uiState.selectedGraphWorkPath = null;
-        renderAll();
-      };
-
-      const graphCanvasBox = graphPanel.createDiv();
-      renderProjectGraph(graphCanvasBox, targetGraphWork, dataset, viewToolsGroup);
     }
 
     // -------------------------------------------------------------------
-    // 3. НЕРАЗОБРАННЫЕ МАТЕРИАЛЫ (ЕСЛИ ЕСТЬ)
+    // 2. МАТЕРИАЛЫ БЕЗ РОДИТЕЛЯ (ЕСЛИ ЕСТЬ)
     // -------------------------------------------------------------------
-    if (inbox.length) {
-      const inboxPanel = root.createDiv({
-        cls: "dh-panel",
-        attr: { style: "padding: 12px 16px; margin-bottom: 18px; background: var(--background-secondary); border-radius: 8px; border: 1px solid #e5a15855; border-left: 3px solid #e5a158;" }
+    if (inbox.length > 0) {
+      const inboxPanel = root.createDiv({ cls: "dh-sp-orphans" });
+      const inboxHead = inboxPanel.createDiv({
+        attr: { style: "display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;" }
       });
-      inboxPanel.createDiv({
-        text: "📥 Неразобранные материалы (" + inbox.length + ") — привяжи к проекту:",
-        attr: { style: "font-size: 0.85rem; font-weight: 600; color: var(--text-normal); margin-bottom: 8px;" }
+      inboxHead.createSpan({
+        text: "Без родителя · " + inbox.length,
+        attr: { style: "font-size: 0.84rem; font-weight: 600; color: var(--text-normal);" }
+      });
+      inboxHead.createSpan({
+        text: "Привяжи к проекту",
+        attr: { style: "font-size: 0.72rem; color: var(--text-muted);" }
       });
 
       inbox.slice(0, INBOX_LIMIT).forEach(p => {
-        const row = inboxPanel.createDiv({ attr: { style: "display: flex; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid var(--background-modifier-border); flex-wrap: wrap;" } });
-        const a = row.createEl("a", { cls: "internal-link", text: p.file.name, attr: { style: "text-decoration: none; color: var(--text-normal); flex: 1; min-width: 160px; font-size: 0.84rem; font-weight: 500;" } });
+        const row = inboxPanel.createDiv({ cls: "dh-sp-orphan-row" });
+        const a = row.createEl("a", {
+          cls: "internal-link",
+          text: p.file.name,
+          attr: { style: "text-decoration: none; color: var(--text-normal); flex: 1; min-width: 160px; font-size: 0.82rem; font-weight: 500;" }
+        });
         openNote(a, p.file.path);
 
-        const mType = typeOf(p) || "Заметка";
-        const mColor = TYPE_COLORS[mType] || FALLBACK_COLOR;
-        row.createSpan({ text: mType, attr: { style: "font-size: 0.68rem; font-weight: 600; padding: 2px 7px; border-radius: 4px; background: " + mColor + "18; color: " + mColor + ";" } });
+        const mMeta = getWorkMeta(typeOf(p), p[KEYS.icon]);
+        row.createSpan({
+          cls: "dh-sp-type-pill",
+          text: mMeta.label,
+          attr: { style: "--card-accent: " + mMeta.color + ";" }
+        });
 
-        const sel = row.createEl("select", { cls: "dropdown", attr: { style: "font-size: 0.78rem; height: 26px;" } });
+        const sel = row.createEl("select", {
+          cls: "dropdown",
+          attr: { style: "font-size: 0.76rem; height: 28px;" }
+        });
         sel.createEl("option", { text: "Выбери проект...", value: "" });
         ws.forEach(w => sel.createEl("option", { text: getDisplayName(w), value: w.file.path }));
 
@@ -2803,13 +2368,19 @@ async function renderAll() {
           if (!target || sel.disabled) return;
           sel.disabled = true;
           try {
+            const targetFile = app.vault.getAbstractFileByPath(target.file.path);
+            const linkText = targetFile
+              ? app.metadataCache.fileToLinktext(targetFile, p.file.path)
+              : target.file.name;
             await saveProp(p.file.path, fm => {
-              fm["родитель"] = "[[" + target.file.name + "]]";
-              if (!fm["дисциплина"] && typeof target.дисциплина === "string" && target.дисциплина) fm["дисциплина"] = target.дисциплина;
+              fm[KEYS.parent] = "[[" + linkText + "]]";
+              if (!fm[KEYS.discipline] && typeof target[KEYS.discipline] === "string" && target[KEYS.discipline].trim()) {
+                fm[KEYS.discipline] = target[KEYS.discipline].trim();
+              }
             });
             localOverrides.set(p.file.path, { ...(localOverrides.get(p.file.path) || {}), parents: [target.file.path] });
             link(p.file.path, target.file.path);
-            notify("«" + p.file.name + "» → " + getDisplayName(target));
+            notify("«" + p.file.name + "» → «" + getDisplayName(target) + "»");
             renderAll();
           } catch (err) {
             sel.disabled = false;
@@ -2820,32 +2391,27 @@ async function renderAll() {
     }
 
     // -------------------------------------------------------------------
-    // 4. КАРТОЧКИ (НА ВТОРОМ МЕСТЕ ПОСЛЕ ПРОЕКТОВ)
+    // 3. КАРТОЧКИ (MY-SR-TRAINER)
     // -------------------------------------------------------------------
     const cardsSectionContainer = root.createDiv({ cls: "dh dh-study-cards-hub" });
     await renderCardsSection(cardsSectionContainer, ws);
 
     // -------------------------------------------------------------------
-    // 5. ЗАВЕРШЁННЫЕ ПРОЕКТЫ (В САМОМ КОНЦЕ ЗАМЕТКИ)
+    // 4. ЗАВЕРШЁННЫЕ ПРОЕКТЫ
     // -------------------------------------------------------------------
-    const doneDetails = root.createEl("details", {
-      cls: "dh-details",
-      attr: {
-        style: "padding: 12px 16px; background: var(--background-secondary); border-radius: 8px; border: 1px solid var(--background-modifier-border);"
-      }
-    });
+    const doneDetails = root.createEl("details", { cls: "dh-details dh-sp-done-details" });
     doneDetails.open = Boolean(uiState.completedSectionOpen);
     doneDetails.ontoggle = () => { uiState.completedSectionOpen = doneDetails.open; };
 
     doneDetails.createEl("summary", {
-      text: "✅ Завершённые проекты (" + doneWs.length + ")",
-      attr: { style: "font-size: 0.92rem; font-weight: 600; cursor: pointer; color: var(--text-normal); user-select: none;" }
+      text: "Завершённые проекты · " + doneWs.length,
+      attr: { style: "font-size: 0.86rem; font-weight: 600; cursor: pointer; color: var(--text-normal); user-select: none;" }
     });
 
     if (!doneWs.length) {
       doneDetails.createDiv({
-        text: "Завершённых проектов пока нет. Когда нажмёшь «✓» на карточке активного проекта, он перенесётся сюда со статистикой затраченных дней.",
-        attr: { style: "font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;" }
+        text: "Завершённых проектов пока нет.",
+        attr: { style: "font-size: 0.78rem; color: var(--text-muted); margin-top: 8px;" }
       });
     } else {
       const doneList = doneDetails.createDiv({
@@ -2853,7 +2419,7 @@ async function renderAll() {
       });
 
       doneWs.forEach(p => {
-        const workMeta = getWorkMeta(typeOf(p), p.иконка);
+        const workMeta = getWorkMeta(typeOf(p), p[KEYS.icon]);
         const startIso = getStartISO(p);
         const endIso = getFinishedISO(p);
         const deadlineIso = getDeadlineISO(p);
@@ -2863,66 +2429,76 @@ async function renderAll() {
         const daysTaken = Math.max(1, Math.round(endDate.diff(startDate, "days").days) + 1);
 
         let isOverdue = false;
-        let timingNote = "без дедлайна";
+        let timingNote = "без срока";
         if (deadlineIso) {
           const dDate = dv.date(deadlineIso);
           const diffFromDeadline = Math.round(endDate.diff(dDate, "days").days);
           if (diffFromDeadline > 0) {
             isOverdue = true;
-            timingNote = "просрочено на " + diffFromDeadline + " дн.";
+            timingNote = "просрочено на " + pluralizeDays(diffFromDeadline);
           } else if (diffFromDeadline === 0) {
             timingNote = "точно в срок";
           } else {
-            timingNote = "досрочно на " + Math.abs(diffFromDeadline) + " дн.";
+            timingNote = "досрочно на " + pluralizeDays(Math.abs(diffFromDeadline));
           }
         }
 
-        const statusColor = isOverdue ? "#d85b57" : "#4aab80";
+        const statusColor = isOverdue ? "var(--text-error, #e06c75)" : "var(--color-green, #4aab80)";
 
         const row = doneList.createDiv({
-          attr: {
-            style: "display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 12px; background: var(--background-primary); border-radius: 6px; border: 1px solid var(--background-modifier-border); border-left: 3px solid " + statusColor + ";"
-          }
+          cls: "dh-sp-done-row",
+          attr: { style: "border-left: 3px solid " + statusColor + ";" }
         });
 
         const leftPart = row.createDiv({ attr: { style: "display: flex; align-items: center; gap: 8px; min-width: 180px; flex: 1;" } });
-        leftPart.createSpan({
-          text: workMeta.icon,
-          attr: { style: "font-size: 0.85rem;" }
-        });
+        leftPart.createSpan({ text: workMeta.icon, attr: { style: "font-size: 0.85rem;" } });
 
         const titleA = leftPart.createEl("a", {
           cls: "internal-link",
           text: getDisplayName(p),
-          attr: { style: "font-size: 0.88rem; font-weight: 600; color: var(--text-normal); text-decoration: none;" }
+          attr: { style: "font-size: 0.86rem; font-weight: 600; color: var(--text-normal); text-decoration: none;" }
         });
         openNote(titleA, p.file.path);
 
-        leftPart.createSpan({
-          text: "· " + typeOf(p),
-          attr: { style: "font-size: 0.74rem; color: var(--text-muted);" }
-        });
+        if (typeOf(p)) {
+          leftPart.createSpan({
+            text: "· " + typeOf(p),
+            attr: { style: "font-size: 0.72rem; color: var(--text-muted);" }
+          });
+        }
 
         const rightPart = row.createDiv({ attr: { style: "display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" } });
 
         rightPart.createSpan({
           text: startDate.toFormat("dd.MM") + " → " + endDate.toFormat("dd.MM.yyyy"),
-          attr: { style: "font-size: 0.72rem; color: var(--text-muted);" }
+          attr: { style: "font-size: 0.72rem; color: var(--text-muted); font-variant-numeric: tabular-nums;" }
         });
 
         rightPart.createSpan({
-          text: "⏱️ Заняло " + daysTaken + " дн. · " + timingNote,
+          text: daysTaken + " дн. · " + timingNote,
           attr: {
-            style: "font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 5px; background: " + statusColor + "18; color: " + statusColor + "; border: 1px solid " + statusColor + "44; white-space: nowrap;"
+            style: "font-size: 0.72rem; font-weight: 500; padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, " + statusColor + " 14%, transparent); color: " + statusColor + "; white-space: nowrap;"
           }
         });
 
+        const openDoneInPluginBtn = rightPart.createEl("button", {
+          cls: "dh-sp-btn",
+          text: "Дерево",
+          attr: {
+            type: "button",
+            title: "Открыть завершённый проект в конструкторе",
+            style: "min-height: 24px; padding: 0 8px; font-size: 0.72rem;"
+          }
+        });
+        openDoneInPluginBtn.onclick = () => openStudyCompiler({ rootPath: p.file.path });
+
         const restoreBtn = rightPart.createEl("button", {
+          cls: "dh-sp-btn",
           text: "↩ Вернуть",
           attr: {
             type: "button",
             title: "Возобновить проект и вернуть в активные",
-            style: "font-size: 0.72rem; height: 24px; padding: 0 8px; border-radius: 4px; background: transparent; color: var(--text-muted); border: 1px solid var(--background-modifier-border); cursor: pointer;"
+            style: "min-height: 24px; padding: 0 8px; font-size: 0.72rem; color: var(--text-muted);"
           }
         });
         restoreBtn.onclick = async () => {
@@ -2930,15 +2506,17 @@ async function renderAll() {
           restoreBtn.disabled = true;
           try {
             await saveProp(p.file.path, fm => {
-              fm["статус"] = "в работе";
-              fm["завершено"] = null;
+              fm[KEYS.status] = ROOT_STATUS_ACTIVE;
+              delete fm[KEYS.finishedAt];
+              delete fm[KEYS.finishedLegacy];
             });
             localOverrides.set(p.file.path, {
               ...(localOverrides.get(p.file.path) || {}),
-              статус: "в работе",
-              завершено: null
+              [KEYS.status]: ROOT_STATUS_ACTIVE,
+              [KEYS.finishedAt]: null,
+              [KEYS.finishedLegacy]: null
             });
-            notify("Проект «" + getDisplayName(p) + "» возвращён в работу.");
+            notify("Проект «" + getDisplayName(p) + "» возвращён в работу");
             renderAll();
           } catch (err) {
             restoreBtn.disabled = false;
