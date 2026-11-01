@@ -444,60 +444,60 @@ const root = dv.container.createDiv({ cls: "dh dh-study-section", attr: { style:
 
 // --- Единая таблица стилей страницы ---
 const STUDY_HUB_CSS = [
-  ".dashboard-home .dh-study-section { --dh-sp-s1: 4px; --dh-sp-s2: 8px; --dh-sp-s3: 12px; --dh-sp-s4: 16px; --dh-sp-fs: 0.9rem; --dh-sp-fs-sm: 0.78rem; --dh-sp-fs-xs: 0.72rem; box-sizing: border-box; }",
+  ".dashboard-home .dh-study-section { --dh-sp-s1: 4px; --dh-sp-s2: 8px; --dh-sp-s3: 12px; --dh-sp-s4: 16px; --dh-sp-fs-title: 1.02rem; --dh-sp-fs: 0.84rem; --dh-sp-fs-xs: 0.74rem; box-sizing: border-box; }",
   ".dashboard-home .dh-study-section * { box-sizing: border-box; }",
   ".dashboard-home .dh-study-section button, .dashboard-home .dh-study-section select { touch-action: manipulation; }",
   ".dashboard-home .dh-sp-topbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--dh-sp-s2) var(--dh-sp-s3); margin-bottom: var(--dh-sp-s3); }",
   ".dashboard-home .dh-sp-topbar-left { display: flex; align-items: baseline; gap: var(--dh-sp-s2); flex-wrap: wrap; }",
-  ".dashboard-home .dh-sp-heading { font-size: var(--dh-sp-fs); font-weight: 600; color: var(--text-normal); }",
+  ".dashboard-home .dh-sp-heading { font-size: var(--dh-sp-fs-title); font-weight: 600; color: var(--text-normal); }",
   ".dashboard-home .dh-sp-summary { font-size: var(--dh-sp-fs-xs); color: var(--text-muted); }",
-  ".dashboard-home .dh-sp-topbar-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }",
-  ".dashboard-home .dh-sp-btn { height: 28px; min-height: 28px; padding: 0 11px; border-radius: 7px; font-size: var(--dh-sp-fs-sm); font-weight: 500; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-normal); cursor: pointer; box-shadow: none; display: inline-flex; align-items: center; justify-content: center; transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.12s ease; }",
-  ".dashboard-home .dh-sp-btn:hover { background: var(--background-modifier-hover); }",
+  ".dashboard-home .dh-sp-topbar-actions { display: flex; align-items: center; gap: var(--dh-sp-s2); flex-wrap: wrap; }",
+  ".dashboard-home .dh-sp-btn { height: 32px; min-height: 32px; padding: 0 var(--dh-sp-s3) !important; border-radius: 8px !important; font-size: var(--dh-sp-fs) !important; font-weight: 500 !important; background: var(--background-secondary) !important; border: 1px solid var(--background-modifier-border) !important; color: var(--text-normal) !important; cursor: pointer; box-shadow: none !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; white-space: nowrap; transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.12s ease; }",
+  ".dashboard-home .dh-sp-btn:hover { background: var(--background-modifier-hover) !important; }",
   ".dashboard-home .dh-sp-btn:active { transform: scale(0.97); }",
-  ".dashboard-home .dh-sp-btn.is-accent { color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 10%, transparent); border-color: color-mix(in srgb, var(--interactive-accent) 28%, transparent); }",
-  ".dashboard-home .dh-sp-btn.is-accent:hover { background: color-mix(in srgb, var(--interactive-accent) 18%, transparent); }",
-  ".dashboard-home .dh-sp-btn.is-active { border-color: var(--interactive-accent); color: var(--interactive-accent); }",
+  ".dashboard-home .dh-sp-btn.is-accent { color: var(--interactive-accent) !important; background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-secondary)) !important; border-color: color-mix(in srgb, var(--interactive-accent) 36%, var(--background-modifier-border)) !important; }",
+  ".dashboard-home .dh-sp-btn.is-accent:hover { background: color-mix(in srgb, var(--interactive-accent) 20%, var(--background-secondary)) !important; }",
+  ".dashboard-home .dh-sp-btn.is-active { border-color: var(--interactive-accent) !important; color: var(--interactive-accent) !important; }",
   ".dashboard-home .dh-sp-new-box { padding: var(--dh-sp-s3) var(--dh-sp-s4); margin-bottom: var(--dh-sp-s4); background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 10px; display: flex; flex-direction: column; gap: var(--dh-sp-s2); animation: dh-sp-fade-in 0.18s ease-out; }",
   "@keyframes dh-sp-fade-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }",
   ".dashboard-home .dh-sp-new-row { display: flex; gap: var(--dh-sp-s2); align-items: center; flex-wrap: wrap; }",
-  ".dashboard-home .dh-sp-icon-pick-btn { width: 30px; height: 30px; min-height: 30px; padding: 0; border-radius: 7px; font-size: var(--dh-sp-fs); display: inline-flex; align-items: center; justify-content: center; background: var(--background-primary); border: 1px solid var(--background-modifier-border); cursor: pointer; box-shadow: none; }",
-  ".dashboard-home .dh-sp-input { height: 30px; min-height: 30px; padding: 0 var(--dh-sp-s2); border-radius: 7px; font-size: var(--dh-sp-fs-sm); }",
+  ".dashboard-home .dh-sp-icon-pick-btn { width: 32px !important; height: 32px !important; min-height: 32px !important; padding: 0 !important; border-radius: 8px !important; font-size: var(--dh-sp-fs-title) !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; background: var(--background-primary) !important; border: 1px solid var(--background-modifier-border) !important; cursor: pointer; box-shadow: none !important; }",
+  ".dashboard-home .dh-sp-input { height: 32px; min-height: 32px; padding: 0 var(--dh-sp-s2); border-radius: 8px; font-size: var(--dh-sp-fs); }",
   ".dashboard-home .dh-sp-icons-bar { display: flex; gap: var(--dh-sp-s1); align-items: center; flex-wrap: wrap; padding-top: var(--dh-sp-s2); border-top: 1px solid var(--background-modifier-border); }",
-  ".dashboard-home .dh-sp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: var(--dh-sp-s3); margin-bottom: var(--dh-sp-s4); align-items: stretch; }",
-  ".dashboard-home .dh-sp-card { position: relative; padding: 13px 15px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 10px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; min-width: 0; transition: border-color 0.16s ease, background-color 0.16s ease; }",
-  ".dashboard-home .dh-sp-card:hover { border-color: color-mix(in srgb, var(--card-accent, var(--interactive-accent)) 45%, var(--background-modifier-border)); }",
-  ".dashboard-home .dh-sp-card-top { display: flex; flex-direction: column; gap: 6px; min-width: 0; }",
-  ".dashboard-home .dh-sp-card-head { display: flex; justify-content: space-between; align-items: center; gap: var(--dh-sp-s2); min-height: 22px; }",
-  ".dashboard-home .dh-sp-card-badges { display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }",
-  ".dashboard-home .dh-sp-type-pill { font-size: 0.7rem; font-weight: 500; padding: 2px 7px; border-radius: 5px; background: color-mix(in srgb, var(--card-accent, #599ed6) 13%, transparent); color: color-mix(in srgb, var(--card-accent, #599ed6) 85%, var(--text-normal)); white-space: nowrap; line-height: 1.25; }",
-  ".dashboard-home .dh-sp-discipline { font-size: var(--dh-sp-fs-xs); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
-  ".dashboard-home .dh-sp-deadline { height: 21px; min-height: 21px; padding: 0 7px; border-radius: 5px; font-size: 0.7rem; font-weight: 500; border: 1px solid transparent; box-shadow: none; cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums; flex-shrink: 0; margin-left: auto; display: inline-flex; align-items: center; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease; }",
-  ".dashboard-home .dh-sp-deadline.is-far { color: var(--color-green, #4aab80); background: color-mix(in srgb, var(--color-green, #4aab80) 11%, transparent); }",
-  ".dashboard-home .dh-sp-deadline.is-soon { color: var(--color-orange, #e5a158); background: color-mix(in srgb, var(--color-orange, #e5a158) 13%, transparent); }",
-  ".dashboard-home .dh-sp-deadline.is-overdue { color: var(--text-error, #e06c75); background: color-mix(in srgb, var(--text-error, #e06c75) 13%, transparent); }",
-  ".dashboard-home .dh-sp-deadline.is-empty { color: var(--text-faint); background: transparent; opacity: 0; }",
-  ".dashboard-home .dh-sp-card:hover .dh-sp-deadline.is-empty, .dashboard-home .dh-sp-deadline.is-empty.is-visible { opacity: 1; }",
-  ".dashboard-home .dh-sp-deadline:hover { border-color: color-mix(in srgb, currentColor 35%, transparent); }",
-  "@media (hover: none) { .dashboard-home .dh-sp-deadline.is-empty { opacity: 0.65; } }",
-  ".dashboard-home .dh-sp-title-link { font-size: var(--dh-sp-fs); font-weight: 600; color: var(--text-normal); text-decoration: none; line-height: 1.35; overflow-wrap: anywhere; word-break: break-word; }",
+  "/* Сетка плиток активных проектов: 1 кол. на телефоне, 2 на iPad в портрете (768/820), 2-3 в альбоме (1024/1180/1280) */",
+  ".dashboard-home .dh-sp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: var(--dh-sp-s4); margin-bottom: var(--dh-sp-s4); align-items: stretch; }",
+  ".dashboard-home .dh-sp-card { position: relative; padding: var(--dh-sp-s4); background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-top: 3px solid var(--card-accent, var(--interactive-accent)); border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: var(--dh-sp-s3); min-width: 0; transition: border-color 0.16s ease, background-color 0.16s ease; }",
+  ".dashboard-home .dh-sp-card:hover { border-color: color-mix(in srgb, var(--card-accent, var(--interactive-accent)) 50%, var(--background-modifier-border)); border-top-color: var(--card-accent, var(--interactive-accent)); }",
+  ".dashboard-home .dh-sp-card-top { display: flex; flex-direction: column; gap: var(--dh-sp-s2); min-width: 0; }",
+  ".dashboard-home .dh-sp-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--dh-sp-s2); min-width: 0; }",
+  ".dashboard-home .dh-sp-card-badges { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1 1 auto; flex-wrap: wrap; }",
+  ".dashboard-home .dh-sp-type-pill { font-size: var(--dh-sp-fs-xs); font-weight: 600; padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, var(--card-accent, #599ed6) 15%, transparent); color: color-mix(in srgb, var(--card-accent, #599ed6) 90%, var(--text-normal)); white-space: nowrap; flex-shrink: 0; line-height: 1.35; }",
+  ".dashboard-home .dh-sp-discipline { font-size: var(--dh-sp-fs-xs); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }",
+  ".dashboard-home .dh-sp-deadline { height: 24px !important; min-height: 24px !important; padding: 0 8px !important; border-radius: 6px !important; font-size: var(--dh-sp-fs-xs) !important; font-weight: 500 !important; border: 1px solid transparent !important; box-shadow: none !important; cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums; flex-shrink: 0; display: inline-flex !important; align-items: center !important; transition: background-color 0.15s ease, border-color 0.15s ease; }",
+  ".dashboard-home .dh-sp-deadline.is-far { color: var(--color-green, #4aab80) !important; background: color-mix(in srgb, var(--color-green, #4aab80) 13%, transparent) !important; }",
+  ".dashboard-home .dh-sp-deadline.is-soon { color: var(--color-orange, #e5a158) !important; background: color-mix(in srgb, var(--color-orange, #e5a158) 15%, transparent) !important; }",
+  ".dashboard-home .dh-sp-deadline.is-overdue { color: var(--text-error, #e06c75) !important; background: color-mix(in srgb, var(--text-error, #e06c75) 15%, transparent) !important; }",
+  ".dashboard-home .dh-sp-deadline.is-empty { color: var(--text-muted) !important; background: var(--background-primary) !important; border-color: var(--background-modifier-border) !important; }",
+  ".dashboard-home .dh-sp-deadline:hover { border-color: color-mix(in srgb, currentColor 40%, transparent) !important; }",
+  ".dashboard-home .dh-sp-title-link { font-size: var(--dh-sp-fs-title); font-weight: 600; color: var(--text-normal); text-decoration: none; line-height: 1.36; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; word-break: break-word; margin: 2px 0; }",
   ".dashboard-home .dh-sp-title-link:hover { color: var(--text-accent); }",
-  ".dashboard-home .dh-sp-meta-row { display: flex; justify-content: space-between; align-items: center; gap: var(--dh-sp-s2); min-height: 20px; }",
-  ".dashboard-home .dh-sp-meta-text { font-size: var(--dh-sp-fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }",
-  ".dashboard-home .dh-sp-card-tools { display: flex; align-items: center; gap: 2px; flex-shrink: 0; margin-left: auto; }",
-  ".dashboard-home .dh-sp-tool-btn { min-width: 22px; height: 20px; min-height: 20px; padding: 0 4px; border-radius: 4px; font-size: 0.7rem; background: transparent; border: none; box-shadow: none; color: var(--text-faint); opacity: 0; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease; }",
-  ".dashboard-home .dh-sp-card:hover .dh-sp-tool-btn, .dashboard-home .dh-sp-card:focus-within .dh-sp-tool-btn, .dashboard-home .dh-sp-tool-btn.is-visible { opacity: 1; }",
-  ".dashboard-home .dh-sp-tool-btn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }",
-  ".dashboard-home .dh-sp-tool-btn.is-danger { opacity: 1; color: var(--text-error, #e06c75); background: color-mix(in srgb, var(--text-error, #e06c75) 14%, transparent); padding: 0 6px; }",
-  "@media (hover: none) { .dashboard-home .dh-sp-tool-btn { opacity: 0.55; } }",
+  ".dashboard-home .dh-sp-card-bottom { display: flex; flex-direction: column; gap: var(--dh-sp-s2); min-width: 0; }",
+  ".dashboard-home .dh-sp-meta-row { display: flex; justify-content: space-between; align-items: center; gap: var(--dh-sp-s2); padding-top: var(--dh-sp-s2); border-top: 1px solid var(--background-modifier-border); }",
+  ".dashboard-home .dh-sp-meta-text { font-size: var(--dh-sp-fs-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 0; }",
+  ".dashboard-home .dh-sp-more-btn { width: 28px !important; min-width: 28px !important; height: 26px !important; min-height: 26px !important; padding: 0 !important; border-radius: 6px !important; font-size: 0.95rem !important; font-weight: 600 !important; line-height: 1 !important; color: var(--text-muted) !important; background: transparent !important; border: 1px solid transparent !important; box-shadow: none !important; cursor: pointer; display: inline-flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0; }",
+  ".dashboard-home .dh-sp-more-btn:hover, .dashboard-home .dh-sp-more-btn.is-active { background: var(--background-primary) !important; border-color: var(--background-modifier-border) !important; color: var(--text-normal) !important; }",
+  ".dashboard-home .dh-sp-actions-drawer { display: flex; flex-wrap: wrap; gap: 6px; padding: var(--dh-sp-s2); border-radius: 8px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); animation: dh-sp-fade-in 0.15s ease-out; }",
+  ".dashboard-home .dh-sp-drawer-btn { flex: 1 1 auto; height: 28px !important; min-height: 28px !important; padding: 0 8px !important; border-radius: 6px !important; font-size: var(--dh-sp-fs-xs) !important; font-weight: 500 !important; background: var(--background-secondary) !important; border: 1px solid var(--background-modifier-border) !important; color: var(--text-normal) !important; box-shadow: none !important; cursor: pointer; display: inline-flex !important; align-items: center !important; justify-content: center !important; white-space: nowrap; }",
+  ".dashboard-home .dh-sp-drawer-btn:hover { background: var(--background-modifier-hover) !important; }",
+  ".dashboard-home .dh-sp-drawer-btn.is-danger { color: var(--text-error, #e06c75) !important; border-color: color-mix(in srgb, var(--text-error, #e06c75) 45%, var(--background-modifier-border)) !important; background: color-mix(in srgb, var(--text-error, #e06c75) 12%, var(--background-secondary)) !important; }",
   ".dashboard-home .dh-sp-date-popover { padding: var(--dh-sp-s2); background: var(--background-primary); border-radius: 8px; border: 1px solid var(--background-modifier-border); display: flex; flex-wrap: wrap; gap: var(--dh-sp-s1); align-items: center; justify-content: space-between; animation: dh-sp-fade-in 0.16s ease-out; }",
-  ".dashboard-home .dh-sp-card-footer { display: flex; align-items: center; gap: 6px; padding-top: 2px; }",
-  ".dashboard-home .dh-sp-open-btn { flex: 1; height: 28px; min-height: 28px; padding: 0 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; color: var(--text-muted); background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease; }",
-  ".dashboard-home .dh-sp-open-btn:hover { color: var(--interactive-accent); border-color: color-mix(in srgb, var(--interactive-accent) 42%, var(--background-modifier-border)); background: color-mix(in srgb, var(--interactive-accent) 8%, var(--background-primary)); }",
+  ".dashboard-home .dh-sp-card-footer { display: flex; align-items: center; gap: var(--dh-sp-s2); }",
+  ".dashboard-home .dh-sp-open-btn { flex: 1 1 auto; height: 34px !important; min-height: 34px !important; padding: 0 var(--dh-sp-s3) !important; border-radius: 8px !important; font-size: var(--dh-sp-fs) !important; font-weight: 500 !important; color: var(--interactive-accent) !important; background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary)) !important; border: 1px solid color-mix(in srgb, var(--interactive-accent) 34%, var(--background-modifier-border)) !important; box-shadow: none !important; cursor: pointer; display: inline-flex !important; align-items: center !important; justify-content: center !important; white-space: nowrap; transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease; }",
+  ".dashboard-home .dh-sp-open-btn:hover { background: color-mix(in srgb, var(--interactive-accent) 20%, var(--background-primary)) !important; }",
   ".dashboard-home .dh-sp-open-btn:active { transform: scale(0.98); }",
-  ".dashboard-home .dh-sp-plus-btn { width: 28px; height: 28px; min-height: 28px; padding: 0; border-radius: 6px; font-size: 0.84rem; font-weight: 500; color: var(--text-muted); background: var(--background-primary); border: 1px solid var(--background-modifier-border); box-shadow: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease; }",
-  ".dashboard-home .dh-sp-plus-btn:hover { color: var(--interactive-accent); border-color: color-mix(in srgb, var(--interactive-accent) 42%, var(--background-modifier-border)); background: color-mix(in srgb, var(--interactive-accent) 8%, var(--background-primary)); }",
-  ".dashboard-home .dh-sp-plus-btn:active { transform: scale(0.95); }",
+  ".dashboard-home .dh-sp-plus-btn { height: 34px !important; min-height: 34px !important; padding: 0 11px !important; border-radius: 8px !important; font-size: var(--dh-sp-fs-xs) !important; font-weight: 500 !important; color: var(--text-muted) !important; background: var(--background-primary) !important; border: 1px solid var(--background-modifier-border) !important; box-shadow: none !important; cursor: pointer; display: inline-flex !important; align-items: center !important; justify-content: center !important; flex-shrink: 0; white-space: nowrap; transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease; }",
+  ".dashboard-home .dh-sp-plus-btn:hover { color: var(--text-normal) !important; border-color: var(--interactive-accent) !important; background: var(--background-modifier-hover) !important; }",
+  ".dashboard-home .dh-sp-plus-btn:active { transform: scale(0.96); }",
   ".dashboard-home .dh-sp-orphans { padding: var(--dh-sp-s3) var(--dh-sp-s4); margin-bottom: var(--dh-sp-s4); background: var(--background-secondary); border-radius: 10px; border: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: var(--dh-sp-s2); }",
   ".dashboard-home .dh-sp-orphan-row { display: flex; gap: var(--dh-sp-s2); align-items: center; padding: var(--dh-sp-s1) 0; border-top: 1px solid var(--background-modifier-border); flex-wrap: wrap; }",
   ".dashboard-home .dh-sp-done-details { padding: var(--dh-sp-s3) var(--dh-sp-s4); background: var(--background-secondary); border-radius: 10px; border: 1px solid var(--background-modifier-border); }",
@@ -522,11 +522,17 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-study-cards-hub .dsc-btn-sec { flex: 1; min-width: 100px; height: 34px; font-size: 0.78rem; font-weight: 600; padding: 0 10px; border-radius: 7px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-normal); cursor: pointer; }",
   ".dashboard-home .dh-study-cards-hub .dsc-btn-sec.is-active { border-color: #599ed6; color: #599ed6; }",
   ".dashboard-home .dh-study-cards-hub .dsc-drawer { margin-top: 12px; padding: 12px 14px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-top: 2px solid #9c83e8; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }",
+  "@media (pointer: coarse), (any-pointer: coarse) {",
+  "  .dashboard-home .dh-sp-btn { height: 38px; min-height: 38px; }",
+  "  .dashboard-home .dh-sp-open-btn, .dashboard-home .dh-sp-plus-btn { height: 40px !important; min-height: 40px !important; }",
+  "  .dashboard-home .dh-sp-more-btn { width: 36px !important; min-width: 36px !important; height: 32px !important; min-height: 32px !important; background: var(--background-primary) !important; border-color: var(--background-modifier-border) !important; }",
+  "  .dashboard-home .dh-sp-drawer-btn { height: 36px !important; min-height: 36px !important; }",
+  "}",
   "@media (prefers-reduced-motion: reduce) {",
-  "  .dashboard-home .dh-study-section *, .dashboard-home .dh-sp-new-box, .dashboard-home .dh-sp-date-popover { transition: none !important; animation: none !important; }",
+  "  .dashboard-home .dh-study-section *, .dashboard-home .dh-sp-new-box, .dashboard-home .dh-sp-date-popover, .dashboard-home .dh-sp-actions-drawer { transition: none !important; animation: none !important; }",
   "}",
   "@media (max-width: 640px) {",
-  "  .dashboard-home .dh-sp-grid { grid-template-columns: 1fr; }",
+  "  .dashboard-home .dh-sp-grid { grid-template-columns: 1fr; gap: var(--dh-sp-s3); }",
   "  .dashboard-home .dh-study-cards-hub .dsc-panel { padding: 10px 12px; }",
   "  .dashboard-home .dh-study-cards-hub .dsc-summary-grid { grid-template-columns: 1fr 1fr; gap: 8px; }",
   "  .dashboard-home .dh-study-cards-hub .dsc-actions-box { grid-column: 1 / -1; padding: 8px 10px; }",
@@ -1900,7 +1906,7 @@ async function renderAll() {
 
     const toggleNewBtn = topActions.createEl("button", {
       cls: "dh-sp-btn" + (uiState.showNewWorkBar ? " is-active" : ""),
-      text: uiState.showNewWorkBar ? "✕ Закрыть" : "+ Проект",
+      text: uiState.showNewWorkBar ? "✕ Закрыть" : "＋ Проект",
       attr: { type: "button", title: "Создать новый учебный проект" }
     });
     toggleNewBtn.onclick = () => {
@@ -1953,7 +1959,7 @@ async function renderAll() {
       const nwCreate = nwBox.createEl("button", {
         cls: "dh-btn mod-cta",
         text: "Создать",
-        attr: { type: "button", style: "height: 30px; padding: 0 14px; font-size: 0.78rem; border-radius: 7px;" }
+        attr: { type: "button", style: "height: 32px; padding: 0 14px; font-size: 0.78rem; border-radius: 8px;" }
       });
 
       const iconPickerBar = nwContainer.createDiv({
@@ -2035,7 +2041,7 @@ async function renderAll() {
 
     if (ws.length === 0) {
       root.createDiv({
-        text: "Активных проектов сейчас нет. Нажми «+ Проект» выше, чтобы создать новый проект.",
+        text: "Активных проектов сейчас нет. Нажми «＋ Проект» выше, чтобы создать новый проект.",
         attr: { style: "padding: 16px; margin-bottom: 16px; font-size: 0.78rem; color: var(--text-muted); background: var(--background-secondary); border-radius: 10px; border: 1px dashed var(--background-modifier-border); text-align: center;" }
       });
     } else {
@@ -2048,6 +2054,7 @@ async function renderAll() {
         const startIso = getStartISO(p);
         const isEditingDate = uiState.openDeadlineFor === p.file.path;
         const isRenaming = uiState.renamingWorkPath === p.file.path;
+        const isMenuOpen = uiState.openCardMenuFor === p.file.path;
         const currentTitle = getDisplayName(p);
         const matCount = descendants(p.file.path).length;
         const activeDays = startIso ? Math.max(1, Math.ceil(today.diff(dv.date(startIso), "days").days) + 1) : 1;
@@ -2057,16 +2064,20 @@ async function renderAll() {
           attr: { style: "--card-accent: " + accent + ";" }
         });
 
+        // ВЕРХНИЙ БЛОК ПЛИТКИ: 1) тип + дисциплина и чип срока справа; 2) крупное название на 2-3 строки
         const topWrap = card.createDiv({ cls: "dh-sp-card-top" });
-
-        // Ряд 1: слева тип и дисциплина, строго у правого края — компактный срок
         const headRow = topWrap.createDiv({ cls: "dh-sp-card-head" });
+
         const leftBadges = headRow.createDiv({ cls: "dh-sp-card-badges" });
         leftBadges.createSpan({ cls: "dh-sp-type-pill", text: workMeta.label });
 
         const disc = typeof p[KEYS.discipline] === "string" ? p[KEYS.discipline].trim() : "";
         if (disc) {
-          leftBadges.createSpan({ cls: "dh-sp-discipline", text: disc });
+          leftBadges.createSpan({
+            cls: "dh-sp-discipline",
+            text: disc,
+            attr: { title: disc }
+          });
         }
 
         if (iso) {
@@ -2087,9 +2098,9 @@ async function renderAll() {
           };
         } else {
           const setDlBtn = headRow.createEl("button", {
-            cls: "dh-sp-deadline is-empty" + (isEditingDate ? " is-visible" : ""),
-            text: "+ срок",
-            attr: { type: "button", title: "Назначить срок" }
+            cls: "dh-sp-deadline is-empty",
+            text: "📅 Срок",
+            attr: { type: "button", title: "Назначить срок проекта" }
           });
           setDlBtn.onclick = e => {
             e.stopPropagation();
@@ -2098,12 +2109,11 @@ async function renderAll() {
           };
         }
 
-        // Ряд 2: название проекта или поле переименования
         if (!isRenaming) {
           const titleLink = topWrap.createEl("a", {
             cls: "internal-link dh-sp-title-link",
             text: currentTitle,
-            attr: { href: p.file.path }
+            attr: { href: p.file.path, title: currentTitle }
           });
           openNote(titleLink, p.file.path);
         } else {
@@ -2122,7 +2132,7 @@ async function renderAll() {
           const rnCancel = renameRow.createEl("button", {
             cls: "dh-sp-btn",
             text: "✕",
-            attr: { type: "button", style: "padding: 0 8px;" }
+            attr: { type: "button", style: "height: 30px; min-height: 30px; padding: 0 8px;" }
           });
 
           const doRename = async () => {
@@ -2163,7 +2173,6 @@ async function renderAll() {
           };
         }
 
-        // Поповер изменения срока
         if (isEditingDate) {
           const datePopover = topWrap.createDiv({ cls: "dh-sp-date-popover" });
 
@@ -2196,7 +2205,7 @@ async function renderAll() {
             const b = presets.createEl("button", {
               cls: "dh-sp-btn",
               text: pr.label,
-              attr: { type: "button", style: "height: 24px; min-height: 24px; padding: 0 7px; font-size: 0.7rem;" }
+              attr: { type: "button", style: "height: 24px; min-height: 24px; padding: 0 7px !important; font-size: 0.72rem !important;" }
             });
             b.onclick = () => applyDeadline(today.plus({ days: pr.d }).toISODate());
           });
@@ -2211,98 +2220,132 @@ async function renderAll() {
             const clr = rightDate.createEl("button", {
               cls: "dh-sp-btn",
               text: "Сброс",
-              attr: { type: "button", style: "height: 24px; min-height: 24px; padding: 0 7px; font-size: 0.7rem; color: var(--text-muted);" }
+              attr: { type: "button", style: "height: 24px; min-height: 24px; padding: 0 7px !important; font-size: 0.72rem !important; color: var(--text-muted) !important;" }
             });
             clr.onclick = () => applyDeadline(null);
           }
         }
 
-        // Ряд 3: слева сводка, справа тихие действия (переименовать, завершить, удалить)
-        const metaRow = topWrap.createDiv({ cls: "dh-sp-meta-row" });
+        // НИЖНИЙ БЛОК ПЛИТКИ: 1) одна строка сводки + кнопка «⋯»; 2) «Открыть в конструкторе» и «＋ Материал»
+        const bottomWrap = card.createDiv({ cls: "dh-sp-card-bottom" });
+
+        const metaRow = bottomWrap.createDiv({ cls: "dh-sp-meta-row" });
         metaRow.createSpan({
           cls: "dh-sp-meta-text",
           text: (matCount > 0 ? "Материалов: " + matCount : "Материалов пока нет") + " · в работе " + activeDays + " дн."
         });
 
-        const tools = metaRow.createDiv({ cls: "dh-sp-card-tools" });
-
-        const editTitleBtn = tools.createEl("button", {
-          cls: "dh-sp-tool-btn",
-          text: "✎",
-          attr: { type: "button", title: "Переименовать проект" }
+        const moreBtn = metaRow.createEl("button", {
+          cls: "dh-sp-more-btn" + (isMenuOpen ? " is-active" : ""),
+          text: "⋯",
+          attr: {
+            type: "button",
+            title: "Действия с проектом (срок, переименовать, завершить, удалить)",
+            "aria-expanded": String(Boolean(isMenuOpen))
+          }
         });
-        editTitleBtn.onclick = e => {
+        moreBtn.onclick = e => {
           e.stopPropagation();
-          uiState.renamingWorkPath = p.file.path;
+          uiState.openCardMenuFor = isMenuOpen ? null : p.file.path;
           renderAll();
         };
 
-        const doneBtn = tools.createEl("button", {
-          cls: "dh-sp-tool-btn",
-          text: "✓",
-          attr: { type: "button", title: "Завершить проект" }
-        });
-        doneBtn.onclick = async e => {
-          e.stopPropagation();
-          if (doneBtn.disabled) return;
-          doneBtn.disabled = true;
-          try {
-            await saveProp(p.file.path, fm => {
-              fm[KEYS.status] = ROOT_STATUS_DONE;
-              if (!fm[KEYS.start]) fm[KEYS.start] = startIso;
-              fm[KEYS.finishedAt] = todayISO;
-            });
-            localOverrides.set(p.file.path, {
-              ...(localOverrides.get(p.file.path) || {}),
-              [KEYS.status]: ROOT_STATUS_DONE,
-              [KEYS.start]: startIso,
-              [KEYS.finishedAt]: todayISO
-            });
-            uiState.completedSectionOpen = true;
-            notify("Проект «" + currentTitle + "» перенесён в завершённые");
-            renderAll();
-          } catch (err) {
-            doneBtn.disabled = false;
-            notify("Ошибка завершения: " + err.message);
-          }
-        };
+        // Вторичные действия раскрываются только по нажатию на «⋯» (удобно и на iPad, и на ПК)
+        if (isMenuOpen) {
+          const actionsDrawer = bottomWrap.createDiv({ cls: "dh-sp-actions-drawer" });
 
-        let confirmTrash = false;
-        const delBtn = tools.createEl("button", {
-          cls: "dh-sp-tool-btn",
-          text: "✕",
-          attr: { type: "button", title: "Удалить проект в корзину" }
-        });
-        delBtn.onclick = async e => {
-          e.stopPropagation();
-          if (delBtn.disabled) return;
-          if (!confirmTrash) {
-            confirmTrash = true;
-            delBtn.textContent = matCount ? "Удалить? (" + matCount + ")" : "Удалить?";
-            delBtn.classList.add("is-danger");
-            setTimeout(() => {
-              if (delBtn.disabled || !delBtn.isConnected) return;
-              confirmTrash = false;
-              delBtn.textContent = "✕";
-              delBtn.classList.remove("is-danger");
-            }, 3000);
-            return;
-          }
-          delBtn.disabled = true;
-          try {
-            const f = app.vault.getAbstractFileByPath(p.file.path);
-            if (f) await app.vault.trash(f, true);
-            localOverrides.set(p.file.path, { deleted: true });
-            notify("Удалено: «" + currentTitle + "»");
+          const dlActionBtn = actionsDrawer.createEl("button", {
+            cls: "dh-sp-drawer-btn",
+            text: "📅 Срок",
+            attr: { type: "button" }
+          });
+          dlActionBtn.onclick = e => {
+            e.stopPropagation();
+            uiState.openCardMenuFor = null;
+            uiState.openDeadlineFor = isEditingDate ? null : p.file.path;
             renderAll();
-          } catch (err) {
-            delBtn.disabled = false;
-            notify("Ошибка удаления: " + err.message);
-          }
-        };
+          };
 
-        // Нижний ряд: аккуратная спокойная кнопка «Открыть в конструкторе» + кнопка «+»
-        const footerRow = card.createDiv({ cls: "dh-sp-card-footer" });
+          const rnActionBtn = actionsDrawer.createEl("button", {
+            cls: "dh-sp-drawer-btn",
+            text: "✎ Имя",
+            attr: { type: "button" }
+          });
+          rnActionBtn.onclick = e => {
+            e.stopPropagation();
+            uiState.openCardMenuFor = null;
+            uiState.renamingWorkPath = p.file.path;
+            renderAll();
+          };
+
+          const doneActionBtn = actionsDrawer.createEl("button", {
+            cls: "dh-sp-drawer-btn",
+            text: "✓ Завершить",
+            attr: { type: "button" }
+          });
+          doneActionBtn.onclick = async e => {
+            e.stopPropagation();
+            if (doneActionBtn.disabled) return;
+            doneActionBtn.disabled = true;
+            try {
+              await saveProp(p.file.path, fm => {
+                fm[KEYS.status] = ROOT_STATUS_DONE;
+                if (!fm[KEYS.start]) fm[KEYS.start] = startIso;
+                fm[KEYS.finishedAt] = todayISO;
+              });
+              localOverrides.set(p.file.path, {
+                ...(localOverrides.get(p.file.path) || {}),
+                [KEYS.status]: ROOT_STATUS_DONE,
+                [KEYS.start]: startIso,
+                [KEYS.finishedAt]: todayISO
+              });
+              uiState.openCardMenuFor = null;
+              uiState.completedSectionOpen = true;
+              notify("Проект «" + currentTitle + "» перенесён в завершённые");
+              renderAll();
+            } catch (err) {
+              doneActionBtn.disabled = false;
+              notify("Ошибка завершения: " + err.message);
+            }
+          };
+
+          let confirmTrash = false;
+          const delActionBtn = actionsDrawer.createEl("button", {
+            cls: "dh-sp-drawer-btn",
+            text: "✕ Удалить",
+            attr: { type: "button" }
+          });
+          delActionBtn.onclick = async e => {
+            e.stopPropagation();
+            if (delActionBtn.disabled) return;
+            if (!confirmTrash) {
+              confirmTrash = true;
+              delActionBtn.textContent = matCount ? "Точно удалить? (" + matCount + ")" : "Точно удалить?";
+              delActionBtn.classList.add("is-danger");
+              setTimeout(() => {
+                if (delActionBtn.disabled || !delActionBtn.isConnected) return;
+                confirmTrash = false;
+                delActionBtn.textContent = "✕ Удалить";
+                delActionBtn.classList.remove("is-danger");
+              }, 3000);
+              return;
+            }
+            delActionBtn.disabled = true;
+            try {
+              const f = app.vault.getAbstractFileByPath(p.file.path);
+              if (f) await app.vault.trash(f, true);
+              localOverrides.set(p.file.path, { deleted: true });
+              uiState.openCardMenuFor = null;
+              notify("Удалено: «" + currentTitle + "»");
+              renderAll();
+            } catch (err) {
+              delActionBtn.disabled = false;
+              notify("Ошибка удаления: " + err.message);
+            }
+          };
+        }
+
+        const footerRow = bottomWrap.createDiv({ cls: "dh-sp-card-footer" });
         const openInPluginBtn = footerRow.createEl("button", {
           cls: "dh-sp-open-btn",
           text: "Открыть в конструкторе",
@@ -2318,7 +2361,7 @@ async function renderAll() {
 
         const quickAddInPluginBtn = footerRow.createEl("button", {
           cls: "dh-sp-plus-btn",
-          text: "+",
+          text: "＋ Материал",
           attr: {
             type: "button",
             title: "Добавить материал в проект «" + currentTitle + "» через конструктор",
@@ -2496,7 +2539,7 @@ async function renderAll() {
           attr: {
             type: "button",
             title: "Открыть завершённый проект в конструкторе",
-            style: "height: 24px; min-height: 24px; padding: 0 8px; font-size: 0.72rem;"
+            style: "height: 24px; min-height: 24px; padding: 0 8px !important; font-size: 0.72rem !important;"
           }
         });
         openDoneInPluginBtn.onclick = () => openStudyCompiler({ rootPath: p.file.path });
@@ -2507,7 +2550,7 @@ async function renderAll() {
           attr: {
             type: "button",
             title: "Возобновить проект и вернуть в активные",
-            style: "height: 24px; min-height: 24px; padding: 0 8px; font-size: 0.72rem; color: var(--text-muted);"
+            style: "height: 24px; min-height: 24px; padding: 0 8px !important; font-size: 0.72rem !important; color: var(--text-muted) !important;"
           }
         });
         restoreBtn.onclick = async () => {
