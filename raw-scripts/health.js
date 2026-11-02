@@ -465,9 +465,10 @@ const macroDefs = [
 
 const macroKcalTotal = macroDefs.reduce((s, m) => s + (m.mean ?? 0) * m.kcal, 0);
 
-const macroRows = macroDefs
-.filter(m => m.mean !== null)
-.map(m => {
+const macroRows = macroDefs.map(m => {
+if (m.mean === null) {
+return { k: m.k, v: "нет данных", vColor: "var(--text-muted)" };
+}
 const share = macroKcalTotal > 0 ? Math.round((m.mean * m.kcal / macroKcalTotal) * 100) : null;
 const hasDelta = m.cur.length >= MIN_WEEK_DAYS && m.prev.length >= MIN_WEEK_DAYS;
 const diff = hasDelta ? Math.round(m.mean - m.prevMean) : null;
