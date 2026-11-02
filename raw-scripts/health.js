@@ -1,7 +1,7 @@
 const section = (typeof input !== "undefined" && input && input.section) ? input.section : "all";
 
 const DIARY_FOLDER_NAME = "Ежедневник";
-const AUTO_DIET_MIN_KCAL = 2600; // Калории >= 2600 ккал автоматически отмечают «Диету» (массонабор)
+const DEFAULT_DIET_MIN_KCAL = 2600;
 const MANUAL_HABITS_PREFIX = "dh_today_manual_habits_v1:";
 
 function clearManualHabitOverrideForDate(dateISO, habitKey) {
@@ -17,8 +17,16 @@ function clearManualHabitOverrideForDate(dateISO, habitKey) {
   } catch {}
 }
 
+function getNutritionPlugin() {
+  return app.plugins?.plugins?.["my-nutrition-tracker"] ?? null;
+}
+
+function getWorkoutPlugin() {
+  return app.plugins?.plugins?.["my-workout-companion"] ?? null;
+}
+
 // ========================================================
-// МОДУЛЬ 1: ВЕС, КАЛОРИИ И БЫСТРЫЙ ВВОД ЗА СЕГОДНЯ
+// МОДУЛЬ 1: ВЕС, КАЛОРИИ, БЖУ И ПАНЕЛЬ СЕГОДНЯШНЕГО ДНЯ
 // ========================================================
 function renderHealthStats() {
   const SOURCE = '"' + DIARY_FOLDER_NAME + '"';
@@ -37,12 +45,39 @@ function renderHealthStats() {
   });
   const notify = msg => { try { new Notice(msg); } catch { console.log(msg); } };
 
+  function parseNum(v) {
+    if (typeof v === "number") return Number.isFinite(v) ? v : null;
+    if (typeof v !== "string") return null;
+    const s = v.trim().replace(",", ".");
+    if (!s) return null;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function openNutritionTracker(dateISO) {
+    const plugin = getNutritionPlugin();
+    if (!plugin || typeof plugin.openNutrition !== "function") {
+      notify("Включи плагин «Питание и БЖУ» (my-nutrition-tracker) в настройках Obsidian.");
+      return;
+    }
+    try {
+      plugin.openNutrition({ dateISO });
+    } catch (err) {
+      notify("Не удалось открыть дневник питания: " + (err instanceof Error ? err.message : String(err)));
+    }
+  }
+
+  // Читаем дневную цель калорий из настроек плагина питания (если там отключена — null)
+  const nutPlugin = getNutritionPlugin();
+  const rawPluginGoal = nutPlugin?.settings ? nutPlugin.settings.dailyCalorieGoal : DEFAULT_DIET_MIN_KCAL;
+  const calorieGoal = typeof rawPluginGoal === "number" && rawPluginGoal > 0 ? Math.round(rawPluginGoal) : null;
+
   const today = dv.date("today").startOf("day");
   const todayISO = today.toISODate();
 
   const byDate = new Map();
   for (const p of dv.pages(SOURCE)) {
-    const d = asDate(p.дата);
+    const d = asDate(p.дата) || asDate(p.file.name);
     if (!d || d > today) continue;
     const iso = d.toISODate();
     const old = byDate.get(iso);
@@ -50,17 +85,34 @@ function renderHealthStats() {
   }
 
   const problems = [];
-  const weight = new Map(), calories = new Map();
+  const weight = new Map();
+  const calories = new Map();
+  const proteins = new Map();
+  const fats = new Map();
+  const carbs = new Map();
+
   for (const [iso, p] of byDate) {
     if (!empty(p.вес_кг)) {
-      const val = typeof p.вес_кг === "number" ? p.вес_кг : Number(String(p.вес_кг).replace(",", "."));
-      if (Number.isFinite(val) && val >= 20 && val <= 300) weight.set(iso, val);
+      const val = parseNum(p.вес_кг);
+      if (val !== null && val >= 20 && val <= 300) weight.set(iso, val);
       else problems.push([p.file.link, "вес_кг: нужно число от 20 до 300."]);
     }
     if (!empty(p.калории_ккал)) {
-      const cal = typeof p.калории_ккал === "number" ? p.калории_ккал : Number(String(p.калории_ккал).replace(",", "."));
-      if (Number.isFinite(cal) && cal > 0 && cal <= 10000) calories.set(iso, cal);
+      const cal = parseNum(p.калории_ккал);
+      if (cal !== null && cal > 0 && cal <= 10000) calories.set(iso, cal);
       else if (cal !== 0) problems.push([p.file.link, "калории_ккал: нужно число от 1 до 10000."]);
+    }
+    if (!empty(p.белки_г)) {
+      const pr = parseNum(p.белки_г);
+      if (pr !== null && pr >= 0 && pr <= 1000) proteins.set(iso, pr);
+    }
+    if (!empty(p.жиры_г)) {
+      const ft = parseNum(p.жиры_г);
+      if (ft !== null && ft >= 0 && ft <= 1000) fats.set(iso, ft);
+    }
+    if (!empty(p.углеводы_г)) {
+      const cb = parseNum(p.углеводы_г);
+      if (cb !== null && cb >= 0 && cb <= 2000) carbs.set(iso, cb);
     }
   }
 
@@ -77,9 +129,13 @@ function renderHealthStats() {
   const wPrev7 = spanCompleted(weight, 8, 7);
   const cCur7 = spanCompleted(calories, 1, 7);
   const cPrev7 = spanCompleted(calories, 8, 7);
+  const pCur7 = spanCompleted(proteins, 1, 7);
+  const fCur7 = spanCompleted(fats, 1, 7);
+  const uCur7 = spanCompleted(carbs, 1, 7);
 
   const wCurMean = average(wCur7), wPrevMean = average(wPrev7);
   const cCurMean = average(cCur7), cPrevMean = average(cPrev7);
+  const pCurMean = average(pCur7), fCurMean = average(fCur7), uCurMean = average(uCur7);
 
   const curWeekRange = today.minus({ days: 7 }).toFormat("dd.MM") + "–" + today.minus({ days: 1 }).toFormat("dd.MM");
   const prevWeekRange = today.minus({ days: 14 }).toFormat("dd.MM") + "–" + today.minus({ days: 8 }).toFormat("dd.MM");
@@ -400,6 +456,12 @@ function renderHealthStats() {
 
   const hasEnoughCal = cCur7.length >= MIN_WEEK_DAYS && cPrev7.length >= MIN_WEEK_DAYS;
   const calWeekDelta = hasEnoughCal ? formatCaloriesDelta(cCurMean - cPrevMean) : null;
+  const macro7Row = (pCurMean !== null || fCurMean !== null || uCurMean !== null)
+    ? [{
+        k: "Средние БЖУ (7 дн.)",
+        v: "Б: " + fmt(pCurMean, 0, 1) + " · Ж: " + fmt(fCurMean, 0, 1) + " · У: " + fmt(uCurMean, 0, 1) + " г"
+      }]
+    : [];
 
   createMinimalCard({
     label: "Средние калории · 7 дней",
@@ -410,6 +472,7 @@ function renderHealthStats() {
       ? [
           { k: "Текущие 7 дн. (" + curWeekRange + ")", v: fmt(cCurMean, 0, 0) + " ккал · " + cCur7.length + "/7 дн." },
           { k: "Разброс", minMax: { min: fmt(Math.min(...cCur7), 0, 0), max: fmt(Math.max(...cCur7), 0, 0) }, neutralMinMax: true },
+          ...macro7Row,
           { k: "Пред. 7 дн. (" + prevWeekRange + ")", v: fmt(cPrevMean, 0, 0) + " ккал · " + cPrev7.length + "/7 дн." }
         ]
       : [
@@ -418,6 +481,7 @@ function renderHealthStats() {
           ...(cCur7.length
             ? [{ k: "Разброс", minMax: { min: fmt(Math.min(...cCur7), 0, 0), max: fmt(Math.max(...cCur7), 0, 0) }, neutralMinMax: true }]
             : []),
+          ...macro7Row,
           {
             k: "Пред. 7 дн. (" + prevWeekRange + ")",
             v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.length + "/7 дн. (нужно ≥" + MIN_WEEK_DAYS + ")"
@@ -425,44 +489,90 @@ function renderHealthStats() {
         ]
   });
 
-  // --- Быстрый ввод веса и калорий за сегодня с автоотметкой диеты ---
+  // --- Панель сегодняшнего дня: БЖУ, цель калорий, вызов my-nutrition-tracker и быстрый ввод веса ---
   const todayDiaryPage = byDate.get(todayISO) || null;
-  if (todayDiaryPage) {
-    const diaryFile = app.vault.getAbstractFileByPath(todayDiaryPage.file.path);
-    const curW = weight.has(todayISO) ? weight.get(todayISO) : null;
-    const curC = calories.has(todayISO) ? calories.get(todayISO) : null;
-    const isDietDone = todayDiaryPage.диета === true || (curC !== null && curC >= AUTO_DIET_MIN_KCAL);
+  const diaryFile = todayDiaryPage ? app.vault.getAbstractFileByPath(todayDiaryPage.file.path) : null;
+  const curW = weight.has(todayISO) ? weight.get(todayISO) : null;
+  const curC = calories.has(todayISO) ? calories.get(todayISO) : null;
+  const curP = proteins.has(todayISO) ? proteins.get(todayISO) : null;
+  const curF = fats.has(todayISO) ? fats.get(todayISO) : null;
+  const curU = carbs.has(todayISO) ? carbs.get(todayISO) : null;
 
-    const quickBar = root.createDiv({
-      attr: {
-        style: "margin-top: 12px; padding: 10px 14px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;"
-      }
-    });
+  const isDietDone = Boolean(
+    todayDiaryPage?.диета === true ||
+    (calorieGoal !== null && curC !== null && curC >= calorieGoal)
+  );
 
-    const leftInfo = quickBar.createDiv({ attr: { style: "display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" } });
+  const quickBar = root.createDiv({
+    attr: {
+      style: "margin-top: 12px; padding: 12px 14px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 10px; display: flex; flex-direction: column; gap: 10px;"
+    }
+  });
+
+  const topBarRow = quickBar.createDiv({
+    attr: { style: "display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;" }
+  });
+
+  const leftInfo = topBarRow.createDiv({ attr: { style: "display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" } });
+  leftInfo.createSpan({
+    text: "🥗 Сегодня (" + today.toFormat("dd.MM") + "):",
+    attr: { style: "font-size: 0.86rem; font-weight: 600; color: var(--text-normal);" }
+  });
+
+  // Плашка калорий и статуса цели (если цель включена в плагине)
+  if (calorieGoal !== null) {
+    const pct = curC !== null ? Math.min(100, Math.round((curC / calorieGoal) * 100)) : 0;
     leftInfo.createSpan({
-      text: "🥗 Сегодня (" + today.toFormat("dd.MM") + "):",
-      attr: { style: "font-size: 0.82rem; font-weight: 600; color: var(--text-normal);" }
-    });
-    const dietBadge = leftInfo.createSpan({
-      text: isDietDone ? "✓ Диета закрыта (≥" + AUTO_DIET_MIN_KCAL + " ккал)" : "Диета: цель " + AUTO_DIET_MIN_KCAL + " ккал",
+      text: isDietDone
+        ? "✓ Диета закрыта (" + fmt(curC || 0, 0, 0) + " / " + calorieGoal + " ккал)"
+        : (curC !== null ? fmt(curC, 0, 0) + " из " + calorieGoal + " ккал (" + pct + "%)" : "Цель: " + calorieGoal + " ккал"),
       attr: {
-        style: "font-size: 0.73rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; " +
+        style: "font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; font-variant-numeric: tabular-nums; " +
           (isDietDone
             ? "background: #4aab8018; color: #4aab80; border: 1px solid #4aab8044;"
             : "background: var(--background-primary); color: var(--text-muted); border: 1px solid var(--background-modifier-border);")
       }
     });
+  } else if (curC !== null) {
+    leftInfo.createSpan({
+      text: fmt(curC, 0, 0) + " ккал",
+      attr: {
+        style: "font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: var(--background-primary); color: var(--text-normal); border: 1px solid var(--background-modifier-border); font-variant-numeric: tabular-nums;"
+      }
+    });
+  }
 
-    const controlsWrap = quickBar.createDiv({ attr: { style: "display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" } });
+  // Плашка БЖУ за сегодня (если записаны)
+  if (curP !== null || curF !== null || curU !== null) {
+    leftInfo.createSpan({
+      text: "Б: " + fmt(curP ?? 0, 0, 1) + " г · Ж: " + fmt(curF ?? 0, 0, 1) + " г · У: " + fmt(curU ?? 0, 0, 1) + " г",
+      attr: {
+        style: "font-size: 0.74rem; font-weight: 500; padding: 2px 8px; border-radius: 6px; background: var(--background-primary); color: var(--text-muted); border: 1px solid var(--background-modifier-border); font-variant-numeric: tabular-nums;"
+      }
+    });
+  }
 
+  const controlsWrap = topBarRow.createDiv({ attr: { style: "display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" } });
+
+  const openNutBtn = controlsWrap.createEl("button", {
+    cls: "dh-btn mod-cta",
+    text: "🥗 Питание и БЖУ",
+    attr: {
+      type: "button",
+      title: "Открыть дневник питания и базу продуктов",
+      style: "height: 30px; font-size: 0.8rem; font-weight: 600; padding: 0 12px; border-radius: 8px; cursor: pointer;"
+    }
+  });
+  openNutBtn.onclick = () => openNutritionTracker(todayISO);
+
+  if (diaryFile) {
     const wInput = controlsWrap.createEl("input", {
       attr: {
         type: "text",
         inputmode: "decimal",
         placeholder: "Вес (кг)",
         value: curW !== null ? String(curW).replace(".", ",") : "",
-        style: "width: 95px; height: 28px; font-size: 0.82rem; padding: 2px 8px; border-radius: 6px;"
+        style: "width: 88px; height: 30px; font-size: 0.8rem; padding: 2px 8px; border-radius: 8px;"
       }
     });
 
@@ -470,16 +580,19 @@ function renderHealthStats() {
       attr: {
         type: "text",
         inputmode: "numeric",
-        placeholder: "Калории",
+        placeholder: "Ккал",
         value: curC !== null ? String(Math.round(curC)) : "",
-        style: "width: 105px; height: 28px; font-size: 0.82rem; padding: 2px 8px; border-radius: 6px;"
+        style: "width: 88px; height: 30px; font-size: 0.8rem; padding: 2px 8px; border-radius: 8px;"
       }
     });
 
     const saveQuickBtn = controlsWrap.createEl("button", {
-      cls: "dh-btn mod-cta",
+      cls: "dh-btn",
       text: "Сохранить",
-      attr: { type: "button", style: "height: 28px; font-size: 0.78rem; padding: 0 12px;" }
+      attr: {
+        type: "button",
+        style: "height: 30px; font-size: 0.78rem; padding: 0 10px; border-radius: 8px; cursor: pointer;"
+      }
     });
 
     const commitQuickMetrics = async () => {
@@ -509,20 +622,22 @@ function renderHealthStats() {
 
       saveQuickBtn.disabled = true;
       try {
-        clearManualHabitOverrideForDate(todayISO, "диета");
-        const autoDiet = nextC !== null ? nextC >= AUTO_DIET_MIN_KCAL : false;
+        if (calorieGoal !== null) {
+          clearManualHabitOverrideForDate(todayISO, "диета");
+        }
+        const autoDiet = calorieGoal !== null && nextC !== null ? nextC >= calorieGoal : false;
         await app.fileManager.processFrontMatter(diaryFile, fm => {
-          fm.вес_кг = nextW;
-          fm.калории_ккал = nextC;
-          if (nextC !== null) {
+          if (nextW === null) delete fm.вес_кг;
+          else fm.вес_кг = nextW;
+
+          if (nextC === null) delete fm.калории_ккал;
+          else fm.калории_ккал = nextC;
+
+          if (calorieGoal !== null && nextC !== null) {
             fm.диета = autoDiet;
           }
         });
-        dietBadge.setText(autoDiet ? "✓ Диета закрыта (≥" + AUTO_DIET_MIN_KCAL + " ккал)" : "Диета: цель " + AUTO_DIET_MIN_KCAL + " ккал");
-        dietBadge.style.background = autoDiet ? "#4aab8018" : "var(--background-primary)";
-        dietBadge.style.color = autoDiet ? "#4aab80" : "var(--text-muted)";
-        dietBadge.style.borderColor = autoDiet ? "#4aab8044" : "var(--background-modifier-border)";
-        notify("Показатели за сегодня обновлены.");
+        notify("Показатели за сегодня сохранены.");
       } catch (e) {
         notify("Ошибка сохранения: " + (e?.message || e));
       } finally {
@@ -533,6 +648,19 @@ function renderHealthStats() {
     saveQuickBtn.onclick = commitQuickMetrics;
     wInput.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); commitQuickMetrics(); } };
     cInput.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); commitQuickMetrics(); } };
+  }
+
+  // Тонкая полоска прогресса калорий за сегодня (если цель задана и есть калории)
+  if (calorieGoal !== null && curC !== null && curC > 0) {
+    const pct = Math.min(100, Math.round((curC / calorieGoal) * 100));
+    const track = quickBar.createDiv({
+      attr: { style: "height: 5px; border-radius: 99px; background: var(--background-modifier-border); overflow: hidden;" }
+    });
+    track.createDiv({
+      attr: {
+        style: "height: 100%; width: " + pct + "%; background: " + (isDietDone ? "#4aab80" : "var(--interactive-accent)") + "; transition: width 0.2s ease;"
+      }
+    });
   }
 
   if (problems.length) {
@@ -577,10 +705,6 @@ async function renderWorkoutsHub() {
   const text = v => typeof v === "string" ? v.trim() : "";
   const empty = v => v == null || v === "";
 
-  function getWorkoutPlugin() {
-    return app.plugins?.plugins?.["my-workout-companion"] ?? null;
-  }
-
   function openWorkoutCompanion(options = {}) {
     const plugin = getWorkoutPlugin();
     if (!plugin || typeof plugin.openWorkout !== "function") {
@@ -594,7 +718,6 @@ async function renderWorkoutsHub() {
     }
   }
 
-  // Объединяем базовый каталог и пользовательские упражнения из programStore плагина
   const catalogList = [...BASE_EXERCISES];
   const catalog = new Map(catalogList.map(e => [e.name, e]));
   const pluginCatalog = getWorkoutPlugin()?.programStore?.getCatalog?.() || [];
@@ -727,7 +850,6 @@ async function renderWorkoutsHub() {
   const todayISO = today.toISODate();
   const root = dv.container.createDiv({ cls: "dh dh-trainings-hub", attr: { style: "margin: 20px 0 25px 0;" } });
 
-  // Проверяем сегодняшнюю сессию для отображения компактного статуса на карточке запуска
   const todayDirectPath = KNOWLEDGE_FOLDER + "/Тренировка " + todayISO + ".md";
   let todayFile = app.vault.getAbstractFileByPath(todayDirectPath);
   if (!todayFile) {
@@ -748,7 +870,6 @@ async function renderWorkoutsHub() {
     } catch {}
   }
 
-  // --- Компактная карточка запуска плагина my-workout-companion ---
   const launcherCard = root.createDiv({
     cls: "dh-panel",
     attr: {
@@ -796,7 +917,6 @@ async function renderWorkoutsHub() {
 
   const actionsCol = launcherTop.createDiv({ attr: { style: "display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" } });
 
-  // Если в плагине прямо сейчас тикает таймер отдыха — показываем индикатор
   const activeTimer = getWorkoutPlugin()?.settings?.timer;
   if (activeTimer && activeTimer.endAt > Date.now()) {
     const remSec = Math.max(0, Math.ceil((activeTimer.endAt - Date.now()) / 1000));
@@ -840,7 +960,6 @@ async function renderWorkoutsHub() {
     });
   }
 
-  // --- Сбор всех тренировок для сводки за 30 дней, рекордов и истории ---
   const all = [];
 
   for (const p of dv.pages(SOURCE)) {
@@ -905,7 +1024,6 @@ async function renderWorkoutsHub() {
     }
   }
 
-  // Если сегодняшняя заметка ещё не проиндексирована Dataview, добавляем её напрямую
   if (todayFile && todaySets.length && !all.some(g => g.path === todayFile.path)) {
     const groups = new Map();
     todaySets.forEach(s => {
