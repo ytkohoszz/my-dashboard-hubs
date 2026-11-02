@@ -1,4 +1,4 @@
-// 3D — компактная база знаний и приёмов (v4.3: аккуратные подпапки и перемещение) 
+// 3D — компактная база знаний и приёмов (v4.4: прямая интеграция с my-3d-node-inspector) 
 const normalizePath = p => String(p || "").replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/|\/(?![\s\S])/g, "");
 const AREA = "3D";
 const TARGET_FOLDER = "Знания";
@@ -254,6 +254,26 @@ function isTemplate(file, fm) {
     list(fm.tags).some(tag => ["template", "шаблон"].includes(tag.replace(/^#/, "").toLowerCase()));
 }
 
+
+const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp", "gif", "svg"]);
+function noteHasImages(cache) {
+  const embeds = cache?.embeds || [];
+  return embeds.some(em => {
+    const rawLink = String(em.link || "").split("#")[0].split("|")[0].trim();
+    const ext = rawLink.split(".").pop()?.toLowerCase() || "";
+    return IMAGE_EXTENSIONS.has(ext);
+  });
+}
+
+function openNodeInspector(noteFile) {
+  const plugin = app.plugins?.plugins?.["my-3d-node-inspector"] || window.__my3DNodeInspector;
+  if (plugin && typeof plugin.openInspector === "function") {
+    plugin.openInspector({ file: noteFile });
+    return;
+  }
+  notify("Включи плагин 3D Node Inspector (my-3d-node-inspector) в настройках Obsidian.");
+}
+
 function readNotes() {
   const result = [];
   for (const file of app.vault.getMarkdownFiles()) {
@@ -265,6 +285,7 @@ function readNotes() {
     const topicPaths = [...new Set(rawTopics.map(value => USE_TOPIC_MAP
       ? mapTopic(value) : topicParts(value).join("/")).filter(Boolean))];
     const displayTopics = [...new Set(topicPaths.map(value => topicParts(value)[0]))];
+    const hasImages = noteHasImages(cache);
     result.push({
       file,
       path: file.path,
@@ -273,6 +294,7 @@ function readNotes() {
       rawTopics,
       topics: displayTopics,
       topicPaths,
+      hasImages,
       source: sourceText(fm.источник),
       pinned: fm.закреплено === true,
       mtime: file.stat.mtime
@@ -411,7 +433,9 @@ treeStyle.textContent = [
   ".dashboard-home .d3n .d3n-topic-footer { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-top: 1px dashed var(--background-modifier-border); margin-top: 2px; }",
   ".dashboard-home .d3n .d3n-footer-btn { font-size: 0.72em !important; height: 22px !important; min-height: 22px !important; padding: 1px 7px !important; border-radius: 5px !important; }",
   ".dashboard-home .d3n .d3n-move-bar { display: flex; align-items: center; gap: 6px; padding: 5px 8px; margin: 3px 0; background: var(--background-primary); border: 1px solid var(--interactive-accent); border-radius: 6px; width: 100%; box-sizing: border-box; }",
-  ".dashboard-home .d3n .d3n-move-select { flex: 1; min-width: 0; max-width: none !important; height: 24px !important; font-size: 0.74em !important; border-radius: 4px !important; }"
+  ".dashboard-home .d3n .d3n-move-select { flex: 1; min-width: 0; max-width: none !important; height: 24px !important; font-size: 0.74em !important; border-radius: 4px !important; }",
+  ".dashboard-home .d3n .d3n-inspect-btn { color: #9c83e8 !important; opacity: 0.75 !important; }",
+  ".dashboard-home .d3n .d3n-inspect-btn:hover { opacity: 1 !important; transform: scale(1.22) !important; color: #bcaaf0 !important; }"
 ].join("\n");
 
 // Управление закреплёнными всплывающими подсказками
@@ -580,7 +604,6 @@ async function assignNoteToTopicPath(note, targetTopicPath, rootTopic) {
   busy = true;
   try {
     const curRaw = list(note.rawTopics);
-    // Заменяем текущую тему этой корневой ветки на новый путь (или очищаем, если корень)
     const filtered = curRaw.filter(t => {
       const parts = topicParts(t);
       const mappedRoot = TOPIC_MAP[parts[0]] || parts[0];
@@ -958,6 +981,15 @@ function renderCompactNoteRow(parentList, note, currentTopicContext = "", progKe
   }, "d3n-icon-btn" + (note.pinned ? " is-pinned" : ""));
   pinBtn.title = note.pinned ? "Открепить (закреплено: true)" : "Закрепить заметку";
 
+  // Кнопка быстрого открытия схемы нод в инспекторе (если в заметке есть скриншоты)
+  if (note.hasImages) {
+    const inspectBtn = button(tools, "☊", e => {
+      e.stopPropagation();
+      openNodeInspector(note.file);
+    }, "d3n-icon-btn d3n-inspect-btn");
+    inspectBtn.title = "Открыть схему нод в инспекторе (my-3d-node-inspector)";
+  }
+
   if (allSubPaths && allSubPaths.length > 0 && rootTopic) {
     const moveBtn = button(tools, "↳", e => {
       e.stopPropagation();
@@ -966,7 +998,6 @@ function renderCompactNoteRow(parentList, note, currentTopicContext = "", progKe
         existingBar.remove();
         return;
       }
-      // Удаляем открытые панели переноса у других строк в этом списке
       parentList.querySelectorAll(".d3n-move-bar").forEach(b => b.remove());
 
       const moveBar = el("div", null, "d3n-move-bar");
@@ -995,8 +1026,6 @@ function renderCompactNoteRow(parentList, note, currentTopicContext = "", progKe
       };
 
       button(moveBar, "✕", () => moveBar.remove(), "d3n-icon-btn").title = "Отмена";
-
-      // Вставляем аккуратно сразу под текущей строкой заметки
       row.after(moveBar);
     }, "d3n-icon-btn");
     moveBtn.title = "Переместить в подраздел…";
@@ -1010,13 +1039,11 @@ function renderCompactNoteRow(parentList, note, currentTopicContext = "", progKe
 }
 
 
-// Вложенная структура тем (Моделирование/bevel/сегменты)
 function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
   const tree = { path: rootTopic, name: rootTopic, direct: new Map(), all: new Map(), children: new Map() };
 
   for (const note of allTopicNotes) {
     const paths = note.topicPaths.filter(p => p === rootTopic || p.startsWith(rootTopic + "/"));
-    // Если указана и общая тема, и подтема — показываем в самом точном подразделе
     const leaves = paths.filter(p => !paths.some(other => other.startsWith(p + "/")));
     for (const path of leaves) {
       let node = tree;
@@ -1040,7 +1067,6 @@ function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
     }
   }
 
-  // Список всех подпутей для быстрого выбора при перемещении
   const allSubPaths = [];
   function collectPaths(node) {
     if (node.path !== rootTopic) allSubPaths.push(node.path);
@@ -1049,7 +1075,6 @@ function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
   collectPaths(tree);
 
   function drawNode(host, node, isRoot = false) {
-    // 1. Заметки в текущей папке
     if (node.direct.size > 0) {
       const listHost = el("div", host, "d3n-note-list");
       for (const note of node.direct.values()) {
@@ -1057,7 +1082,6 @@ function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
       }
     }
 
-    // 2. Вложенные подпапки
     const children = [...node.children.values()].sort((a, b) => b.all.size - a.all.size || compare(a.name, b.name));
     for (const child of children) {
       const details = el("details", host, "d3n-tree-folder");
@@ -1071,7 +1095,6 @@ function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
 
       const sumActions = el("span", summary, "d3n-tree-sum-actions");
 
-      // Кнопка быстрого создания заметки в этой папке
       const quickAddBtn = button(sumActions, "＋", e => {
         e.preventDefault();
         e.stopPropagation();
@@ -1079,7 +1102,6 @@ function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
       }, "d3n-sub-icon-btn");
       quickAddBtn.title = "Создать новую заметку в «" + child.path + "»";
 
-      // Кнопка переноса существующей заметки в эту папку
       const availableExisting = allTopicNotes.filter(n => !child.direct.has(n.path));
       if (availableExisting.length > 0) {
         const moveInBtn = button(sumActions, "📥", e => {
@@ -1132,7 +1154,6 @@ function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
       drawNode(content, child, false);
     }
 
-    // 3. Только для корня плитки выводим нижнюю панель создания
     if (isRoot) {
       const rootFooter = el("div", host, "d3n-topic-footer");
       const addNoteBtn = button(rootFooter, "＋ Новая", e => {
