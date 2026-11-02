@@ -435,22 +435,22 @@
 
 /* --- Module: home --- */
 .dashboard-home .dh-recent-work details.dh-recent-details > summary {
-    list-style: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    user-select: none;
-  }
-  .dashboard-home .dh-recent-work details.dh-recent-details > summary::-webkit-details-marker {
-    display: none;
-  }
-  .dashboard-home .dh-recent-work details.dh-recent-details[open] > summary {
-    margin-bottom: 14px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--background-modifier-border);
-  }
+list-style: none;
+display: flex;
+justify-content: space-between;
+align-items: center;
+gap: 10px;
+cursor: pointer;
+user-select: none;
+}
+.dashboard-home .dh-recent-work details.dh-recent-details > summary::-webkit-details-marker {
+display: none;
+}
+.dashboard-home .dh-recent-work details.dh-recent-details[open] > summary {
+margin-bottom: 14px;
+padding-bottom: 10px;
+border-bottom: 1px solid var(--background-modifier-border);
+}
 
 /* --- Module: diary --- */
 .dh-calendar-v2 .dhc-panel {

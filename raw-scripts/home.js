@@ -1519,198 +1519,221 @@ const readingSync = computeTodayReadingProgress();
 
 // ========================================================
 // 3. БЛОК «НЕДАВНО В РАБОТЕ» (РАСКРЫВАЮЩИЙСЯ СПИСОК)
+// Показывает любые недавние заметки хранилища, не только с заполненными свойствами.
 // ========================================================
 {
-  const LIMIT = 8;
+const LIMIT = 8;
+const SORT_BY = "mtime"; // "mtime" — по изменению, "ctime" — по созданию
+const EXCLUDE_FOLDERS = ["Ежедневник", "Шаблоны"];
+const EXCLUDE_NAMES = ["True Тренировки"];
+const NO_DIR = "Без направления";
 
-  const DIRECTION_COLORS = {
-    "Учёба": "#e5a158",
-    "Любовь": "#e06c75",
-    "Работа": "#599ed6",
-    "3D": "#9c83e8",
-    "Проекты": "#4aab80",
-    "Досуг": "#c5ad55"
-  };
+const DIRECTION_COLORS = {
+"Учёба": "#e5a158",
+"Любовь": "#e06c75",
+"Работа": "#599ed6",
+"3D": "#9c83e8",
+"Проекты": "#4aab80",
+"Досуг": "#c5ad55"
+};
 
-  const TYPE_ICONS = {
-    "Проект": "🚀",
-    "Термин": "📖",
-    "Алгоритм": "⚙️",
-    "Заметка": "📝",
-    "Источник": "📚"
-  };
+const TYPE_ICONS = {
+"Проект": "🚀",
+"Термин": "📖",
+"Алгоритм": "⚙️",
+"Заметка": "📝",
+"Источник": "📚"
+};
 
-  if (!window.__dhRecentWorkState) {
-    window.__dhRecentWorkState = {
-      isOpen: false,
-      selectedDirection: "Все"
-    };
-  }
-  const uiState = window.__dhRecentWorkState;
+if (!window.__dhRecentWorkState) {
+window.__dhRecentWorkState = {
+isOpen: false,
+selectedDirection: "Все"
+};
+}
+const uiState = window.__dhRecentWorkState;
 
-  const pages = knowledgePages
-    .filter(p => p.направление && p.file.name !== "True Тренировки")
-    .sort((a, b) => mtime(b) - mtime(a));
+const stampOf = p => {
+try { return p.file[SORT_BY]?.toMillis?.() ?? 0; } catch { return 0; }
+};
+const dirOf = p => String(p.направление ?? "").trim() || NO_DIR;
+const isExcluded = p =>
+p.file.path === dv.currentFilePath ||
+EXCLUDE_NAMES.includes(p.file.name) ||
+EXCLUDE_FOLDERS.some(f => p.file.path.startsWith(f + "/"));
 
-  const directions = ["Все", ...new Set(pages.map(p => String(p.направление).trim()).filter(Boolean))];
-  if (!directions.includes(uiState.selectedDirection)) {
-    uiState.selectedDirection = "Все";
-  }
+const pages = dv.pages().array()
+.filter(p => !isExcluded(p))
+.sort((a, b) => stampOf(b) - stampOf(a));
 
-  const root = dv.container.createDiv({ cls: "dh dh-recent-work", attr: { style: "margin: 15px 0 25px 0;" } });
+const dirSet = new Set(pages.map(dirOf));
+const directions = ["Все", ...[...dirSet].filter(d => d !== NO_DIR), ...(dirSet.has(NO_DIR) ? [NO_DIR] : [])];
+if (!directions.includes(uiState.selectedDirection)) {
+uiState.selectedDirection = "Все";
+}
 
-  const styleEl = root.createEl("style");
-  styleEl.textContent = `
-  .dashboard-home .dh-recent-work details.dh-recent-details > summary {
-    list-style: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    user-select: none;
-  }
-  .dashboard-home .dh-recent-work details.dh-recent-details > summary::-webkit-details-marker {
-    display: none;
-  }
-  .dashboard-home .dh-recent-work details.dh-recent-details[open] > summary {
-    margin-bottom: 14px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--background-modifier-border);
-  }
-  `;
+const root = dv.container.createDiv({ cls: "dh dh-recent-work", attr: { style: "margin: 15px 0 25px 0;" } });
 
-  const details = root.createEl("details", {
-    cls: "dh-panel dh-recent-details",
-    attr: {
-      style: "padding: 14px 16px; background: var(--background-secondary); border-radius: 8px; border: 1px solid var(--background-modifier-border);"
-    }
-  });
-  details.open = Boolean(uiState.isOpen);
+const styleEl = root.createEl("style");
+styleEl.textContent = `
+.dashboard-home .dh-recent-work details.dh-recent-details > summary {
+list-style: none;
+display: flex;
+justify-content: space-between;
+align-items: center;
+gap: 10px;
+cursor: pointer;
+user-select: none;
+}
+.dashboard-home .dh-recent-work details.dh-recent-details > summary::-webkit-details-marker {
+display: none;
+}
+.dashboard-home .dh-recent-work details.dh-recent-details[open] > summary {
+margin-bottom: 14px;
+padding-bottom: 10px;
+border-bottom: 1px solid var(--background-modifier-border);
+}
+`;
 
-  const summary = details.createEl("summary");
-  summary.onmousedown = e => e.preventDefault();
+const details = root.createEl("details", {
+cls: "dh-panel dh-recent-details",
+attr: {
+style: "padding: 14px 16px; background: var(--background-secondary); border-radius: 8px; border: 1px solid var(--background-modifier-border);"
+}
+});
+details.open = Boolean(uiState.isOpen);
 
-  summary.createDiv({
-    text: "Недавно в работе",
-    attr: { style: "font-size: 1.05rem; font-weight: 600; color: var(--text-normal);" }
-  });
+const summary = details.createEl("summary");
+summary.onmousedown = e => e.preventDefault();
 
-  const toggleHint = summary.createSpan({
-    text: details.open ? "Свернуть ▲" : "Развернуть ▾",
-    attr: { style: "font-size: 0.76rem; font-weight: 600; color: var(--text-muted);" }
-  });
+summary.createDiv({
+text: "Недавно в работе",
+attr: { style: "font-size: 1.05rem; font-weight: 600; color: var(--text-normal);" }
+});
 
-  const contentWrap = details.createDiv();
-  const filterChips = contentWrap.createDiv({
-    cls: "dh-chips",
-    attr: { style: "display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 12px;" }
-  });
-  const listContainer = contentWrap.createDiv({ attr: { style: "margin-top: 5px;" } });
+const toggleHint = summary.createSpan({
+text: details.open ? "Свернуть ▲" : "Развернуть ▾",
+attr: { style: "font-size: 0.76rem; font-weight: 600; color: var(--text-muted);" }
+});
 
-  let isRendered = false;
+const contentWrap = details.createDiv();
+const filterChips = contentWrap.createDiv({
+cls: "dh-chips",
+attr: { style: "display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 12px;" }
+});
+const listContainer = contentWrap.createDiv({ attr: { style: "margin-top: 5px;" } });
 
-  function renderList() {
-    isRendered = true;
-    filterChips.empty();
-    directions.forEach(dir => {
-      const isAct = dir === uiState.selectedDirection;
-      const chip = filterChips.createEl("button", {
-        cls: `dh-chip ${isAct ? "is-active" : ""}`,
-        text: dir,
-        attr: {
-          type: "button",
-          style: "font-size: 0.75rem; padding: 2px 10px; border-radius: 12px; cursor: pointer; transition: all 0.15s ease;"
-        }
-      });
-      chip.onclick = () => {
-        uiState.selectedDirection = dir;
-        renderList();
-      };
-    });
+let isRendered = false;
 
-    const filtered = uiState.selectedDirection === "Все"
-      ? pages.slice(0, LIMIT)
-      : pages.filter(p => String(p.направление).trim() === uiState.selectedDirection).slice(0, LIMIT);
+function renderList() {
+isRendered = true;
+filterChips.empty();
+directions.forEach(dir => {
+const isAct = dir === uiState.selectedDirection;
+const chip = filterChips.createEl("button", {
+cls: `dh-chip ${isAct ? "is-active" : ""}`,
+text: dir,
+attr: {
+type: "button",
+style: "font-size: 0.75rem; padding: 2px 10px; border-radius: 12px; cursor: pointer; transition: all 0.15s ease;"
+}
+});
+chip.onclick = () => {
+uiState.selectedDirection = dir;
+renderList();
+};
+});
 
-    listContainer.empty();
+const filtered = uiState.selectedDirection === "Все"
+? pages.slice(0, LIMIT)
+: pages.filter(p => dirOf(p) === uiState.selectedDirection).slice(0, LIMIT);
 
-    if (!filtered.length) {
-      listContainer.createDiv({
-        text: "В этой категории пока нет недавно изменённых заметок.",
-        attr: { style: "font-size: 0.85rem; color: var(--text-muted); padding: 12px; text-align: center;" }
-      });
-      return;
-    }
+listContainer.empty();
 
-    const tableEl = listContainer.createEl("table", {
-      cls: "dh-table",
-      attr: { style: "width: 100%; border-collapse: collapse; font-size: 0.86rem;" }
-    });
+if (!filtered.length) {
+listContainer.createDiv({
+text: "В этой категории пока нет недавних заметок.",
+attr: { style: "font-size: 0.85rem; color: var(--text-muted); padding: 12px; text-align: center;" }
+});
+return;
+}
 
-    const thead = tableEl.createEl("thead");
-    const trH = thead.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border); text-align: left; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;" } });
-    trH.createEl("th", { text: "Заметка", attr: { style: "padding: 8px 6px;" } });
-    trH.createEl("th", { text: "Направление", attr: { style: "padding: 8px 6px; width: 140px;" } });
-    trH.createEl("th", { text: "Тип", attr: { style: "padding: 8px 6px; width: 120px;" } });
-    trH.createEl("th", { text: "Изменена", attr: { style: "padding: 8px 6px; width: 130px; text-align: right;" } });
+const tableEl = listContainer.createEl("table", {
+cls: "dh-table",
+attr: { style: "width: 100%; border-collapse: collapse; font-size: 0.86rem;" }
+});
 
-    const tbody = tableEl.createEl("tbody");
+const thead = tableEl.createEl("thead");
+const trH = thead.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border); text-align: left; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;" } });
+trH.createEl("th", { text: "Заметка", attr: { style: "padding: 8px 6px;" } });
+trH.createEl("th", { text: "Направление", attr: { style: "padding: 8px 6px; width: 140px;" } });
+trH.createEl("th", { text: "Тип", attr: { style: "padding: 8px 6px; width: 120px;" } });
+trH.createEl("th", { text: SORT_BY === "ctime" ? "Создана" : "Изменена", attr: { style: "padding: 8px 6px; width: 130px; text-align: right;" } });
 
-    const todayStr = moment().format("YYYY-MM-DD");
-    const yesterdayStr = moment().subtract(1, "days").format("YYYY-MM-DD");
+const tbody = tableEl.createEl("tbody");
 
-    filtered.forEach(p => {
-      const tr = tbody.createEl("tr", {
-        attr: {
-          style: "border-bottom: 1px solid var(--background-modifier-border); transition: background 0.1s ease; cursor: pointer;"
-        }
-      });
+const todayStr = moment().format("YYYY-MM-DD");
+const yesterdayStr = moment().subtract(1, "days").format("YYYY-MM-DD");
 
-      tr.onmouseenter = () => { tr.style.background = "var(--background-modifier-hover)"; };
-      tr.onmouseleave = () => { tr.style.background = "transparent"; };
+filtered.forEach(p => {
+const tr = tbody.createEl("tr", {
+attr: {
+style: "border-bottom: 1px solid var(--background-modifier-border); transition: background 0.1s ease; cursor: pointer;"
+}
+});
 
-      const tdName = tr.createEl("td", { attr: { style: "padding: 8px 6px; font-weight: 500;" } });
-      tdName.createEl("a", {
-        cls: "internal-link",
-        text: p.file.name,
-        attr: { href: p.file.path, style: "color: var(--text-accent); text-decoration: none;" }
-      });
-      tr.onclick = (e) => {
-        app.workspace.openLinkText(p.file.path, dv.currentFilePath, e.ctrlKey || e.metaKey);
-      };
+tr.onmouseenter = () => { tr.style.background = "var(--background-modifier-hover)"; };
+tr.onmouseleave = () => { tr.style.background = "transparent"; };
 
-      const tdDir = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
-      const dirName = String(p.направление).trim();
-      const dColor = DIRECTION_COLORS[dirName] || "var(--interactive-accent)";
-      tdDir.createSpan({
-        text: dirName,
-        attr: {
-          style: `font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: ${dColor}18; color: ${dColor}; border: 1px solid ${dColor}33; display: inline-block;`
-        }
-      });
+const tdName = tr.createEl("td", { attr: { style: "padding: 8px 6px; font-weight: 500;" } });
+tdName.createEl("a", {
+cls: "internal-link",
+text: p.file.name,
+attr: { href: p.file.path, style: "color: var(--text-accent); text-decoration: none;" }
+});
+tr.onclick = (e) => {
+e.preventDefault();
+app.workspace.openLinkText(p.file.path, dv.currentFilePath, e.ctrlKey || e.metaKey);
+};
 
-      const tdType = tr.createEl("td", { attr: { style: "padding: 8px 6px; color: var(--text-muted); font-size: 0.8rem;" } });
-      const typeName = p.тип ? String(p.тип).trim() : "—";
-      const typeIcon = TYPE_ICONS[typeName] || "📄";
-      tdType.setText(typeName !== "—" ? `${typeIcon} ${typeName}` : "—");
+const tdDir = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
+const dirName = dirOf(p);
+if (dirName === NO_DIR) {
+tdDir.createSpan({
+text: "—",
+attr: { style: "color: var(--text-faint); font-size: 0.8rem;" }
+});
+} else {
+const dColor = DIRECTION_COLORS[dirName] || "var(--interactive-accent)";
+tdDir.createSpan({
+text: dirName,
+attr: {
+style: `font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: ${dColor}18; color: ${dColor}; border: 1px solid ${dColor}33; display: inline-block;`
+}
+});
+}
 
-      const tdTime = tr.createEl("td", { attr: { style: "padding: 8px 6px; text-align: right; color: var(--text-muted); font-size: 0.78rem;" } });
-      const m = moment(p.file.mtime.toMillis());
-      const mDay = m.format("YYYY-MM-DD");
-      let timeLabel = m.format("DD.MM HH:mm");
-      if (mDay === todayStr) timeLabel = `Сегодня, ${m.format("HH:mm")}`;
-      else if (mDay === yesterdayStr) timeLabel = `Вчера, ${m.format("HH:mm")}`;
+const tdType = tr.createEl("td", { attr: { style: "padding: 8px 6px; color: var(--text-muted); font-size: 0.8rem;" } });
+const typeName = p.тип ? String(p.тип).trim() : "—";
+const typeIcon = TYPE_ICONS[typeName] || "📄";
+tdType.setText(typeName !== "—" ? `${typeIcon} ${typeName}` : "—");
 
-      tdTime.setText(timeLabel);
-    });
-  }
+const tdTime = tr.createEl("td", { attr: { style: "padding: 8px 6px; text-align: right; color: var(--text-muted); font-size: 0.78rem;" } });
+const m = moment(stampOf(p));
+const mDay = m.format("YYYY-MM-DD");
+let timeLabel = m.format("DD.MM HH:mm");
+if (mDay === todayStr) timeLabel = `Сегодня, ${m.format("HH:mm")}`;
+else if (mDay === yesterdayStr) timeLabel = `Вчера, ${m.format("HH:mm")}`;
 
-  details.ontoggle = () => {
-    uiState.isOpen = details.open;
-    toggleHint.setText(details.open ? "Свернуть ▲" : "Развернуть ▾");
-    if (details.open && !isRendered) renderList();
-  };
+tdTime.setText(timeLabel);
+});
+}
 
-  if (details.open) renderList();
+details.ontoggle = () => {
+uiState.isOpen = details.open;
+toggleHint.setText(details.open ? "Свернуть ▲" : "Развернуть ▾");
+if (details.open && !isRendered) renderList();
+};
+
+if (details.open) renderList();
 }
