@@ -1,4 +1,4 @@
-// 3D — компактная база знаний и приёмов (v4.1: без require, обратных кавычек и $)
+// 3D — компактная база знаний и приёмов (v4.2: вложенные темы через /) (v4.1: без require, обратных кавычек и $)
 const normalizePath = p => String(p || "").replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/|\/(?![\s\S])/g, "");
 const AREA = "3D";
 const TARGET_FOLDER = "Знания";
@@ -45,7 +45,15 @@ const TOPIC_MAP = {
   "Рендер": "Рендер и свет",
   "Материалы": "Шейдеры"
 };
-const mapTopic = t => TOPIC_MAP[t] || t;
+function topicParts(value) {
+  return String(value || "").split("/").map(part => part.trim()).filter(Boolean);
+}
+const mapTopic = value => {
+  const parts = topicParts(value);
+  if (!parts.length) return "";
+  parts[0] = TOPIC_MAP[parts[0]] || parts[0];
+  return parts.join("/");
+};
 const USE_TOPIC_MAP = true;
 
 // Акцентные цвета программ в палитре dashboard-home
@@ -62,7 +70,13 @@ const PROGRAM_COLORS = {
 const getProgColor = name => PROGRAM_COLORS[name] || "#9c83e8";
 
 const STORAGE = "3d-hub-v4:" + app.vault.getName() + ":" + CURRENT;
-const EMPTY_DRAFT = () => ({ title: "", programs: ["Blender"], topics: [], source: "" });
+
+const EMPTY_DRAFT = () => ({
+  title: "",
+  programs: ["Blender"],
+  topics: [],
+  source: ""
+});
 
 const defaults = {
   query: "",
@@ -83,9 +97,9 @@ const defaults = {
   editDraft: null
 };
 
-let saved = {};
-try { saved = JSON.parse(sessionStorage.getItem(STORAGE) || "{}"); } catch {}
-const state = { ...defaults, ...(saved && typeof saved === "object" ? saved : {}) };
+let saved = null;
+try { saved = JSON.parse(sessionStorage.getItem(STORAGE)); } catch (_) {}
+const state = { ...defaults, ...(typeof saved === "object" && saved ? saved : {}) };
 state.open = state.open && typeof state.open === "object" ? state.open : {};
 state.localTopics = state.localTopics && typeof state.localTopics === "object" ? state.localTopics : {};
 state.draft = { ...EMPTY_DRAFT(), ...(state.draft || {}) };
@@ -93,31 +107,38 @@ state.groupByTopic = true;
 state.sort = "modified";
 state.onlyUntagged = false;
 
-const persist = () => { try { sessionStorage.setItem(STORAGE, JSON.stringify(state)); } catch {} };
+const persist = () => {
+  try { sessionStorage.setItem(STORAGE, JSON.stringify(state)); } catch (_) {}
+};
+
 const pending = new Map();
 let busy = false;
 let knownNotes = [];
-let searchTimer;
+let searchTimer = null;
 
-// Автоочистка временного кэша после обновления индекса Obsidian
+// Защита от гонок метаданных Obsidian
 function setPending(path, patch) {
   pending.set(path, { ...(pending.get(path) || {}), ...patch });
-  setTimeout(() => { pending.delete(path); }, 1500);
+  setTimeout(() => pending.delete(path), 1500);
 }
 
-const notify = text => { try { new Notice(text); } catch { console.log(text); } };
+const notify = text => {
+  try { new Notice(text); } catch (_) { console.log(text); }
+};
+
 const list = value => {
-  const raw = value == null ? [] : Array.isArray(value) ? value : [value];
+  const raw = value == null ? [] : (Array.isArray(value) ? value : [value]);
   return [...new Set(raw.flat().map(v => typeof v === "string" ? v.trim() : "").filter(Boolean))];
 };
+
 const compare = (a, b) => a.localeCompare(b, "ru", { numeric: true, sensitivity: "base" });
 const sorted = values => [...new Set(values)].sort(compare);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 function sourceText(value) {
   if (typeof value === "string") return value.trim();
-  if (value && typeof value.path === "string") return "[[" + value.path + "]]";
-  if (Array.isArray(value)) return value.map(sourceText).filter(Boolean).join("; ");
+  if (value && typeof value.path === "string") return value.path;
+  if (Array.isArray(value)) return value.map(sourceText).filter(Boolean).join(", ");
   return "";
 }
 
@@ -138,7 +159,7 @@ function button(parent, text, fn, cls = "") {
   return node;
 }
 
-function field(parent, caption, placeholder = "") {
+function field(parent, caption, placeholder) {
   const label = el("label", parent, "d3n-field");
   el("span", label, "d3n-label", caption);
   const input = el("input", label, "d3n-input");
@@ -196,26 +217,28 @@ function showSourceBadge(parent, text) {
   if (!text) return;
   const wrap = el("span", parent, "d3n-source");
   wrap.addEventListener("click", e => e.stopPropagation());
+
   if (text.startsWith("[[") && text.endsWith("]]") && !text.includes("\n")) {
     const inner = text.slice(2, -2);
     const [path, ...alias] = inner.split("|");
-    const a = el("a", wrap, "d3n-source-pill", "📄 " + (alias.join("|") || path));
+    const a = el("a", wrap, "d3n-source-pill", alias.join("|") || path);
     openLink(a, path);
-    a.title = "Источник: " + text;
+    a.title = text;
     return;
   }
-  let url;
-  try { url = new URL(text); } catch {}
+
+  let url = null;
+  try { url = new URL(text); } catch (_) {}
   if (url && ["https:", "http:"].includes(url.protocol)) {
     const host = url.hostname.replace(/^www\./, "");
-    const a = el("a", wrap, "d3n-source-pill external-link", "↗ " + host);
+    const a = el("a", wrap, "d3n-source-pill external-link", host);
     a.href = url.href;
     a.target = "_blank";
     a.rel = "noopener noreferrer";
     a.title = text;
   } else {
     const span = el("span", wrap, "d3n-source-text", text);
-    span.title = "Источник: " + text;
+    span.title = text;
   }
 }
 
@@ -224,7 +247,7 @@ const templateFiles = new Set();
 try {
   const configured = app.internalPlugins?.plugins?.templates?.instance?.options?.folder;
   if (configured) TEMPLATE_FOLDERS.push(configured);
-} catch {}
+} catch (_) {}
 try {
   const scan = choices => {
     if (!Array.isArray(choices)) return;
@@ -234,7 +257,7 @@ try {
     }
   };
   scan(app.plugins?.plugins?.quickadd?.settings?.choices);
-} catch {}
+} catch (_) {}
 
 function isTemplate(file, fm) {
   const path = file.path.toLowerCase();
@@ -254,7 +277,9 @@ function readNotes() {
     const fm = { ...(cache?.frontmatter || {}), ...(pending.get(file.path) || {}) };
     if (!list(fm.направление).includes(AREA) || isTemplate(file, fm)) continue;
     const rawTopics = list(fm.темы);
-    const displayTopics = USE_TOPIC_MAP ? [...new Set(rawTopics.map(mapTopic))] : rawTopics;
+    const topicPaths = [...new Set(rawTopics.map(value => USE_TOPIC_MAP
+      ? mapTopic(value) : topicParts(value).join("/")).filter(Boolean))];
+    const displayTopics = [...new Set(topicPaths.map(value => topicParts(value)[0]))];
     result.push({
       file,
       path: file.path,
@@ -262,6 +287,7 @@ function readNotes() {
       programs: list(fm.программы),
       rawTopics,
       topics: displayTopics,
+      topicPaths,
       source: sourceText(fm.источник),
       pinned: fm.закреплено === true,
       mtime: file.stat.mtime
@@ -324,18 +350,18 @@ style.textContent = [
   ".dashboard-home .d3n button.d3n-pill.is-active { background: color-mix(in srgb, var(--pill-color, #9c83e8) 18%, var(--background-primary)); border-color: var(--pill-color, #9c83e8); color: var(--text-normal); font-weight: 700; }",
   ".dashboard-home .d3n .d3n-pill-num { font-size: 0.86em; opacity: 0.7; font-variant-numeric: tabular-nums; }",
   ".dashboard-home .d3n details.d3n-untagged-wide { border: 1px solid rgba(216, 91, 87, 0.55); border-left: 4px solid #d85b57; border-radius: 10px; background: rgba(216, 91, 87, 0.05); overflow: hidden; }",
-  ".dashboard-home .d3n details.d3n-untagged-wide > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 13px; cursor: pointer; list-style: none; user-select: none; font-size: 0.84em; font-weight: 700; color: #e5a158; }",
-  ".dashboard-home .d3n details.d3n-untagged-wide > summary::-webkit-details-marker { display: none; }",
+  ".dashboard-home .d3n details.d3n-untagged-wide summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 13px; cursor: pointer; list-style: none; user-select: none; font-size: 0.84em; font-weight: 700; color: #e5a158; }",
+  ".dashboard-home .d3n details.d3n-untagged-wide summary::-webkit-details-marker { display: none; }",
   ".dashboard-home .d3n .d3n-untagged-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 255px), 1fr)); gap: 6px 10px; padding: 6px 12px 12px; border-top: 1px solid rgba(216, 91, 87, 0.22); }",
   ".dashboard-home .d3n .d3n-untagged-item { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 8px; border-radius: 6px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); min-width: 0; }",
   ".dashboard-home .d3n .d3n-topic-select { height: 23px; max-width: 128px; padding: 0 5px; border-radius: 5px; border: 1px solid rgba(229, 161, 88, 0.5); background: var(--background-secondary); color: var(--text-normal); font-size: 0.72em; cursor: pointer; flex-shrink: 0; }",
   ".dashboard-home .d3n .d3n-groups { display: flex; flex-direction: column; gap: 11px; }",
   ".dashboard-home .d3n details.d3n-group { border: 1px solid var(--background-modifier-border); border-left: 3px solid var(--group-color, #9c83e8); border-radius: 11px; background: var(--background-secondary); overflow: hidden; }",
-  ".dashboard-home .d3n .d3n-group > summary { display: flex; align-items: center; gap: 9px; list-style: none; cursor: pointer; padding: 9px 13px; user-select: none; }",
-  ".dashboard-home .d3n .d3n-group > summary::-webkit-details-marker { display: none; }",
-  ".dashboard-home .d3n .d3n-group > summary::before { content: '›'; display: inline-block; color: var(--text-muted); font-size: 1.15em; transition: transform 0.14s ease; }",
-  ".dashboard-home .d3n .d3n-group[open] > summary::before { transform: rotate(90deg); }",
-  ".dashboard-home .d3n .d3n-group > summary:hover { background: var(--background-modifier-hover); }",
+  ".dashboard-home .d3n .d3n-group summary { display: flex; align-items: center; gap: 9px; list-style: none; cursor: pointer; padding: 9px 13px; user-select: none; }",
+  ".dashboard-home .d3n .d3n-group summary::-webkit-details-marker { display: none; }",
+  ".dashboard-home .d3n .d3n-group summary::before { content: '▸'; display: inline-block; color: var(--text-muted); font-size: 1.15em; transition: transform 0.14s ease; }",
+  ".dashboard-home .d3n .d3n-group[open] summary::before { transform: rotate(90deg); }",
+  ".dashboard-home .d3n .d3n-group summary:hover { background: var(--background-modifier-hover); }",
   ".dashboard-home .d3n .d3n-group-name { font-weight: 750; font-size: 0.94em; flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }",
   ".dashboard-home .d3n .d3n-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--group-color, #9c83e8); flex-shrink: 0; }",
   ".dashboard-home .d3n .d3n-group-add { height: 22px; min-height: 22px; padding: 0 8px; font-size: 0.72em; border-radius: 6px; }",
@@ -383,7 +409,21 @@ style.textContent = [
   ".dashboard-home .d3n .d3n-empty { padding: 16px 12px; border: 1px dashed var(--background-modifier-border); border-radius: 9px; color: var(--text-muted); font-size: 0.82em; text-align: center; }"
 ].join("\n");
 
-// Управление закреплёнными всплывающими подсказками
+const treeStyle = el("style", root);
+treeStyle.textContent = [
+  ".dashboard-home .d3n .d3n-tree-folder { margin: 8px; border: 1px solid var(--background-modifier-border); border-radius: 8px; background: var(--background-secondary); min-width: 0; }",
+  ".dashboard-home .d3n .d3n-tree-folder > summary.d3n-tree-summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 8px; font-size: 0.8em; cursor: pointer; list-style: none; }",
+  ".dashboard-home .d3n .d3n-tree-folder > summary.d3n-tree-summary::before { content: '▸'; transform: none; }",
+  ".dashboard-home .d3n .d3n-tree-folder[open] > summary.d3n-tree-summary::before { transform: rotate(90deg); }",
+  ".dashboard-home .d3n .d3n-tree-summary::-webkit-details-marker { display: none; }",
+  ".dashboard-home .d3n .d3n-tree-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 650; }",
+  ".dashboard-home .d3n .d3n-tree-tools { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; padding: 8px; }",
+  ".dashboard-home .d3n .d3n-tree-tools .d3n-field { flex: 1; min-width: 100px; }",
+  ".dashboard-home .d3n .d3n-tree-tools .d3n-button, .dashboard-home .d3n .d3n-tree-summary .d3n-button { min-height: 44px; min-width: 44px; }",
+  ".dashboard-home .d3n .d3n-tree-content { min-width: 0; }"
+].join("\n");
+
+// Управление закреплёнными всплывающими подсказками (Popovers)
 let pinnedTile = null;
 const closePinnedPopover = () => {
   if (pinnedTile) {
@@ -391,13 +431,13 @@ const closePinnedPopover = () => {
     pinnedTile = null;
   }
 };
+
 if (dv.component && typeof dv.component.registerDomEvent === "function") {
   dv.component.registerDomEvent(document, "click", e => {
     if (pinnedTile && !pinnedTile.contains(e.target)) closePinnedPopover();
   });
 }
 
-// Горячая клавиша "/" внутри панели для мгновенного фокуса на поиске
 root.addEventListener("keydown", e => {
   if (e.key === "Escape") {
     closePinnedPopover();
@@ -406,8 +446,8 @@ root.addEventListener("keydown", e => {
       state.query = "";
       persist();
       renderResults();
+      return;
     }
-    return;
   }
   const inInput = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName);
   if (!inInput && e.key === "/") {
@@ -417,22 +457,21 @@ root.addEventListener("keydown", e => {
   }
 });
 
-// --- 1. ВЕРХНЯЯ ШАПКА ---
+// --- 1. Шапка ---
 const header = el("div", root, "d3n-header");
 const headerLeft = el("div", header, "d3n-header-left");
-el("div", headerLeft, "d3n-title", "🧊 3D и графика");
+el("div", headerLeft, "d3n-title", "🧊 3D");
 const totalLabel = el("span", headerLeft, "d3n-muted");
 
 const headerActions = el("div", header, "d3n-header-actions");
-
-button(headerActions, "↻", () => {
+button(headerActions, "Обновить", () => {
   if (busy) return;
   pending.clear();
   refreshData();
   renderResults();
-}).title = "Обновить список заметок";
+}).title = "Перечитать файлы из хранилища";
 
-const createMainBtn = button(headerActions, "+ Новая заметка", () => {
+const createMainBtn = button(headerActions, "＋ Заметка", () => {
   if (state.createOpen) {
     state.createOpen = false;
     persist();
@@ -445,26 +484,26 @@ const createMainBtn = button(headerActions, "+ Новая заметка", () =>
 
 const createHost = el("div", root, "d3n-slot");
 
-// --- 3. ВЕРХНИЕ ПЛИТКИ ПРОГРАММ ---
+// --- 3. Сетка программ ---
 const softGrid = el("div", root, "d3n-soft-grid");
 
-// --- 4. ПАНЕЛЬ ПОИСКА И ГЛОБАЛЬНЫХ ТЕМ ---
+// --- 4. Панель поиска и фильтров ---
 const filterBar = el("div", root, "d3n-filter-bar");
 const searchRow = el("div", filterBar, "d3n-search-row");
 const searchWrap = el("div", searchRow, "d3n-search-wrap");
 const searchInput = el("input", searchWrap, "d3n-input");
 searchInput.type = "search";
-searchInput.placeholder = "🔍 Поиск по названию, теме, софту или источнику (нажми «/» внутри панели)...";
+searchInput.placeholder = "Поиск по названию, темам, источнику… (нажми /)";
 searchInput.value = state.query;
 
-const pinnedFilterBtn = button(searchRow, "★ Закреплённые", () => {
+const pinnedFilterBtn = button(searchRow, "📌 Закреплённые", () => {
   state.onlyPinned = !state.onlyPinned;
   persist();
   renderOverviewAndFilters();
   renderResults();
 });
 
-const resetBtn = button(searchRow, "✕ Сбросить фильтры", () => {
+const resetBtn = button(searchRow, "Сбросить фильтры", () => {
   state.query = "";
   state.program = "";
   state.topic = "";
@@ -479,25 +518,23 @@ const resetBtn = button(searchRow, "✕ Сбросить фильтры", () => 
 
 const topicPillsRow = el("div", filterBar, "d3n-pills-row");
 
-// --- 6. КОНТЕЙНЕР ПРОГРАММ И ТЕМАТИЧЕСКИХ ПЛИТОК ---
+// --- 6. Основная выдача карточек ---
 const results = el("div", root, "d3n-groups");
 
 function getAvailableTopics() {
-  return sorted([...PRESET_TOPICS, ...knownNotes.flatMap(n => n.topics)]);
+  return sorted([...PRESET_TOPICS, ...knownNotes.flatMap(n => n.topicPaths)]);
 }
 
 function chipSelector(parent, caption, initialValues, suggestions, onChange, isProgram = false) {
   const wrap = el("div", parent, "d3n-chip-picker");
   el("span", wrap, "d3n-label", caption);
   const pool = el("div", wrap, "d3n-chip-pool");
-
   let selected = list(initialValues);
   const allOptions = sorted([...suggestions, ...selected]);
 
   function redrawPool() {
     pool.replaceChildren();
     const merged = sorted([...allOptions, ...selected]);
-
     for (const item of merged) {
       const isOn = selected.includes(item);
       const chip = el("button", pool, "d3n-choice-chip" + (isOn ? " is-selected" : ""), (isOn ? "✓ " : "") + item);
@@ -513,7 +550,7 @@ function chipSelector(parent, caption, initialValues, suggestions, onChange, isP
 
     const customInput = el("input", pool, "d3n-input d3n-custom-input");
     customInput.type = "text";
-    customInput.placeholder = isProgram ? "+ программа..." : "+ своя тема...";
+    customInput.placeholder = isProgram ? "Другая программа…" : "Другая тема…";
 
     const commitCustom = () => {
       const raw = customInput.value.trim();
@@ -538,26 +575,30 @@ function chipSelector(parent, caption, initialValues, suggestions, onChange, isP
   }
 
   redrawPool();
-  return { getValues: () => [...selected] };
+  return {
+    getValues: () => [...selected]
+  };
 }
 
 async function assignSingleTopic(note, newTopic, selectEl) {
   if (!newTopic || busy) return;
   const file = app.vault.getAbstractFileByPath(note.path);
   if (!file) return;
+
   busy = true;
   if (selectEl) selectEl.disabled = true;
+
   try {
     const nextTopics = [...new Set([...note.rawTopics, newTopic])];
     await app.fileManager.processFrontMatter(file, fm => {
       fm.темы = nextTopics;
     });
     setPending(note.path, { темы: nextTopics });
-    notify("Тема «" + newTopic + "» назначена: " + note.title);
+    notify("Тема «" + newTopic + "» добавлена к «" + note.title + "»");
     refreshData();
     renderResults();
   } catch (err) {
-    notify("Не удалось записать тему: " + (err?.message || String(err)));
+    notify("Ошибка: " + (err?.message || String(err)));
   } finally {
     busy = false;
     if (selectEl) selectEl.disabled = false;
@@ -568,11 +609,16 @@ function refreshData() {
   knownNotes = readNotes();
   const programs = sorted(knownNotes.flatMap(n => n.programs));
   const topics = sorted(knownNotes.flatMap(n => n.topics));
-  if (state.program && state.program !== "__none__" && !programs.includes(state.program)) state.program = "";
-  if (state.topic && !topics.includes(state.topic)) state.topic = "";
+
+  if (state.program && state.program !== "__none__" && !programs.includes(state.program)) {
+    state.program = "";
+  }
+  if (state.topic && !topics.includes(state.topic)) {
+    state.topic = "";
+  }
 
   const totalUntagged = knownNotes.filter(n => n.topics.length === 0).length;
-  totalLabel.textContent = knownNotes.length + " заметок · " + programs.length + " прогр.";
+  totalLabel.textContent = knownNotes.length + " заметок · " + programs.length + " программ";
 
   renderOverviewAndFilters();
 }
@@ -593,13 +639,17 @@ function renderOverviewAndFilters() {
 
   const pinnedCount = knownNotes.filter(n => n.pinned).length;
   pinnedFilterBtn.hidden = pinnedCount === 0 && !state.onlyPinned;
-  pinnedFilterBtn.textContent = "★ Закреплённые (" + pinnedCount + ")";
+  pinnedFilterBtn.textContent = "📌 Закреплённые (" + pinnedCount + ")";
   pinnedFilterBtn.classList.toggle("is-active", state.onlyPinned);
 
   const progMap = new Map();
   const noProgNotes = [];
+
   for (const n of knownNotes) {
-    if (!n.programs.length) noProgNotes.push(n);
+    if (!n.programs.length) {
+      noProgNotes.push(n);
+      continue;
+    }
     for (const p of n.programs) {
       if (!progMap.has(p)) progMap.set(p, []);
       progMap.get(p).push(n);
@@ -612,10 +662,10 @@ function renderOverviewAndFilters() {
   const allTile = el("div", softGrid, "d3n-soft-tile" + (!state.program ? " is-selected" : ""));
   allTile.style.setProperty("--soft-color", "#9c83e8");
   const allTop = el("div", allTile, "d3n-soft-top");
-  el("span", allTop, "d3n-soft-name", "Все прогр.");
+  el("span", allTop, "d3n-soft-name", "Все программы");
   const allCnt = el("span", allTop, "d3n-soft-count" + (totalUntagged > 0 ? " has-untagged" : ""), knownNotes.length);
-  allCnt.title = totalUntagged > 0 ? ("В хранилище " + totalUntagged + " заметок без темы") : "Все заметки размечены";
-  el("div", allTile, "d3n-soft-sub", progKeys.length ? progKeys.join(" · ") : "Нет программ");
+  allCnt.title = totalUntagged > 0 ? "Без темы: " + totalUntagged : "";
+  el("div", allTile, "d3n-soft-sub", progKeys.length ? progKeys.join(" · ") : "Нет заметок");
   allTile.addEventListener("click", () => {
     state.program = "";
     persist();
@@ -643,17 +693,15 @@ function renderOverviewAndFilters() {
     const top = el("div", tile, "d3n-soft-top");
     el("span", top, "d3n-soft-name", prog);
     const cntBadge = el("span", top, "d3n-soft-count" + (untagged > 0 ? " has-untagged" : ""), pNotes.length);
-    cntBadge.title = untagged > 0 ? ("Без темы: " + untagged) : "Все заметки с темами";
+    cntBadge.title = untagged > 0 ? "Без темы: " + untagged : "";
 
-    el("div", tile, "d3n-soft-sub", topTopics.length
-      ? topTopics.slice(0, 3).map(x => x[0]).join(", ")
-      : "⚠ Темы не заданы");
+    el("div", tile, "d3n-soft-sub", topTopics.length ? topTopics.slice(0, 3).map(x => x[0]).join(" · ") : "Нет тем");
 
     const pop = el("div", tile, "d3n-popover");
-    el("div", pop, "d3n-pop-title", prog + " · " + pNotes.length + " зам.");
+    el("div", pop, "d3n-pop-title", prog + " (" + pNotes.length + " зам.)");
     if (untagged > 0) {
       const r = el("div", pop, "d3n-pop-row");
-      el("span", r, "d3n-pop-warn", "⚠ Без темы");
+      el("span", r, "d3n-pop-warn", "Без темы");
       el("span", r, "d3n-pop-warn", untagged);
     }
     for (const [tName, cnt] of topTopics.slice(0, 8)) {
@@ -664,8 +712,13 @@ function renderOverviewAndFilters() {
 
     tile.addEventListener("click", e => {
       if (e.shiftKey) {
-        if (pinnedTile === tile) closePinnedPopover();
-        else { closePinnedPopover(); pinnedTile = tile; tile.classList.add("is-pinned-pop"); }
+        if (pinnedTile === tile) {
+          closePinnedPopover();
+        } else {
+          closePinnedPopover();
+          pinnedTile = tile;
+          tile.classList.add("is-pinned-pop");
+        }
         return;
       }
       state.program = isSel ? "" : prog;
@@ -686,7 +739,7 @@ function renderOverviewAndFilters() {
     const top = el("div", noneTile, "d3n-soft-top");
     el("span", top, "d3n-soft-name", "Без программы");
     el("span", top, "d3n-soft-count has-untagged", noProgNotes.length);
-    el("div", noneTile, "d3n-soft-sub", "Назначьте софт через ✎");
+    el("div", noneTile, "d3n-soft-sub", "Не указано в YAML");
     noneTile.addEventListener("click", () => {
       state.program = isNone ? "" : "__none__";
       persist();
@@ -704,12 +757,12 @@ function renderOverviewAndFilters() {
 
     if (sortedGlobalTopics.length > 0) {
       topicPillsRow.hidden = false;
-      el("span", topicPillsRow, "d3n-row-caption", "Темы (все прогр.):");
+      el("span", topicPillsRow, "d3n-row-caption", "Темы:");
 
       const allTopicBtn = el("button", topicPillsRow, "d3n-pill" + (!state.topic ? " is-active" : ""));
       allTopicBtn.type = "button";
       allTopicBtn.onmousedown = e => e.preventDefault();
-      el("span", allTopicBtn, "", "Все");
+      el("span", allTopicBtn, "", "Все темы");
       allTopicBtn.addEventListener("click", () => {
         state.topic = "";
         persist();
@@ -743,9 +796,11 @@ async function togglePin(note, btn) {
   if (busy) return;
   const file = app.vault.getAbstractFileByPath(note.path);
   if (!file) return;
+
   const nextPinned = !note.pinned;
   busy = true;
   if (btn) btn.disabled = true;
+
   try {
     await app.fileManager.processFrontMatter(file, fm => {
       if (nextPinned) fm.закреплено = true;
@@ -755,7 +810,7 @@ async function togglePin(note, btn) {
     refreshData();
     renderResults();
   } catch (err) {
-    notify("Не удалось изменить закрепление: " + (err?.message || String(err)));
+    notify("Ошибка: " + (err?.message || String(err)));
   } finally {
     busy = false;
     if (btn) btn.disabled = false;
@@ -768,11 +823,11 @@ function renderInlineEditor(container, note) {
 
   const draft = state.editDraft;
   const head = el("div", editor, "d3n-panel-title");
-  el("span", head, "", "✎ Свойства: " + note.title);
+  el("span", head, "", "Редактирование: " + note.title);
 
   const progSelector = chipSelector(
     editor,
-    "Программы (свойство программы)",
+    "Программы",
     draft.programs,
     [...PRESET_PROGRAMS, ...knownNotes.flatMap(n => n.programs)],
     vals => { draft.programs = vals; persist(); },
@@ -781,21 +836,24 @@ function renderInlineEditor(container, note) {
 
   const topicSelector = chipSelector(
     editor,
-    "Темы внутри программы (свойство темы)",
+    "Темы",
     draft.topics,
     getAvailableTopics(),
     vals => { draft.topics = vals; persist(); },
     false
   );
 
-  const sourceInput = field(editor, "Источник (свойство источник)", "Ссылка https://… или [[Заметка]]");
+  const sourceInput = field(editor, "Источник (ссылка или [[заметка]])", "https://...");
   sourceInput.value = draft.source;
-  sourceInput.addEventListener("input", () => { draft.source = sourceInput.value; persist(); });
+  sourceInput.addEventListener("input", () => {
+    draft.source = sourceInput.value;
+    persist();
+  });
 
   const message = el("div", editor, "d3n-message");
   const actions = el("div", editor, "d3n-actions");
 
-  const saveBtn = button(actions, "✓ Сохранить", async () => {
+  const saveBtn = button(actions, "Сохранить", async () => {
     if (busy) return;
     draft.programs = progSelector.getValues();
     draft.topics = topicSelector.getValues();
@@ -819,6 +877,7 @@ function renderInlineEditor(container, note) {
     busy = true;
     saveBtn.disabled = true;
     let success = false;
+
     try {
       const current = app.vault.getAbstractFileByPath(note.path);
       if (!current || current.extension !== "md") throw new Error("Файл не найден.");
@@ -828,20 +887,21 @@ function renderInlineEditor(container, note) {
       setPending(note.path, patch);
       success = true;
     } catch (err) {
-      message.textContent = "Ошибка: " + (err?.message || String(err));
+      message.textContent = err?.message || String(err);
     } finally {
       busy = false;
       saveBtn.disabled = false;
     }
 
     if (!success) return;
+
     state.editKey = "";
     state.editPath = "";
     state.editDraft = null;
     persist();
     refreshData();
     renderResults();
-    notify("Обновлено: «" + note.title + "»");
+    notify("Обновлено: " + note.title);
   }, "d3n-primary");
 
   button(actions, "Отмена", () => {
@@ -868,6 +928,7 @@ function renderCompactNoteRow(parentList, note, currentTopicContext = "", progKe
     if (e.target.closest("button, a, input, select")) return;
     app.workspace.openLinkText(note.path, CURRENT, e.ctrlKey || e.metaKey);
   });
+
   row.addEventListener("auxclick", e => {
     if (e.button !== 1 || e.target.closest("button, a, input, select")) return;
     e.preventDefault();
@@ -892,50 +953,125 @@ function renderCompactNoteRow(parentList, note, currentTopicContext = "", progKe
   showSourceBadge(right, note.source);
 
   const tools = el("div", right, "d3n-row-tools");
+
   const pinBtn = button(tools, note.pinned ? "★" : "☆", e => {
     e.stopPropagation();
     togglePin(note, pinBtn);
   }, "d3n-icon-btn" + (note.pinned ? " is-pinned" : ""));
-  pinBtn.title = note.pinned ? "Открепить (закреплено: true)" : "Закрепить заметку";
+  pinBtn.title = note.pinned ? "Открепить" : "Закрепить вверху";
 
   const editBtn = button(tools, "✎", e => {
     e.stopPropagation();
     openEdit(note, rowContextKey);
   }, "d3n-icon-btn");
-  editBtn.title = "Изменить программы, темы или источник";
+  editBtn.title = "Редактировать тему/программу";
+}
+
+// Вложенность хранится только в «темы»: Моделирование/bevel/Сегменты.
+function renderTopicTree(parent, notes, rootTopic, progKey) {
+  const tree = { path: rootTopic, name: rootTopic, direct: new Map(), all: new Map(), children: new Map() };
+  for (const note of notes) {
+    const paths = note.topicPaths.filter(path => path === rootTopic || path.startsWith(rootTopic + "/"));
+    // Если указаны и родитель, и потомок, заметка остаётся только в более точной группе.
+    const leaves = paths.filter(path => !paths.some(other => other.startsWith(path + "/")));
+    for (const path of leaves) {
+      let node = tree;
+      node.all.set(note.path, note);
+      const parts = topicParts(path);
+      for (let index = 1; index < parts.length; index++) {
+        const name = parts[index];
+        if (!node.children.has(name)) node.children.set(name, {
+          path: node.path + "/" + name, name, direct: new Map(), all: new Map(), children: new Map()
+        });
+        node = node.children.get(name);
+        node.all.set(note.path, note);
+      }
+      node.direct.set(note.path, note);
+    }
+  }
+  function addFolderForm(host, parentPath) {
+    const tools = el("div", host, "d3n-tree-tools");
+    button(tools, "+ Подраздел", event => {
+      event.preventDefault();
+      event.stopPropagation();
+      tools.replaceChildren();
+      const input = field(tools, "Название подраздела", "Например, bevel");
+      const message = el("div", tools, "d3n-message");
+      const run = () => {
+        const parts = topicParts(input.value);
+        if (!parts.length) { message.textContent = "Введи название подраздела."; return; }
+        openCreate(progKey === "__none__" ? "" : progKey, parentPath + "/" + parts.join("/"));
+      };
+      button(tools, "Добавить заметку", run);
+      input.addEventListener("keydown", event => {
+        if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); run(); }
+      });
+      input.focus();
+    });
+  }
+  function draw(host, node) {
+    if (node.direct.size) {
+      const listHost = el("div", host, "d3n-note-list");
+      for (const note of node.direct.values()) renderCompactNoteRow(listHost, note, node.path, progKey);
+    }
+    const children = [...node.children.values()].sort((a, b) => b.all.size - a.all.size || compare(a.name, b.name));
+    for (const child of children) {
+      const details = el("details", host, "d3n-tree-folder");
+      const key = JSON.stringify(["topic-tree", progKey, child.path]);
+      details.open = state.open[key] !== false;
+      const summary = el("summary", details, "d3n-tree-summary");
+      el("span", summary, "d3n-tree-name", child.name);
+      el("span", summary, "d3n-topic-cnt", child.all.size);
+      const add = button(summary, "+", event => {
+        event.preventDefault(); event.stopPropagation();
+        openCreate(progKey === "__none__" ? "" : progKey, child.path);
+      });
+      add.title = "Добавить заметку в «" + child.path + "»";
+      add.setAttribute("aria-label", add.title);
+      details.addEventListener("toggle", () => {
+        state.open[key] = details.open;
+        persist();
+      });
+      const content = el("div", details, "d3n-tree-content");
+      draw(content, child);
+    }
+    addFolderForm(host, node.path);
+  }
+  draw(parent, tree);
 }
 
 function renderResults() {
   results.replaceChildren();
-  createMainBtn.textContent = state.createOpen ? "✕ Закрыть форму" : "+ Новая заметка";
+  createMainBtn.textContent = state.createOpen ? "✕ Закрыть" : "＋ Заметка";
 
   const query = String(state.query || "").trim().toLocaleLowerCase("ru");
+
   let notes = knownNotes.filter(note => {
     if (state.onlyPinned && !note.pinned) return false;
     if (state.onlyUntagged && note.topics.length > 0) return false;
     if (state.program === "__none__" && note.programs.length) return false;
     if (state.program && state.program !== "__none__" && !note.programs.includes(state.program)) return false;
     if (!state.program && state.topic && !note.topics.includes(state.topic)) return false;
-    return !query || [note.title, ...note.programs, ...note.topics, ...note.rawTopics, note.source].join("\n").toLocaleLowerCase("ru").includes(query);
+    return !query || [note.title, ...note.programs, ...note.topics, ...note.rawTopics, ...note.topicPaths, note.source].join("\n").toLocaleLowerCase("ru").includes(query);
   });
 
   notes.sort((a, b) => {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    return state.sort === "title"
-      ? compare(a.title, b.title)
-      : b.mtime - a.mtime || compare(a.title, b.title);
+    return state.sort === "title" ? compare(a.title, b.title) : (b.mtime - a.mtime || compare(a.title, b.title));
   });
 
   const hasActiveFilters = !!(
-    query || state.program || state.topic || state.onlyPinned || state.onlyUntagged ||
+    query ||
+    state.program ||
+    state.topic ||
+    state.onlyPinned ||
+    state.onlyUntagged ||
     Object.values(state.localTopics).some(Boolean)
   );
   resetBtn.hidden = !hasActiveFilters;
 
   if (!notes.length) {
-    el("div", results, "d3n-empty", knownNotes.length
-      ? "По выбранным фильтрам заметок не найдено."
-      : "Пока нет заметок с направлением 3D. Нажмите «+ Новая заметка».");
+    el("div", results, "d3n-empty", knownNotes.length ? "Ничего не найдено по текущим фильтрам." : "Заметок с направлением «3D» пока нет.");
     return;
   }
 
@@ -958,10 +1094,11 @@ function renderResults() {
   keys.forEach((progKey, index) => {
     const progNotes = grouped.get(progKey);
     const groupColor = progKey === "__none__" ? "var(--text-muted)" : getProgColor(progKey);
+
     const details = el("details", results, "d3n-group");
     details.style.setProperty("--group-color", groupColor);
 
-    const fallbackOpen = index < 3 && (progKey !== "__none__" || keys.length === 1);
+    const fallbackOpen = index < 3 && progKey !== "__none__" && keys.length > 1;
     const desiredOpen = (query || state.program || state.topic || state.onlyPinned || state.onlyUntagged)
       ? true
       : (Object.prototype.hasOwnProperty.call(state.open, progKey) ? !!state.open[progKey] : fallbackOpen);
@@ -972,7 +1109,7 @@ function renderResults() {
     if (progKey !== "__none__") el("span", nameWrap, "d3n-dot");
     el("span", nameWrap, "", progKey === "__none__" ? "Без программы" : progKey);
 
-    button(summary, progKey === "__none__" ? "+ Заметка" : "+ В " + progKey, e => {
+    button(summary, "＋ В " + (progKey === "__none__" ? "раздел" : progKey), e => {
       e.stopPropagation();
       e.preventDefault();
       openCreate(progKey === "__none__" ? "" : progKey, state.localTopics[progKey] || state.topic || "");
@@ -989,17 +1126,17 @@ function renderResults() {
       for (const t of n.topics) localTopicCounts.set(t, (localTopicCounts.get(t) || 0) + 1);
     }
 
-    const activeLocalTopic = state.localTopics[progKey] || "";
+    const activeLocalTopic = state.localTopics[progKey];
 
     if (localTopicCounts.size > 0 && !state.topic) {
       const localBar = el("div", body, "d3n-local-bar");
-      el("span", localBar, "d3n-row-caption", "Разделы " + (progKey === "__none__" ? "" : progKey) + ":");
+      el("span", localBar, "d3n-row-caption", progKey === "__none__" ? "Темы:" : progKey + ":");
 
       const allLocalBtn = el("button", localBar, "d3n-pill" + (!activeLocalTopic ? " is-active" : ""));
       allLocalBtn.type = "button";
       allLocalBtn.onmousedown = e => e.preventDefault();
       allLocalBtn.style.setProperty("--pill-color", groupColor);
-      el("span", allLocalBtn, "", "Все");
+      el("span", allLocalBtn, "", "Все темы");
       el("span", allLocalBtn, "d3n-pill-num", progNotes.length);
       allLocalBtn.addEventListener("click", () => {
         delete state.localTopics[progKey];
@@ -1082,8 +1219,7 @@ function renderResults() {
         }, "d3n-topic-add");
         addInTopicBtn.title = "Добавить заметку в «" + tKey + "»";
 
-        const noteList = el("div", box, "d3n-note-list");
-        for (const n of tNotes) renderCompactNoteRow(noteList, n, tKey, progKey);
+        renderTopicTree(box, tNotes, tKey, progKey);
       }
 
       if (noTopicList.length > 0 && !state.topic && (!activeLocalTopic || activeLocalTopic === "__untagged__")) {
@@ -1130,15 +1266,19 @@ async function ensureFolder(folder) {
       if (!Array.isArray(found.children)) throw new Error("Путь занят файлом: " + current);
       continue;
     }
-    try { await app.vault.createFolder(current); }
-    catch (error) { if (!Array.isArray(app.vault.getAbstractFileByPath(current)?.children)) throw error; }
+    try {
+      await app.vault.createFolder(current);
+    } catch (error) {
+      if (!Array.isArray(app.vault.getAbstractFileByPath(current)?.children)) throw error;
+    }
   }
 }
 
 function validateTitle(title) {
-  if (!title) return "Введите название заметки.";
-  if (/[\\/:*?"<>|\x00-\x1f]/.test(title)) return 'В названии нельзя использовать \\ / : * ? " < > |.';
-  if (/^[.]+(?![\s\S])/.test(title) || /[. ](?![\s\S])/.test(title)) return "Некорректное имя файла.";
+  if (!title) return "Укажи название заметки.";
+  if (/[\u0000-\u001f]/.test(title)) return "Название содержит недопустимые символы.";
+  if (/[\\/:*?"<>|]/.test(title)) return "Название не должно содержать символы \\ / : * ? \" < > |";
+  if (/^\.|\.$/.test(title)) return "Название не должно начинаться или заканчиваться точкой.";
   return "";
 }
 
@@ -1146,8 +1286,8 @@ function noteContent(draft) {
   const programs = list(draft.programs), topics = list(draft.topics);
   return [
     "---",
-    'направление: "3D"',
-    'тип: "Заметка"',
+    "направление: 3D",
+    "тип: Заметка",
     "программы:",
     ...programs.map(s => "  - " + JSON.stringify(s)),
     ...(topics.length ? ["темы:", ...topics.map(s => "  - " + JSON.stringify(s))] : ["темы: []"]),
@@ -1156,17 +1296,20 @@ function noteContent(draft) {
     "",
     "# " + draft.title.trim(),
     "",
-    "## Суть",
+    "## Суть приёма",
     "",
+    "## Горячие клавиши и шаги",
     "",
-    "## Пошагово / Ноды",
-    "",
+    "## Где применяется",
     ""
   ].join("\n");
 }
 
 function openCreate(program = "", topic = "") {
-  if (busy) { notify("Дождитесь сохранения."); return; }
+  if (busy) {
+    notify("Идёт сохранение, подожди секунду.");
+    return;
+  }
   state.createOpen = true;
   if (program) state.draft.programs = [program];
   else if (!state.draft.programs.length) state.draft.programs = ["Blender"];
@@ -1183,16 +1326,20 @@ function renderCreate() {
 
   const draft = state.draft;
   const form = el("form", createHost, "d3n-panel");
-  const topTitle = el("div", form, "d3n-panel-title");
-  el("span", topTitle, "", "⚡ Новая 3D-заметка");
 
-  const title = field(form, "Название заметки или приёма", "Например: Генерация капель воды в Geometry Nodes");
+  const topTitle = el("div", form, "d3n-panel-title");
+  el("span", topTitle, "", "Новая 3D-заметка");
+
+  const title = field(form, "Название заметки", "Например: Процедурный мох в Geometry Nodes");
   title.value = draft.title;
-  title.addEventListener("input", () => { draft.title = title.value; persist(); });
+  title.addEventListener("input", () => {
+    draft.title = title.value;
+    persist();
+  });
 
   const progPicker = chipSelector(
     form,
-    "Программы (программы)",
+    "Программы",
     draft.programs,
     [...PRESET_PROGRAMS, ...knownNotes.flatMap(n => n.programs)],
     vals => { draft.programs = vals; persist(); },
@@ -1201,20 +1348,24 @@ function renderCreate() {
 
   const topicPicker = chipSelector(
     form,
-    "Темы / категории (темы)",
+    "Темы",
     draft.topics,
     getAvailableTopics(),
     vals => { draft.topics = vals; persist(); },
     false
   );
 
-  const source = field(form, "Источник (необязательно)", "Ссылка на туториал или [[Заметка]]");
+  const source = field(form, "Источник (ссылка или [[заметка]])", "https://... или [[Название]]");
   source.value = draft.source;
-  source.addEventListener("input", () => { draft.source = source.value; persist(); });
+  source.addEventListener("input", () => {
+    draft.source = source.value;
+    persist();
+  });
 
   const message = el("div", form, "d3n-message");
   const actions = el("div", form, "d3n-actions");
-  const createBtn = el("button", actions, "d3n-button d3n-primary", "Создать и открыть →");
+
+  const createBtn = el("button", actions, "d3n-button d3n-primary", "Создать и открыть");
   createBtn.type = "submit";
 
   const stayBtn = button(actions, "Создать и остаться", async () => {
@@ -1244,35 +1395,42 @@ function renderCreate() {
     persist();
 
     const error = validateTitle(draft.title);
-    if (error) { message.textContent = error; title.focus(); return; }
+    if (error) {
+      message.textContent = error;
+      title.focus();
+      return;
+    }
     if (!draft.programs.length) {
-      message.textContent = "Выберите хотя бы одну программу.";
+      message.textContent = "Выбери хотя бы одну программу.";
       return;
     }
 
     const path = normalizePath(TARGET_FOLDER + "/" + draft.title + ".md");
     message.replaceChildren();
+
     if (app.vault.getAbstractFileByPath(path)) {
-      el("span", message, "", "Заметка с таким именем уже есть: ");
-      const a = el("a", message, "", "открыть существующую");
+      el("span", message, "", "Файл уже существует: ");
+      const a = el("a", message, "", path);
       openLink(a, path);
       return;
     }
 
     busy = true;
     freeze(true);
-    let created;
+    let created = null;
+
     try {
       await ensureFolder(TARGET_FOLDER);
       created = await app.vault.create(path, noteContent(draft));
     } catch (err) {
-      message.textContent = "Ошибка создания: " + (err?.message || String(err));
+      message.textContent = err?.message || String(err);
     } finally {
       busy = false;
       freeze(false);
     }
 
     if (!created) return;
+
     setPending(created.path, {
       направление: AREA,
       тип: "Заметка",
@@ -1288,10 +1446,12 @@ function renderCreate() {
     renderCreate();
     refreshData();
     renderResults();
-    notify("Создано: «" + created.basename + "»");
+    notify("Создано: " + created.basename);
 
     if (openAfterCreate) {
-      try { await app.workspace.openLinkText(created.path, CURRENT, false); } catch {}
+      try {
+        await app.workspace.openLinkText(created.path, CURRENT, false);
+      } catch (_) {}
     }
   }
 
@@ -1300,10 +1460,12 @@ function renderCreate() {
     await handleCreateSubmit(true);
   });
 
-  setTimeout(() => { if (title.isConnected) title.focus(); }, 30);
+  setTimeout(() => {
+    if (title.isConnected) title.focus();
+  }, 30);
 }
 
-function openEdit(note, rowContextKey = "") {
+function openEdit(note, rowContextKey) {
   if (busy) return;
   state.editKey = rowContextKey;
   state.editPath = note.path;
