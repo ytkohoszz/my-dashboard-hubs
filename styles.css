@@ -178,6 +178,13 @@
     border: 1px solid var(--background-modifier-border);
     transition: border-color 0.15s ease;
   }
+  .dashboard-home .dh-metric-item.is-clickable {
+    cursor: pointer;
+    user-select: none;
+  }
+  .dashboard-home .dh-metric-item.is-clickable:hover {
+    border-color: var(--interactive-accent);
+  }
   .dashboard-home .dh-metric-item:focus-within {
     border-color: #599ed6;
   }
@@ -205,6 +212,14 @@
     display: flex;
     align-items: baseline;
     gap: 6px;
+    min-height: 28px;
+  }
+  .dashboard-home .dh-metric-readonly-val {
+    font-size: 1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-normal);
+    line-height: 28px;
   }
   .dashboard-home .dh-metric-input {
     width: 78px !important;

@@ -1,7 +1,6 @@
 const section = (typeof input !== "undefined" && input && input.section) ? input.section : "all";
 
 const DIARY_FOLDER_NAME = "Ежедневник";
-const DEFAULT_DIET_MIN_KCAL = 2600;
 const MANUAL_HABITS_PREFIX = "dh_today_manual_habits_v1:";
 
 function clearManualHabitOverrideForDate(dateISO, habitKey) {
@@ -67,9 +66,9 @@ function renderHealthStats() {
     }
   }
 
-  // Читаем дневную цель калорий из настроек плагина питания (если там отключена — null)
+  // Читаем дневную цель калорий напрямую из настроек плагина питания (если отключена — null)
   const nutPlugin = getNutritionPlugin();
-  const rawPluginGoal = nutPlugin?.settings ? nutPlugin.settings.dailyCalorieGoal : DEFAULT_DIET_MIN_KCAL;
+  const rawPluginGoal = nutPlugin?.settings ? nutPlugin.settings.dailyCalorieGoal : null;
   const calorieGoal = typeof rawPluginGoal === "number" && rawPluginGoal > 0 ? Math.round(rawPluginGoal) : null;
 
   const today = dv.date("today").startOf("day");
@@ -489,7 +488,7 @@ function renderHealthStats() {
         ]
   });
 
-  // --- Панель сегодняшнего дня: БЖУ, цель калорий, вызов my-nutrition-tracker и быстрый ввод веса ---
+  // --- Панель сегодняшнего дня: КБЖУ из плагина питания + быстрый ввод только веса ---
   const todayDiaryPage = byDate.get(todayISO) || null;
   const diaryFile = todayDiaryPage ? app.vault.getAbstractFileByPath(todayDiaryPage.file.path) : null;
   const curW = weight.has(todayISO) ? weight.get(todayISO) : null;
@@ -519,7 +518,6 @@ function renderHealthStats() {
     attr: { style: "font-size: 0.86rem; font-weight: 600; color: var(--text-normal);" }
   });
 
-  // Плашка калорий и статуса цели (если цель включена в плагине)
   if (calorieGoal !== null) {
     const pct = curC !== null ? Math.min(100, Math.round((curC / calorieGoal) * 100)) : 0;
     leftInfo.createSpan({
@@ -533,16 +531,15 @@ function renderHealthStats() {
             : "background: var(--background-primary); color: var(--text-muted); border: 1px solid var(--background-modifier-border);")
       }
     });
-  } else if (curC !== null) {
+  } else {
     leftInfo.createSpan({
-      text: fmt(curC, 0, 0) + " ккал",
+      text: curC !== null ? fmt(curC, 0, 0) + " ккал" : "Питание пока не внесено",
       attr: {
-        style: "font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: var(--background-primary); color: var(--text-normal); border: 1px solid var(--background-modifier-border); font-variant-numeric: tabular-nums;"
+        style: "font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: var(--background-primary); color: " + (curC !== null ? "var(--text-normal)" : "var(--text-muted)") + "; border: 1px solid var(--background-modifier-border); font-variant-numeric: tabular-nums;"
       }
     });
   }
 
-  // Плашка БЖУ за сегодня (если записаны)
   if (curP !== null || curF !== null || curU !== null) {
     leftInfo.createSpan({
       text: "Б: " + fmt(curP ?? 0, 0, 1) + " г · Ж: " + fmt(curF ?? 0, 0, 1) + " г · У: " + fmt(curU ?? 0, 0, 1) + " г",
@@ -572,33 +569,22 @@ function renderHealthStats() {
         inputmode: "decimal",
         placeholder: "Вес (кг)",
         value: curW !== null ? String(curW).replace(".", ",") : "",
-        style: "width: 88px; height: 30px; font-size: 0.8rem; padding: 2px 8px; border-radius: 8px;"
-      }
-    });
-
-    const cInput = controlsWrap.createEl("input", {
-      attr: {
-        type: "text",
-        inputmode: "numeric",
-        placeholder: "Ккал",
-        value: curC !== null ? String(Math.round(curC)) : "",
-        style: "width: 88px; height: 30px; font-size: 0.8rem; padding: 2px 8px; border-radius: 8px;"
+        style: "width: 92px; height: 30px; font-size: 0.8rem; padding: 2px 8px; border-radius: 8px;"
       }
     });
 
     const saveQuickBtn = controlsWrap.createEl("button", {
       cls: "dh-btn",
-      text: "Сохранить",
+      text: "Сохранить вес",
       attr: {
         type: "button",
         style: "height: 30px; font-size: 0.78rem; padding: 0 10px; border-radius: 8px; cursor: pointer;"
       }
     });
 
-    const commitQuickMetrics = async () => {
+    const commitQuickWeight = async () => {
       if (!diaryFile || saveQuickBtn.disabled) return;
       const rawW = wInput.value.trim().replace(",", ".");
-      const rawC = cInput.value.trim().replace(",", ".");
 
       let nextW = null;
       if (rawW !== "") {
@@ -610,47 +596,24 @@ function renderHealthStats() {
         nextW = Math.round(parsedW * 10) / 10;
       }
 
-      let nextC = null;
-      if (rawC !== "") {
-        const parsedC = Number(rawC);
-        if (!Number.isFinite(parsedC) || parsedC < 0 || parsedC > 10000) {
-          notify("Калории должны быть числом от 0 до 10000 ккал.");
-          return;
-        }
-        nextC = Math.round(parsedC);
-      }
-
       saveQuickBtn.disabled = true;
       try {
-        if (calorieGoal !== null) {
-          clearManualHabitOverrideForDate(todayISO, "диета");
-        }
-        const autoDiet = calorieGoal !== null && nextC !== null ? nextC >= calorieGoal : false;
         await app.fileManager.processFrontMatter(diaryFile, fm => {
           if (nextW === null) delete fm.вес_кг;
           else fm.вес_кг = nextW;
-
-          if (nextC === null) delete fm.калории_ккал;
-          else fm.калории_ккал = nextC;
-
-          if (calorieGoal !== null && nextC !== null) {
-            fm.диета = autoDiet;
-          }
         });
-        notify("Показатели за сегодня сохранены.");
+        notify("Вес за сегодня обновлён.");
       } catch (e) {
-        notify("Ошибка сохранения: " + (e?.message || e));
+        notify("Ошибка сохранения веса: " + (e?.message || e));
       } finally {
         saveQuickBtn.disabled = false;
       }
     };
 
-    saveQuickBtn.onclick = commitQuickMetrics;
-    wInput.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); commitQuickMetrics(); } };
-    cInput.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); commitQuickMetrics(); } };
+    saveQuickBtn.onclick = commitQuickWeight;
+    wInput.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); commitQuickWeight(); } };
   }
 
-  // Тонкая полоска прогресса калорий за сегодня (если цель задана и есть калории)
   if (calorieGoal !== null && curC !== null && curC > 0) {
     const pct = Math.min(100, Math.round((curC / calorieGoal) * 100));
     const track = quickBar.createDiv({

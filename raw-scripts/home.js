@@ -1,8 +1,7 @@
 // ========================================================
-// ОБЩИЕ ДАННЫЕ, АВТОСИНХРОНИЗАЦИЯ И УТИЛИТЫ (ГЛАВНАЯ v2.1)
+// ОБЩИЕ ДАННЫЕ, АВТОСИНХРОНИЗАЦИЯ И УТИЛИТЫ (ГЛАВНАЯ v2.2)
 // ========================================================
 const AUTO_SLEEP_MIN_HOURS = 6;   // Сон > 6 часов автоматически отмечает «Режим сна»
-const AUTO_DIET_MIN_KCAL = 2600;  // Калории >= 2600 ккал автоматически отмечают «Диету» (массонабор)
 const BOOKS_FOLDER = "Знания/Книги";
 const READING_TRACKER_KEY = "dh_reading_daily_tracker_v1";
 const MANUAL_HABITS_PREFIX = "dh_today_manual_habits_v1:";
@@ -23,11 +22,24 @@ function parseNum(v) {
   return /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/.test(s) ? Number(s) : null;
 }
 
+function getNutritionPlugin() {
+  return app.plugins?.plugins?.["my-nutrition-tracker"] ?? null;
+}
+
+function getWorkoutPlugin() {
+  return app.plugins?.plugins?.["my-workout-companion"] ?? null;
+}
+
+// Читаем дневную цель калорий напрямую из настроек my-nutrition-tracker (если цель отключена — null)
+const nutPlugin = getNutritionPlugin();
+const rawCalorieGoal = nutPlugin?.settings ? nutPlugin.settings.dailyCalorieGoal : null;
+const calorieGoal = typeof rawCalorieGoal === "number" && rawCalorieGoal > 0 ? Math.round(rawCalorieGoal) : null;
+
 const today = dv.date("today").startOf("day");
 const todayISO = today.toISODate();
 
 const todayNote = dv.pages('"Ежедневник"').array()
-  .filter(p => asDate(p.дата)?.toISODate() === todayISO)
+  .filter(p => (asDate(p.дата) || asDate(p.file.name))?.toISODate() === todayISO)
   .sort((a, b) => mtime(b) - mtime(a) || a.file.path.localeCompare(b.file.path, "ru"))[0] || null;
 
 const knowledgePages = dv.pages('"Знания"').array();
@@ -336,9 +348,9 @@ const readingSync = computeTodayReadingProgress();
     "#a6b25a", "#8cb666", "#73b473", "#5ab17f", "#4aab80"
   ];
 
-  const METRICS = [
+  // Поля с ручным вводом (Калории теперь считаются автоматически через плагин my-nutrition-tracker)
+  const INPUT_METRICS = [
     { label: "Вес", key: "вес_кг", unit: "кг", min: 20, max: 300, digits: 1, placeholder: "—" },
-    { label: "Калории", key: "калории_ккал", unit: "ккал", min: 0, max: 10000, digits: 0, placeholder: "—", hint: `авто-диета ≥${AUTO_DIET_MIN_KCAL}` },
     { label: "Сон", key: "сон_часов", unit: "ч", min: 0, max: 24, digits: 1, placeholder: "—", hint: `авто-режим >${AUTO_SLEEP_MIN_HOURS} ч` },
     { label: "Чтение", key: "страниц_прочитано", unit: "стр.", min: 0, max: 1500, digits: 0, placeholder: "—", hint: readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages} стр.` : "авто из читалки" },
   ];
@@ -348,6 +360,19 @@ const readingSync = computeTodayReadingProgress();
     if (n === null) return "";
     const rounded = Math.round(n * 10 ** digits) / 10 ** digits;
     return String(Object.is(rounded, -0) ? 0 : rounded).replace(".", ",");
+  }
+
+  function openNutritionFromHome() {
+    const plugin = getNutritionPlugin();
+    if (!plugin || typeof plugin.openNutrition !== "function") {
+      notify("Включи плагин «Питание и БЖУ» (my-nutrition-tracker) в настройках Obsidian.");
+      return;
+    }
+    try {
+      plugin.openNutrition({ dateISO: todayISO });
+    } catch (err) {
+      notify("Не удалось открыть дневник питания: " + (err instanceof Error ? err.message : String(err)));
+    }
   }
 
   if (!window.__dhTodayDrafts || window.__dhTodayDrafts.dateISO !== todayISO) {
@@ -557,6 +582,13 @@ const readingSync = computeTodayReadingProgress();
     border: 1px solid var(--background-modifier-border);
     transition: border-color 0.15s ease;
   }
+  .dashboard-home .dh-metric-item.is-clickable {
+    cursor: pointer;
+    user-select: none;
+  }
+  .dashboard-home .dh-metric-item.is-clickable:hover {
+    border-color: var(--interactive-accent);
+  }
   .dashboard-home .dh-metric-item:focus-within {
     border-color: #599ed6;
   }
@@ -584,6 +616,14 @@ const readingSync = computeTodayReadingProgress();
     display: flex;
     align-items: baseline;
     gap: 6px;
+    min-height: 28px;
+  }
+  .dashboard-home .dh-metric-readonly-val {
+    font-size: 1rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-normal);
+    line-height: 28px;
   }
   .dashboard-home .dh-metric-input {
     width: 78px !important;
@@ -856,8 +896,10 @@ const readingSync = computeTodayReadingProgress();
       fm[key] = value;
     });
 
-    // --- Вычисление актуальных значений с учётом автосинхронизации ---
     const savedCalories = parseNum(note.калории_ккал);
+    const savedProtein = parseNum(note.белки_г);
+    const savedFat = parseNum(note.жиры_г);
+    const savedCarbs = parseNum(note.углеводы_г);
     const savedSleep = parseNum(note.сон_часов);
     const savedPages = parseNum(note.страниц_прочитано);
     const effectivePages = readingSync.autoBookPages > 0 && (savedPages === null || readingSync.totalPages > savedPages)
@@ -884,8 +926,8 @@ const readingSync = computeTodayReadingProgress();
       pendingPatch.тренировка = true;
     }
 
-    // 3. Автосинхронизация привычки «Диета» по калориям (массонабор)
-    if (savedCalories !== null && savedCalories >= AUTO_DIET_MIN_KCAL && manualOverrides.диета === undefined && states.get("диета") !== true) {
+    // 3. Автосинхронизация привычки «Диета» только если в my-nutrition-tracker задана дневная цель калорий
+    if (calorieGoal !== null && savedCalories !== null && savedCalories >= calorieGoal && manualOverrides.диета === undefined && states.get("диета") !== true) {
       states.set("диета", true);
       pendingPatch.диета = true;
     }
@@ -1042,7 +1084,8 @@ const readingSync = computeTodayReadingProgress();
     const metricsGrid = body.createDiv({ cls: "dh-metrics-grid" });
     const inputRefs = new Map();
 
-    for (const m of METRICS) {
+    // Функция отрисовки обычного поля ввода (Вес, Сон, Чтение)
+    const renderInputMetricCard = (m) => {
       const card = metricsGrid.createEl("label", { cls: "dh-metric-item" });
       const top = card.createDiv({ cls: "dh-metric-top" });
       top.createSpan({ cls: "dh-metric-label", text: m.label });
@@ -1165,10 +1208,7 @@ const readingSync = computeTodayReadingProgress();
         let autoHabitKey = null;
         let autoHabitVal = null;
 
-        if (m.key === "калории_ккал") {
-          autoHabitKey = "диета";
-          autoHabitVal = finalValue >= AUTO_DIET_MIN_KCAL;
-        } else if (m.key === "сон_часов") {
+        if (m.key === "сон_часов") {
           autoHabitKey = "режим_сна";
           autoHabitVal = finalValue > AUTO_SLEEP_MIN_HOURS;
         } else if (m.key === "страниц_прочитано") {
@@ -1208,7 +1248,59 @@ const readingSync = computeTodayReadingProgress();
       input.onchange = commitMetric;
       input.onblur = commitMetric;
       inputRefs.set(m.key, input);
+    };
+
+    // 1. Карточка «Вес» (ручной ввод)
+    renderInputMetricCard(INPUT_METRICS[0]);
+
+    // 2. Карточка «Калории» (автоматически из плагина my-nutrition-tracker, открывает плагин по клику)
+    {
+      const calCard = metricsGrid.createDiv({
+        cls: "dh-metric-item is-clickable",
+        attr: {
+          role: "button",
+          tabindex: "0",
+          title: "Нажми, чтобы открыть дневник питания и добавить приём пищи"
+        }
+      });
+      const top = calCard.createDiv({ cls: "dh-metric-top" });
+      top.createSpan({ cls: "dh-metric-label", text: "Калории" });
+      top.createSpan({
+        cls: "dh-metric-status",
+        text: "🥗 ＋",
+        attr: { style: "color: var(--interactive-accent);" }
+      });
+
+      const control = calCard.createDiv({ cls: "dh-metric-control" });
+      control.createSpan({
+        cls: "dh-metric-readonly-val",
+        text: savedCalories !== null ? String(Math.round(savedCalories)) : "—"
+      });
+      control.createSpan({
+        cls: "dh-metric-unit",
+        text: calorieGoal !== null ? `/ ${calorieGoal} ккал` : "ккал"
+      });
+
+      let calHint = "нажми, чтобы внести еду";
+      if (savedProtein !== null || savedFat !== null || savedCarbs !== null) {
+        calHint = `Б:${Math.round(savedProtein || 0)} · Ж:${Math.round(savedFat || 0)} · У:${Math.round(savedCarbs || 0)} г`;
+      } else if (calorieGoal !== null) {
+        calHint = `авто-диета ≥${calorieGoal} ккал`;
+      }
+      calCard.createDiv({ cls: "dh-metric-subhint", text: calHint });
+
+      calCard.onclick = () => openNutritionFromHome();
+      calCard.onkeydown = e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openNutritionFromHome();
+        }
+      };
     }
+
+    // 3 и 4. Карточки «Сон» и «Чтение» (ручной ввод)
+    renderInputMetricCard(INPUT_METRICS[1]);
+    renderInputMetricCard(INPUT_METRICS[2]);
 
     const bottomGrid = body.createDiv({ cls: "dh-today-bottom-grid" });
 
