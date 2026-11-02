@@ -890,6 +890,83 @@ if (mode === "all" || mode === "main") {
     const HABIT_MIN_MONTH_NUMERIC = 5;
     const HABIT_MIN_GROUP_SIZE = 4;
 
+
+    // Витрина аналитики: расчёты выполняет my-correlation-analytics.
+    {
+      const analytics = root.createDiv({ cls: "dh-diary-analytics" });
+      const styles = analytics.createEl("style");
+      styles.textContent = [
+        ".dashboard-home .dh-diary-analytics { margin:16px 0; padding:16px; border:1px solid var(--background-modifier-border); border-radius:12px; background:var(--background-secondary); }",
+        ".dashboard-home .dh-diary-analytics .dda-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }",
+        ".dashboard-home .dh-diary-analytics .dda-title { font-weight:650; }",
+        ".dashboard-home .dh-diary-analytics button { min-height:44px; min-width:44px; white-space:normal; }",
+        ".dashboard-home .dh-diary-analytics .dda-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:8px; margin-top:12px; }",
+        ".dashboard-home .dh-diary-analytics .dda-card { padding:12px; background:var(--background-primary); border:1px solid var(--background-modifier-border); border-radius:8px; min-width:0; overflow-wrap:anywhere; }",
+        ".dashboard-home .dh-diary-analytics .dda-meta { margin-top:4px; color:var(--text-muted); font-size:0.76rem; }"
+      ].join("\n");
+      const head = analytics.createDiv({ cls: "dda-head" });
+      head.createSpan({ cls: "dda-title", text: "📊 Связи в дневнике" });
+      const action = head.createEl("button", { text: "Открыть аналитику", attr: { type: "button" } });
+      const host = analytics.createDiv({ cls: "dda-list" });
+      const note = analytics.createDiv({ cls: "dda-meta" });
+      const getPlugin = () => app.plugins?.plugins?.["my-correlation-analytics"] || window.__myCorrelationAnalytics;
+      const tell = text => { try { new Notice(text); } catch { console.log(text); } };
+      action.onclick = () => {
+        const plugin = getPlugin();
+        if (!plugin || typeof plugin.openAnalyticsReport !== "function") {
+          tell("Включи плагин Correlation Analytics (my-correlation-analytics).");
+          return;
+        }
+        try { plugin.openAnalyticsReport(30); }
+        catch (error) { tell("Не удалось открыть аналитику: " + String(error)); }
+      };
+      const add = (title, description, counts) => {
+        const card = host.createDiv({ cls: "dda-card" });
+        card.createDiv({ text: title });
+        card.createDiv({ cls: "dda-meta", text: description });
+        card.createDiv({ cls: "dda-meta", text: counts });
+      };
+      try {
+        const plugin = getPlugin();
+        if (!plugin || typeof plugin.getReport !== "function") {
+          host.createDiv({ text: "Включи Correlation Analytics для просмотра наблюдений." });
+        } else {
+          const report = plugin.getReport(30);
+          if (!report || typeof report !== "object") throw new Error("Плагин вернул неизвестный формат отчёта.");
+          // В движке 0.3.0 период пока означает количество записей, а не календарных дней.
+          const count = Number.isFinite(report.totalRecords) ? report.totalRecords : 0;
+          note.textContent = "Последние 30 записей · в выборке: " + count + ". Наблюдения, не доказанные причины.";
+          const habits = Array.isArray(report.topHabitImpacts) ? report.topHabitImpacts : [];
+          const corr = Array.isArray(report.topCorrelations) ? report.topCorrelations : [];
+          const used = new Set();
+          let shown = 0;
+          for (const item of habits) {
+            if (shown >= 2) break;
+            if (!item || !Number.isFinite(item.avgWhenTrue) || !Number.isFinite(item.avgWhenFalse)
+              || !Number.isFinite(item.delta) || item.countTrue < 5 || item.countFalse < 5
+              || Math.abs(item.delta) < 0.2 || used.has(item.habitKey)) continue;
+            const target = item.targetMetric === "score" ? "оценка дня" : "энергия";
+            add(String(item.habitName) + " · " + target,
+              "При true: " + fmt(item.avgWhenTrue) + "; при false: " + fmt(item.avgWhenFalse) +
+              ". Разница: " + (item.delta > 0 ? "+" : "") + fmt(item.delta) + " балла.",
+              "Дней true: " + item.countTrue + " · false: " + item.countFalse);
+            used.add(item.habitKey); shown++;
+          }
+          for (const item of corr) {
+            if (shown >= 3) break;
+            if (!item || !Number.isFinite(item.r) || item.sampleCount < 10 || Math.abs(item.r) < 0.3) continue;
+            add(String(item.label), "Линейная связь: r = " + fmt(item.r, 2, 2) + ".", "Пар наблюдений: " + item.sampleCount);
+            shown++;
+          }
+          if (!shown) host.createDiv({ text: "Пока нет наблюдений для краткой витрины. Полный отчёт доступен по кнопке выше." });
+        }
+      } catch (error) {
+        host.replaceChildren();
+        host.createDiv({ text: "Не удалось получить краткий отчёт. Остальной дневник работает независимо." });
+        console.warn("diary analytics:", error);
+      }
+    }
+
     const hs = section("", "");
     hs.classList.add("dh-habits-v2");
 
@@ -1813,62 +1890,51 @@ if (mode === "all" || mode === "main") {
           <span style="color:var(--text-muted); font-size:0.72rem;">Вес: ${wText}</span>
         `;
       } else if (h.key === "тренировка") {
-        const wasT = todayRecord && todayRecord.тренировка === true;
-
-        let trainingPage = dv.pages('"Знания"').array().find(p => p.тип === "Тренировка" && asDate(p.дата)?.toISODate() === todayISO);
-        let isPastSession = false;
-
-        if (!trainingPage) {
-          const pastSessions = dv.pages('"Знания"').array()
-            .filter(p => p.тип === "Тренировка" && asDate(p.дата) && asDate(p.дата) <= today)
-            .sort((a, b) => asDate(b.дата).toMillis() - asDate(a.дата).toMillis());
-          if (pastSessions.length > 0) {
-            trainingPage = pastSessions[0];
-            isPastSession = true;
+        const sessions = dv.pages('"Знания"').array()
+          .filter(p => p.тип === "Тренировка" && asDate(p.дата) && asDate(p.дата) <= today)
+          .sort((a, b) => asDate(b.дата).toMillis() - asDate(a.дата).toMillis() || mtime(b) - mtime(a));
+        const sessionsToday = sessions.filter(p => asDate(p.дата).toISODate() === todayISO);
+        const latest = sessions[0];
+        const selected = sessionsToday.length ? sessionsToday : latest
+          ? sessions.filter(p => asDate(p.дата).toISODate() === asDate(latest.дата).toISODate()) : [];
+        const ex = new Map();
+        let reps = 0, seconds = 0, sets = 0;
+        const validAmount = value => {
+          if (typeof value !== "number" && typeof value !== "string") return null;
+          if (typeof value === "string" && !value.trim()) return null;
+          const n = Number(String(value).replace(",", "."));
+          return Number.isFinite(n) && n > 0 ? n : null;
+        };
+        for (const p of selected) {
+          for (const item of Array.from(p.file.lists ?? [])) {
+            const name = typeof item.упражнение === "string" ? item.упражнение.trim() : "";
+            if (!name) continue;
+            const r = validAmount(item.повторы), s = validAmount(item.секунды);
+            if (r !== null) { reps += r; sets++; ex.set(name, (ex.get(name) || 0) + r); }
+            else if (s !== null) { seconds += s; sets++; }
           }
         }
-
-        let totalReps = 0;
-        let setsCount = 0;
-        const exerciseReps = new Map();
-
-        if (trainingPage) {
-          const listItems = Array.from(trainingPage.file.lists ?? []);
-          listItems.forEach(item => {
-            const exName = item.упражнение ? String(item.упражнение).trim() : "";
-            const reps = typeof item.повторы === "number" ? item.повторы : Number(item.повторы);
-            if (exName && Number.isFinite(reps) && reps > 0) {
-              totalReps += reps;
-              setsCount++;
-              exerciseReps.set(exName, (exerciseReps.get(exName) || 0) + reps);
-            }
-          });
-        }
-
-        const topExercises = [...exerciseReps.entries()]
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 2)
-          .map(([name, reps]) => `${name}: ${reps}`)
-          .join(" · ");
-
-        if (wasT && trainingPage && !isPastSession) {
-          const sessionName = String(trainingPage.название_тренировки || trainingPage.file.name).replace(/^Тренировка\s*/i, "").trim() || "Силовая";
-          const subInfo = topExercises ? `(${topExercises})` : `${setsCount} подх.`;
-          detailBox.innerHTML = `
-            <span style="color:var(--color-green); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏋️ ${sessionName}</span>
-            <span style="color:var(--text-muted); font-size:0.72rem; font-variant-numeric:tabular-nums;" title="${topExercises}">${totalReps > 0 ? totalReps + " повт." : setsCount + " подх."} ${subInfo}</span>
-          `;
-        } else if (isPastSession && trainingPage) {
-          const pastDateStr = asDate(trainingPage.дата)?.toFormat("dd.MM") || "";
-          detailBox.innerHTML = `
-            <span style="color:var(--text-muted);">Отдых (посл: ${pastDateStr})</span>
-            <span style="color:var(--text-faint); font-size:0.72rem;">${totalReps > 0 ? totalReps + " повт." : "—"}</span>
-          `;
+        detailBox.replaceChildren();
+        detailBox.style.flexDirection = "column";
+        detailBox.style.alignItems = "stretch";
+        const title = detailBox.createSpan();
+        if (sessionsToday.length) {
+          title.textContent = "🏋️ " + sessionsToday.map(p => String(p.название_тренировки || p.file.name)).join(" · ");
+        } else if (todayRecord?.тренировка === true) {
+          title.textContent = "🏋️ Отмечено в дневнике; сессия за сегодня не найдена";
         } else {
-          detailBox.innerHTML = `
-            <span style="color:var(--text-muted);">🏋️ Тренировки не было</span>
-            <span style="color:var(--text-faint); font-size:0.72rem;">0 повт.</span>
-          `;
+          title.textContent = latest ? "Последняя тренировка · " + asDate(latest.дата).toFormat("dd.MM") : "Тренировок пока нет";
+        }
+        title.style.overflowWrap = "anywhere";
+        if (selected.length) {
+          const parts = [];
+          if (reps > 0) parts.push(fmt(reps) + " повт.");
+          if (seconds > 0) parts.push(fmt(seconds) + " с удержаний");
+          parts.push(sets ? sets + " подх." : "Подходы пока не записаны");
+          detailBox.createSpan({ text: parts.join(" · ") });
+          const breakdown = [...ex.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2)
+            .map(([name, count]) => name + ": " + fmt(count)).join(" · ");
+          if (breakdown) detailBox.createSpan({ text: breakdown });
         }
       } else if (h.key === "nofap") {
         detailBox.innerHTML = `
