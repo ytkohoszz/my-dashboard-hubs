@@ -1,4 +1,4 @@
-// 3D — компактная база знаний и приёмов (v4.2: вложенные темы через / и перенос заметок) 
+// 3D — компактная база знаний и приёмов (v4.3: аккуратные подпапки и перемещение) 
 const normalizePath = p => String(p || "").replace(/\\/g, "/").replace(/\/+/g, "/").replace(/^\/|\/(?![\s\S])/g, "");
 const AREA = "3D";
 const TARGET_FOLDER = "Знания";
@@ -397,17 +397,21 @@ style.textContent = [
 
 const treeStyle = el("style", root);
 treeStyle.textContent = [
-  ".dashboard-home .d3n .d3n-tree-folder { margin: 6px 8px; border: 1px solid var(--background-modifier-border); border-radius: 8px; background: var(--background-secondary); min-width: 0; }",
-  ".dashboard-home .d3n .d3n-tree-folder > summary.d3n-tree-summary { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 8px; font-size: 0.8em; cursor: pointer; list-style: none; user-select: none; }",
-  ".dashboard-home .d3n .d3n-tree-folder > summary.d3n-tree-summary::before { content: '▸'; display: inline-block; color: var(--text-muted); font-size: 1.1em; transition: transform 0.14s ease; }",
-  ".dashboard-home .d3n .d3n-tree-folder[open] > summary.d3n-tree-summary::before { transform: rotate(90deg); }",
+  ".dashboard-home .d3n .d3n-tree-folder { margin: 4px 6px; border: 1px solid var(--background-modifier-border); border-radius: 7px; background: var(--background-secondary); min-width: 0; overflow: hidden; }",
+  ".dashboard-home .d3n .d3n-tree-folder > summary.d3n-tree-summary { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-height: 28px; padding: 4px 8px; font-size: 0.78em; cursor: pointer; list-style: none; user-select: none; }",
   ".dashboard-home .d3n .d3n-tree-summary::-webkit-details-marker { display: none; }",
-  ".dashboard-home .d3n .d3n-tree-name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 650; color: var(--text-normal); }",
-  ".dashboard-home .d3n .d3n-tree-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; border-top: 1px dashed var(--background-modifier-border); }",
-  ".dashboard-home .d3n .d3n-tree-tool-btn { font-size: 0.72em !important; height: 23px !important; min-height: 23px !important; padding: 2px 8px !important; border-radius: 5px !important; }",
-  ".dashboard-home .d3n .d3n-tree-select { height: 23px !important; max-width: 170px !important; font-size: 0.72em !important; }",
-  ".dashboard-home .d3n .d3n-move-select-wrap { display: inline-flex; align-items: center; margin-right: 4px; }",
-  ".dashboard-home .d3n .d3n-tree-content { min-width: 0; padding-left: 4px; }"
+  ".dashboard-home .d3n .d3n-tree-sum-left { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex: 1; }",
+  ".dashboard-home .d3n .d3n-tree-sum-left::before { content: '▸'; display: inline-block; color: var(--text-muted); font-size: 1.05em; transition: transform 0.14s ease; }",
+  ".dashboard-home .d3n .d3n-tree-folder[open] > summary .d3n-tree-sum-left::before { transform: rotate(90deg); }",
+  ".dashboard-home .d3n .d3n-tree-name { font-weight: 650; color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+  ".dashboard-home .d3n .d3n-tree-sum-actions { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }",
+  ".dashboard-home .d3n .d3n-sub-icon-btn { height: 20px !important; min-height: 20px !important; width: 22px !important; padding: 0 !important; font-size: 0.72em !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; border-radius: 4px !important; color: var(--text-muted) !important; background: var(--background-primary) !important; border: 1px solid var(--background-modifier-border) !important; }",
+  ".dashboard-home .d3n .d3n-sub-icon-btn:hover { color: var(--text-normal) !important; border-color: var(--interactive-accent) !important; }",
+  ".dashboard-home .d3n .d3n-tree-content { min-width: 0; padding: 2px 4px 6px 6px; }",
+  ".dashboard-home .d3n .d3n-topic-footer { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-top: 1px dashed var(--background-modifier-border); margin-top: 2px; }",
+  ".dashboard-home .d3n .d3n-footer-btn { font-size: 0.72em !important; height: 22px !important; min-height: 22px !important; padding: 1px 7px !important; border-radius: 5px !important; }",
+  ".dashboard-home .d3n .d3n-move-bar { display: flex; align-items: center; gap: 6px; padding: 5px 8px; margin: 3px 0; background: var(--background-primary); border: 1px solid var(--interactive-accent); border-radius: 6px; width: 100%; box-sizing: border-box; }",
+  ".dashboard-home .d3n .d3n-move-select { flex: 1; min-width: 0; max-width: none !important; height: 24px !important; font-size: 0.74em !important; border-radius: 4px !important; }"
 ].join("\n");
 
 // Управление закреплёнными всплывающими подсказками
@@ -576,7 +580,7 @@ async function assignNoteToTopicPath(note, targetTopicPath, rootTopic) {
   busy = true;
   try {
     const curRaw = list(note.rawTopics);
-    // Заменяем текущую тему внутри этой же корневой группы на новый путь
+    // Заменяем текущую тему этой корневой ветки на новый путь (или очищаем, если корень)
     const filtered = curRaw.filter(t => {
       const parts = topicParts(t);
       const mappedRoot = TOPIC_MAP[parts[0]] || parts[0];
@@ -587,7 +591,7 @@ async function assignNoteToTopicPath(note, targetTopicPath, rootTopic) {
       fm.темы = nextTopics;
     });
     setPending(note.path, { темы: nextTopics });
-    notify("Заметка «" + note.title + "» перемещена в «" + targetTopicPath + "»");
+    notify("Заметка перемещена в «" + targetTopicPath + "»");
     refreshData();
     renderResults();
   } catch (err) {
@@ -937,11 +941,11 @@ function renderCompactNoteRow(parentList, note, currentTopicContext = "", progKe
 
   const right = el("div", row, "d3n-note-right");
 
-  const extraTopics = currentTopicContext
-    ? note.topics.filter(t => t !== currentTopicContext)
-    : note.topics;
+  // Не дублируем название раздела или подраздела рядом с заметкой
+  const extraTopics = (rootTopic ? note.topics.filter(t => topicParts(t)[0] !== rootTopic) : note.topics)
+    .filter(t => t !== currentTopicContext);
 
-  for (const t of extraTopics.slice(0, 2)) {
+  for (const t of extraTopics.slice(0, 1)) {
     el("span", right, "d3n-mini-tag", t);
   }
 
@@ -957,28 +961,43 @@ function renderCompactNoteRow(parentList, note, currentTopicContext = "", progKe
   if (allSubPaths && allSubPaths.length > 0 && rootTopic) {
     const moveBtn = button(tools, "↳", e => {
       e.stopPropagation();
-      const existingSelect = row.querySelector(".d3n-move-select-wrap");
-      if (existingSelect) {
-        existingSelect.remove();
+      const existingBar = parentList.querySelector(".d3n-move-bar[data-note='" + CSS.escape(note.path) + "']");
+      if (existingBar) {
+        existingBar.remove();
         return;
       }
-      const wrap = el("div", right, "d3n-move-select-wrap");
-      wrap.onclick = ev => ev.stopPropagation();
-      const sel = el("select", wrap, "d3n-topic-select");
-      const optDef = el("option", sel, "", "Переместить в…");
+      // Удаляем открытые панели переноса у других строк в этом списке
+      parentList.querySelectorAll(".d3n-move-bar").forEach(b => b.remove());
+
+      const moveBar = el("div", null, "d3n-move-bar");
+      moveBar.dataset.note = note.path;
+      moveBar.onclick = ev => ev.stopPropagation();
+
+      el("span", moveBar, "d3n-label", "Переместить:");
+      const sel = el("select", moveBar, "d3n-topic-select d3n-move-select");
+      const optDef = el("option", sel, "", "— выбери папку —");
       optDef.value = "";
+
       const optRoot = el("option", sel, "", "📂 " + rootTopic + " (корень)");
       optRoot.value = rootTopic;
+
       for (const sp of allSubPaths) {
         if (sp === currentTopicContext) continue;
-        const opt = el("option", sel, "", "📁 " + sp.replace(rootTopic + "/", ""));
+        const subDisplay = sp.startsWith(rootTopic + "/") ? sp.slice(rootTopic.length + 1) : sp;
+        const opt = el("option", sel, "", "📁 " + subDisplay);
         opt.value = sp;
       }
+
       sel.onchange = async () => {
         if (!sel.value) return;
         sel.disabled = true;
         await assignNoteToTopicPath(note, sel.value, rootTopic);
       };
+
+      button(moveBar, "✕", () => moveBar.remove(), "d3n-icon-btn").title = "Отмена";
+
+      // Вставляем аккуратно сразу под текущей строкой заметки
+      row.after(moveBar);
     }, "d3n-icon-btn");
     moveBtn.title = "Переместить в подраздел…";
   }
@@ -991,13 +1010,13 @@ function renderCompactNoteRow(parentList, note, currentTopicContext = "", progKe
 }
 
 
-// Вложенность тем хранится в «темы» через слэш (например, Моделирование/bevel)
+// Вложенная структура тем (Моделирование/bevel/сегменты)
 function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
   const tree = { path: rootTopic, name: rootTopic, direct: new Map(), all: new Map(), children: new Map() };
 
   for (const note of allTopicNotes) {
     const paths = note.topicPaths.filter(p => p === rootTopic || p.startsWith(rootTopic + "/"));
-    // Если указан и родитель, и подпапка, оставляем заметку только в самом глубоком подразделе
+    // Если указана и общая тема, и подтема — показываем в самом точном подразделе
     const leaves = paths.filter(p => !paths.some(other => other.startsWith(p + "/")));
     for (const path of leaves) {
       let node = tree;
@@ -1021,7 +1040,7 @@ function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
     }
   }
 
-  // Сбор всех существующих подпутей темы для быстрого перемещения
+  // Список всех подпутей для быстрого выбора при перемещении
   const allSubPaths = [];
   function collectPaths(node) {
     if (node.path !== rootTopic) allSubPaths.push(node.path);
@@ -1029,91 +1048,8 @@ function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
   }
   collectPaths(tree);
 
-  function renderFolderTools(host, node) {
-    const tools = el("div", host, "d3n-tree-tools");
-
-    // 1. Создать новую заметку прямо в этом подразделе
-    const newNoteBtn = button(tools, "＋ Новая", e => {
-      e.stopPropagation();
-      openCreate(progKey === "__none__" ? "" : progKey, node.path);
-    }, "d3n-tree-tool-btn");
-    newNoteBtn.title = "Создать новую заметку в «" + node.path + "»";
-
-    // 2. Добавить существующую заметку в этот подраздел (из заметок этого раздела или других)
-    const availableExisting = allTopicNotes.filter(n => !node.direct.has(n.path));
-    if (availableExisting.length > 0 && node.path !== rootTopic) {
-      const addExistingBtn = button(tools, "📥 Сюда", e => {
-        e.stopPropagation();
-        tools.replaceChildren();
-
-        const pickLabel = el("span", tools, "d3n-label", "Выбери заметку для переноса:");
-        const select = el("select", tools, "d3n-topic-select d3n-tree-select");
-        const placeholderOpt = el("option", select, "", "— выбери заметку —");
-        placeholderOpt.value = "";
-
-        availableExisting
-          .sort((a, b) => compare(a.title, b.title))
-          .forEach(n => {
-            const opt = el("option", select, "", n.title);
-            opt.value = n.path;
-          });
-
-        select.addEventListener("change", async () => {
-          const chosenPath = select.value;
-          if (!chosenPath) return;
-          const targetNote = availableExisting.find(n => n.path === chosenPath);
-          if (targetNote) {
-            select.disabled = true;
-            await assignNoteToTopicPath(targetNote, node.path, rootTopic);
-          }
-        });
-
-        button(tools, "✕", () => {
-          tools.replaceChildren();
-          renderFolderTools(host, node);
-        }, "d3n-icon-btn").title = "Отмена";
-      }, "d3n-tree-tool-btn");
-      addExistingBtn.title = "Переместить уже существующую заметку темы в «" + node.path + "»";
-    }
-
-    // 3. Создать новый подраздел
-    const newSubBtn = button(tools, "＋ Подраздел", e => {
-      e.stopPropagation();
-      tools.replaceChildren();
-
-      const input = field(tools, "Название подраздела", "Например: bevel");
-      const msg = el("div", tools, "d3n-message");
-      const actions = el("div", tools, "d3n-actions");
-
-      const createSub = () => {
-        const parts = topicParts(input.value);
-        if (!parts.length) {
-          msg.textContent = "Введи название подраздела.";
-          return;
-        }
-        const targetPath = node.path + "/" + parts.join("/");
-        openCreate(progKey === "__none__" ? "" : progKey, targetPath);
-      };
-
-      button(actions, "Создать с заметкой", createSub, "d3n-primary");
-      button(actions, "Отмена", () => {
-        tools.replaceChildren();
-        renderFolderTools(host, node);
-      });
-
-      input.addEventListener("keydown", ev => {
-        if (ev.key === "Enter") {
-          ev.preventDefault();
-          createSub();
-        }
-      });
-      input.focus();
-    }, "d3n-tree-tool-btn");
-    newSubBtn.title = "Создать новый подраздел внутри «" + node.path + "»";
-  }
-
-  function drawNode(host, node) {
-    // Список заметок, находящихся прямо в этом узле
+  function drawNode(host, node, isRoot = false) {
+    // 1. Заметки в текущей папке
     if (node.direct.size > 0) {
       const listHost = el("div", host, "d3n-note-list");
       for (const note of node.direct.values()) {
@@ -1121,7 +1057,7 @@ function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
       }
     }
 
-    // Дочерние папки
+    // 2. Вложенные подпапки
     const children = [...node.children.values()].sort((a, b) => b.all.size - a.all.size || compare(a.name, b.name));
     for (const child of children) {
       const details = el("details", host, "d3n-tree-folder");
@@ -1129,15 +1065,63 @@ function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
       details.open = state.open[storageKey] !== false;
 
       const summary = el("summary", details, "d3n-tree-summary");
-      el("span", summary, "d3n-tree-name", "📁 " + child.name);
-      el("span", summary, "d3n-topic-cnt", child.all.size);
+      const sumLeft = el("span", summary, "d3n-tree-sum-left");
+      el("span", sumLeft, "d3n-tree-name", "📁 " + child.name);
+      el("span", sumLeft, "d3n-topic-cnt", child.all.size);
 
-      const quickAddBtn = button(summary, "＋", e => {
+      const sumActions = el("span", summary, "d3n-tree-sum-actions");
+
+      // Кнопка быстрого создания заметки в этой папке
+      const quickAddBtn = button(sumActions, "＋", e => {
         e.preventDefault();
         e.stopPropagation();
         openCreate(progKey === "__none__" ? "" : progKey, child.path);
-      });
-      quickAddBtn.title = "Создать заметку в «" + child.path + "»";
+      }, "d3n-sub-icon-btn");
+      quickAddBtn.title = "Создать новую заметку в «" + child.path + "»";
+
+      // Кнопка переноса существующей заметки в эту папку
+      const availableExisting = allTopicNotes.filter(n => !child.direct.has(n.path));
+      if (availableExisting.length > 0) {
+        const moveInBtn = button(sumActions, "📥", e => {
+          e.preventDefault();
+          e.stopPropagation();
+          details.open = true;
+
+          const existingBar = content.querySelector(".d3n-move-bar");
+          if (existingBar) {
+            existingBar.remove();
+            return;
+          }
+
+          const bar = el("div", content, "d3n-move-bar");
+          bar.onclick = ev => ev.stopPropagation();
+          content.prepend(bar);
+
+          el("span", bar, "d3n-label", "Добавить сюда:");
+          const sel = el("select", bar, "d3n-topic-select d3n-move-select");
+          const optDef = el("option", sel, "", "— выбери заметку —");
+          optDef.value = "";
+
+          availableExisting
+            .sort((a, b) => compare(a.title, b.title))
+            .forEach(n => {
+              const opt = el("option", sel, "", n.title);
+              opt.value = n.path;
+            });
+
+          sel.onchange = async () => {
+            if (!sel.value) return;
+            const targetNote = availableExisting.find(n => n.path === sel.value);
+            if (targetNote) {
+              sel.disabled = true;
+              await assignNoteToTopicPath(targetNote, child.path, rootTopic);
+            }
+          };
+
+          button(bar, "✕", () => bar.remove(), "d3n-icon-btn").title = "Закрыть";
+        }, "d3n-sub-icon-btn");
+        moveInBtn.title = "Добавить существующую заметку в эту папку";
+      }
 
       details.addEventListener("toggle", () => {
         state.open[storageKey] = details.open;
@@ -1145,14 +1129,54 @@ function renderTopicTree(parentBox, allTopicNotes, rootTopic, progKey) {
       });
 
       const content = el("div", details, "d3n-tree-content");
-      drawNode(content, child);
+      drawNode(content, child, false);
     }
 
-    // Панель действий внизу узла (создать новую, перенести существующую, создать подраздел)
-    renderFolderTools(host, node);
+    // 3. Только для корня плитки выводим нижнюю панель создания
+    if (isRoot) {
+      const rootFooter = el("div", host, "d3n-topic-footer");
+      const addNoteBtn = button(rootFooter, "＋ Новая", e => {
+        e.stopPropagation();
+        openCreate(progKey === "__none__" ? "" : progKey, rootTopic);
+      }, "d3n-footer-btn");
+      addNoteBtn.title = "Создать заметку в корне «" + rootTopic + "»";
+
+      const addSubBtn = button(rootFooter, "＋ Подраздел", e => {
+        e.stopPropagation();
+        rootFooter.replaceChildren();
+
+        const input = field(rootFooter, "Новый подраздел в «" + rootTopic + "»", "Например: Основы");
+        const msg = el("div", rootFooter, "d3n-message");
+        const actions = el("div", rootFooter, "d3n-actions");
+
+        const submitSub = () => {
+          const parts = topicParts(input.value);
+          if (!parts.length) {
+            msg.textContent = "Введи название подраздела.";
+            return;
+          }
+          openCreate(progKey === "__none__" ? "" : progKey, rootTopic + "/" + parts.join("/"));
+        };
+
+        button(actions, "Создать с заметкой", submitSub, "d3n-primary");
+        button(actions, "Отмена", () => {
+          rootFooter.replaceChildren();
+          drawNode(host, node, true);
+        });
+
+        input.addEventListener("keydown", ev => {
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            submitSub();
+          }
+        });
+        input.focus();
+      }, "d3n-footer-btn");
+      addSubBtn.title = "Создать подраздел в теме «" + rootTopic + "»";
+    }
   }
 
-  drawNode(parentBox, tree);
+  drawNode(parentBox, tree, true);
 }
 
 function renderResults() {
