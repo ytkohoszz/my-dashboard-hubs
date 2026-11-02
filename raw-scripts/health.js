@@ -453,40 +453,56 @@ function renderHealthStats() {
         ]
   });
 
-  const hasEnoughCal = cCur7.length >= MIN_WEEK_DAYS && cPrev7.length >= MIN_WEEK_DAYS;
-  const calWeekDelta = hasEnoughCal ? formatCaloriesDelta(cCurMean - cPrevMean) : null;
-  const macro7Row = (pCurMean !== null || fCurMean !== null || uCurMean !== null)
-    ? [{
-        k: "Средние БЖУ (7 дн.)",
-        v: "Б: " + fmt(pCurMean, 0, 1) + " · Ж: " + fmt(fCurMean, 0, 1) + " · У: " + fmt(uCurMean, 0, 1) + " г"
-      }]
-    : [];
+const hasEnoughCal = cCur7.length >= MIN_WEEK_DAYS && cPrev7.length >= MIN_WEEK_DAYS;
+const calWeekDelta = hasEnoughCal ? formatCaloriesDelta(cCurMean - cPrevMean) : null;
 
-  createMinimalCard({
-    label: "Средние калории · 7 дней",
-    value: cCurMean !== null ? fmt(cCurMean, 0, 0) + " ккал" : "—",
-    deltaBadge: calWeekDelta,
-    accent: "#69b5aa",
-    rows: hasEnoughCal
-      ? [
-          { k: "Текущие 7 дн. (" + curWeekRange + ")", v: fmt(cCurMean, 0, 0) + " ккал · " + cCur7.length + "/7 дн." },
-          { k: "Разброс", minMax: { min: fmt(Math.min(...cCur7), 0, 0), max: fmt(Math.max(...cCur7), 0, 0) }, neutralMinMax: true },
-          ...macro7Row,
-          { k: "Пред. 7 дн. (" + prevWeekRange + ")", v: fmt(cPrevMean, 0, 0) + " ккал · " + cPrev7.length + "/7 дн." }
-        ]
-      : [
-          { k: "Статус", v: "Недостаточно данных для сравнения", vColor: "#e5a158" },
-          { k: "Текущие 7 дн. (" + curWeekRange + ")", v: cCur7.length + "/7 дн. (нужно ≥" + MIN_WEEK_DAYS + ")" },
-          ...(cCur7.length
-            ? [{ k: "Разброс", minMax: { min: fmt(Math.min(...cCur7), 0, 0), max: fmt(Math.max(...cCur7), 0, 0) }, neutralMinMax: true }]
-            : []),
-          ...macro7Row,
-          {
-            k: "Пред. 7 дн. (" + prevWeekRange + ")",
-            v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.length + "/7 дн. (нужно ≥" + MIN_WEEK_DAYS + ")"
-          }
-        ]
-  });
+// БЖУ за 7 дней: среднее, доля в калориях БЖУ (4/9/4 ккал на грамм) и сдвиг к прошлой неделе
+const macroDefs = [
+{ k: "Белки", cur: pCur7, prev: spanCompleted(proteins, 8, 7), kcal: 4 },
+{ k: "Жиры", cur: fCur7, prev: spanCompleted(fats, 8, 7), kcal: 9 },
+{ k: "Углеводы", cur: uCur7, prev: spanCompleted(carbs, 8, 7), kcal: 4 }
+].map(m => ({ ...m, mean: average(m.cur), prevMean: average(m.prev) }));
+
+const macroKcalTotal = macroDefs.reduce((s, m) => s + (m.mean ?? 0) * m.kcal, 0);
+
+const macroRows = macroDefs
+.filter(m => m.mean !== null)
+.map(m => {
+const share = macroKcalTotal > 0 ? Math.round((m.mean * m.kcal / macroKcalTotal) * 100) : null;
+const hasDelta = m.cur.length >= MIN_WEEK_DAYS && m.prev.length >= MIN_WEEK_DAYS;
+const diff = hasDelta ? Math.round(m.mean - m.prevMean) : null;
+const deltaText = diff === null ? "" : diff === 0 ? " · 0 г" : " · " + (diff > 0 ? "+" : "−") + fmt(Math.abs(diff), 0, 0) + " г";
+return {
+k: m.k,
+v: fmt(m.mean, 0, 0) + " г" + (share !== null ? " · " + share + "%" : "") + deltaText
+};
+});
+
+createMinimalCard({
+label: "Средние калории · 7 дней",
+value: cCurMean !== null ? fmt(cCurMean, 0, 0) + " ккал" : "—",
+deltaBadge: calWeekDelta,
+accent: "#69b5aa",
+rows: hasEnoughCal
+? [
+{ k: "Текущие 7 дн. (" + curWeekRange + ")", v: fmt(cCurMean, 0, 0) + " ккал · " + cCur7.length + "/7 дн." },
+{ k: "Разброс", minMax: { min: fmt(Math.min(...cCur7), 0, 0), max: fmt(Math.max(...cCur7), 0, 0) }, neutralMinMax: true },
+...macroRows,
+{ k: "Пред. 7 дн. (" + prevWeekRange + ")", v: fmt(cPrevMean, 0, 0) + " ккал · " + cPrev7.length + "/7 дн." }
+]
+: [
+{ k: "Статус", v: "Недостаточно данных для сравнения", vColor: "#e5a158" },
+{ k: "Текущие 7 дн. (" + curWeekRange + ")", v: cCur7.length + "/7 дн. (нужно ≥" + MIN_WEEK_DAYS + ")" },
+...(cCur7.length
+? [{ k: "Разброс", minMax: { min: fmt(Math.min(...cCur7), 0, 0), max: fmt(Math.max(...cCur7), 0, 0) }, neutralMinMax: true }]
+: []),
+...macroRows,
+{
+k: "Пред. 7 дн. (" + prevWeekRange + ")",
+v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.length + "/7 дн. (нужно ≥" + MIN_WEEK_DAYS + ")"
+}
+]
+});
 
   // --- Панель сегодняшнего дня: КБЖУ из плагина питания + быстрый ввод только веса ---
   const todayDiaryPage = byDate.get(todayISO) || null;
