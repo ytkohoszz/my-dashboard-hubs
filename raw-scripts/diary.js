@@ -1814,9 +1814,62 @@ if (mode === "all" || mode === "main") {
         `;
       } else if (h.key === "тренировка") {
         const wasT = todayRecord && todayRecord.тренировка === true;
-        detailBox.innerHTML = wasT
-          ? `<span style="color:var(--color-green);">🏋️ Сессия выполнена</span>`
-          : `<span style="color:var(--text-muted);">🏋️ Тренировки не было</span>`;
+
+        let trainingPage = dv.pages('"Знания"').array().find(p => p.тип === "Тренировка" && asDate(p.дата)?.toISODate() === todayISO);
+        let isPastSession = false;
+
+        if (!trainingPage) {
+          const pastSessions = dv.pages('"Знания"').array()
+            .filter(p => p.тип === "Тренировка" && asDate(p.дата) && asDate(p.дата) <= today)
+            .sort((a, b) => asDate(b.дата).toMillis() - asDate(a.дата).toMillis());
+          if (pastSessions.length > 0) {
+            trainingPage = pastSessions[0];
+            isPastSession = true;
+          }
+        }
+
+        let totalReps = 0;
+        let setsCount = 0;
+        const exerciseReps = new Map();
+
+        if (trainingPage) {
+          const listItems = Array.from(trainingPage.file.lists ?? []);
+          listItems.forEach(item => {
+            const exName = item.упражнение ? String(item.упражнение).trim() : "";
+            const reps = typeof item.повторы === "number" ? item.повторы : Number(item.повторы);
+            if (exName && Number.isFinite(reps) && reps > 0) {
+              totalReps += reps;
+              setsCount++;
+              exerciseReps.set(exName, (exerciseReps.get(exName) || 0) + reps);
+            }
+          });
+        }
+
+        const topExercises = [...exerciseReps.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 2)
+          .map(([name, reps]) => `${name}: ${reps}`)
+          .join(" · ");
+
+        if (wasT && trainingPage && !isPastSession) {
+          const sessionName = String(trainingPage.название_тренировки || trainingPage.file.name).replace(/^Тренировка\s*/i, "").trim() || "Силовая";
+          const subInfo = topExercises ? `(${topExercises})` : `${setsCount} подх.`;
+          detailBox.innerHTML = `
+            <span style="color:var(--color-green); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏋️ ${sessionName}</span>
+            <span style="color:var(--text-muted); font-size:0.72rem; font-variant-numeric:tabular-nums;" title="${topExercises}">${totalReps > 0 ? totalReps + " повт." : setsCount + " подх."} ${subInfo}</span>
+          `;
+        } else if (isPastSession && trainingPage) {
+          const pastDateStr = asDate(trainingPage.дата)?.toFormat("dd.MM") || "";
+          detailBox.innerHTML = `
+            <span style="color:var(--text-muted);">Отдых (посл: ${pastDateStr})</span>
+            <span style="color:var(--text-faint); font-size:0.72rem;">${totalReps > 0 ? totalReps + " повт." : "—"}</span>
+          `;
+        } else {
+          detailBox.innerHTML = `
+            <span style="color:var(--text-muted);">🏋️ Тренировки не было</span>
+            <span style="color:var(--text-faint); font-size:0.72rem;">0 повт.</span>
+          `;
+        }
       } else if (h.key === "nofap") {
         detailBox.innerHTML = `
           <span style="color:var(--text-muted);">🛡️ Чистый день: ${doneToday ? "Да ✓" : "В процессе"}</span>
