@@ -248,7 +248,14 @@ const readingSync = computeTodayReadingProgress();
       icon: "🧊",
       color: "#599ed6",
       badge: `Заметок: ${notes3D}`
-    }
+    },
+    {
+    title: "Медиатека",
+    file: "Знания/Медиа/🎬Медиатека", // или имя вашей главной заметки медиа
+    icon: "🎬",
+    color: "#e06c75",
+    badge: `${mediaCount} позиций`
+  }
   ];
 
   const root = dv.container.createDiv({ cls: "dh dh-hub-nav", attr: { style: "margin: 6px 0 22px 0;" } });

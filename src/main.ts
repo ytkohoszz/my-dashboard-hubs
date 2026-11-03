@@ -28,12 +28,13 @@ const DEFAULT_SETTINGS: HubPluginSettings = {
 };
 
 const MODULE_FILE_CANDIDATES: Record<string, string[]> = {
-  home: ["home.js", "Скрипты/home.js", "Scripts/home.js"],
-  diary: ["diary.js", "Скрипты/diary.js", "Scripts/diary.js"],
-  health: ["health.js", "Скрипты/health.js", "Scripts/health.js"],
-  study: ["study.js", "Скрипты/study.js", "Scripts/study.js"],
-  "3d": ["3d.js", "Скрипты/3d.js", "Scripts/3d.js"],
-  english: ["english_2.js", "english.js", "Скрипты/english.js", "Scripts/english.js"],
+  home: ["home.js", "главная.js", "Scripts/home.js"],
+  diary: ["diary.js", "дневник.js", "Scripts/diary.js"],
+  health: ["health.js", "здоровье.js", "Scripts/health.js"],
+  study: ["study.js", "учеба.js", "Scripts/study.js"],
+  "3d": ["3d.js", "3D.js", "Scripts/3d.js"],
+  english: ["english2.js", "english.js", "английский.js", "Scripts/english.js"],
+  media: ["media.js", "медиа.js", "Scripts/media.js"], // <-- ДОБАВИТЬ
 };
 
 class HubBlockRenderer extends MarkdownRenderChild {
@@ -218,7 +219,7 @@ export default class MyDashboardHubsPlugin extends Plugin {
       ctx.addChild(child);
     });
 
-    const shortModules = ["home", "diary", "health", "study", "3d", "english"];
+    const shortModules = ["home", "diary", "health", "study", "3d", "english", "media"]; // <-- ДОБАВИТЬ "media"
     for (const modName of shortModules) {
       this.registerMarkdownCodeBlockProcessor(
         `my-${modName}`,
