@@ -13,6 +13,7 @@ if (mode === "all" || mode === "main") {
     { key: "чтение", name: "Чтение", color: "#599ed6" },
     { key: "режим_сна", name: "Режим сна", color: "#69b5aa" },
     { key: "диета", name: "Диета", color: "#8bac5e" },
+    { key: "без_соцсетей", name: "Без соцсетей", color: "#e06c75" },
   ];
   const COLORS = [
     "#d85b57", "#d97354", "#d98c54", "#d9a554", "#c5ad55",
@@ -891,82 +892,81 @@ if (mode === "all" || mode === "main") {
     const HABIT_MIN_GROUP_SIZE = 4;
 
 
-    // Витрина аналитики: расчёты выполняет my-correlation-analytics.
+    // Витрина аналитики: расчёты выполняет my-correlation-analytics
     {
       const analytics = root.createDiv({ cls: "dh-diary-analytics" });
       const styles = analytics.createEl("style");
       styles.textContent = [
-        ".dashboard-home .dh-diary-analytics { margin:16px 0; padding:16px; border:1px solid var(--background-modifier-border); border-radius:12px; background:var(--background-secondary); }",
-        ".dashboard-home .dh-diary-analytics .dda-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }",
-        ".dashboard-home .dh-diary-analytics .dda-title { font-weight:650; }",
-        ".dashboard-home .dh-diary-analytics button { min-height:44px; min-width:44px; white-space:normal; }",
-        ".dashboard-home .dh-diary-analytics .dda-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); gap:8px; margin-top:12px; }",
-        ".dashboard-home .dh-diary-analytics .dda-card { padding:12px; background:var(--background-primary); border:1px solid var(--background-modifier-border); border-radius:8px; min-width:0; overflow-wrap:anywhere; }",
-        ".dashboard-home .dh-diary-analytics .dda-meta { margin-top:4px; color:var(--text-muted); font-size:0.76rem; }"
+        ".dashboard-home .dh-diary-analytics { margin: 16px 0; padding: 14px 16px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-secondary); }",
+        ".dashboard-home .dh-diary-analytics .dda-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }",
+        ".dashboard-home .dh-diary-analytics .dda-title { font-weight: 700; font-size: 0.95rem; color: var(--text-normal); }",
+        ".dashboard-home .dh-diary-analytics button.dda-btn { min-height: 32px; padding: 0 12px; border-radius: 7px; font-size: 0.78rem; font-weight: 600; cursor: pointer; background: var(--background-primary); border: 1px solid var(--background-modifier-border); color: var(--text-normal); transition: border-color 0.14s ease; }",
+        ".dashboard-home .dh-diary-analytics button.dda-btn:hover { border-color: var(--interactive-accent); color: var(--text-accent); }",
+        ".dashboard-home .dh-diary-analytics .dda-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 8px; margin-top: 10px; }",
+        ".dashboard-home .dh-diary-analytics .dda-card { padding: 9px 12px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 8px; min-width: 0; font-size: 0.78rem; }",
+        ".dashboard-home .dh-diary-analytics .dda-card-title { font-weight: 650; color: var(--text-normal); margin-bottom: 2px; }",
+        ".dashboard-home .dh-diary-analytics .dda-meta { color: var(--text-muted); font-size: 0.72rem; line-height: 1.35; }"
       ].join("\n");
+
       const head = analytics.createDiv({ cls: "dda-head" });
-      head.createSpan({ cls: "dda-title", text: "📊 Связи в дневнике" });
-      const action = head.createEl("button", { text: "Открыть аналитику", attr: { type: "button" } });
+      head.createSpan({ cls: "dda-title", text: "📊 Связи и аналитика привычек" });
+      const action = head.createEl("button", { cls: "dda-btn", text: "Открыть аналитику →", attr: { type: "button" } });
+
       const host = analytics.createDiv({ cls: "dda-list" });
-      const note = analytics.createDiv({ cls: "dda-meta" });
+      const note = analytics.createDiv({ cls: "dda-meta", attr: { style: "margin-top: 8px;" } });
+
       const getPlugin = () => app.plugins?.plugins?.["my-correlation-analytics"] || window.__myCorrelationAnalytics;
-      const tell = text => { try { new Notice(text); } catch { console.log(text); } };
+      const notifyUser = text => { try { new Notice(text); } catch { console.log(text); } };
+
       action.onclick = () => {
         const plugin = getPlugin();
         if (!plugin || typeof plugin.openAnalyticsReport !== "function") {
-          tell("Включи плагин Correlation Analytics (my-correlation-analytics).");
+          notifyUser("Включи плагин Correlation Analytics (my-correlation-analytics).");
           return;
         }
         try { plugin.openAnalyticsReport(30); }
-        catch (error) { tell("Не удалось открыть аналитику: " + String(error)); }
+        catch (error) { notifyUser("Не удалось открыть аналитику: " + String(error)); }
       };
-      const add = (title, description, counts) => {
-        const card = host.createDiv({ cls: "dda-card" });
-        card.createDiv({ text: title });
-        card.createDiv({ cls: "dda-meta", text: description });
-        card.createDiv({ cls: "dda-meta", text: counts });
-      };
+
       try {
         const plugin = getPlugin();
         if (!plugin || typeof plugin.getReport !== "function") {
-          host.createDiv({ text: "Включи Correlation Analytics для просмотра наблюдений." });
+          host.createDiv({ text: "Включи плагин my-correlation-analytics для просмотра инсайтов." });
         } else {
           const report = plugin.getReport(30);
-          if (!report || typeof report !== "object") throw new Error("Плагин вернул неизвестный формат отчёта.");
-          // В движке 0.3.0 период пока означает количество записей, а не календарных дней.
           const count = Number.isFinite(report.totalRecords) ? report.totalRecords : 0;
-          note.textContent = "Последние 30 записей · в выборке: " + count + ". Наблюдения, не доказанные причины.";
+          note.textContent = `Выборка: последние 30 дней (${count} записей). Наблюдаемые ассоциации.`;
+
           const habits = Array.isArray(report.topHabitImpacts) ? report.topHabitImpacts : [];
           const corr = Array.isArray(report.topCorrelations) ? report.topCorrelations : [];
-          const used = new Set();
           let shown = 0;
+
           for (const item of habits) {
             if (shown >= 2) break;
-            if (!item || !Number.isFinite(item.avgWhenTrue) || !Number.isFinite(item.avgWhenFalse)
-              || !Number.isFinite(item.delta) || item.countTrue < 5 || item.countFalse < 5
-              || Math.abs(item.delta) < 0.2 || used.has(item.habitKey)) continue;
-            const target = item.targetMetric === "score" ? "оценка дня" : "энергия";
-            add(String(item.habitName) + " · " + target,
-              "При true: " + fmt(item.avgWhenTrue) + "; при false: " + fmt(item.avgWhenFalse) +
-              ". Разница: " + (item.delta > 0 ? "+" : "") + fmt(item.delta) + " балла.",
-              "Дней true: " + item.countTrue + " · false: " + item.countFalse);
-            used.add(item.habitKey); shown++;
-          }
-          for (const item of corr) {
-            if (shown >= 3) break;
-            if (!item || !Number.isFinite(item.r) || item.sampleCount < 10 || Math.abs(item.r) < 0.3) continue;
-            add(String(item.label), "Линейная связь: r = " + fmt(item.r, 2, 2) + ".", "Пар наблюдений: " + item.sampleCount);
+            if (Math.abs(item.delta) < 0.2) continue;
+            const c = host.createDiv({ cls: "dda-card" });
+            c.createDiv({ cls: "dda-card-title", text: `${item.habitName} → ${item.targetMetric === "score" ? "Оценка" : "Энергия"}` });
+            c.createDiv({ cls: "dda-meta", text: `Разница средних: ${item.delta > 0 ? "+" : ""}${item.delta.toFixed(1)} балла (${item.countTrue + item.countFalse} дн.)` });
             shown++;
           }
-          if (!shown) host.createDiv({ text: "Пока нет наблюдений для краткой витрины. Полный отчёт доступен по кнопке выше." });
+
+          for (const item of corr) {
+            if (shown >= 3) break;
+            if (Math.abs(item.r) < 0.25) continue;
+            const c = host.createDiv({ cls: "dda-card" });
+            c.createDiv({ cls: "dda-card-title", text: item.label });
+            c.createDiv({ cls: "dda-meta", text: `Корреляция r = ${item.r > 0 ? "+" : ""}${item.r.toFixed(2)} (${item.sampleCount} дн.)` });
+            shown++;
+          }
+
+          if (!shown) {
+            host.createDiv({ text: "Данные накапливаются. Полный отчёт доступен по кнопке выше." });
+          }
         }
-      } catch (error) {
-        host.replaceChildren();
-        host.createDiv({ text: "Не удалось получить краткий отчёт. Остальной дневник работает независимо." });
-        console.warn("diary analytics:", error);
+      } catch (err) {
+        host.createDiv({ text: "Плагин аналитики подгружается..." });
       }
     }
-
     const hs = section("", "");
     hs.classList.add("dh-habits-v2");
 
@@ -986,6 +986,8 @@ if (mode === "all" || mode === "main") {
     const getSleepHours = p => p ? parseValidNum(p.сон_часов, 0.5, 24, false) : null;
     const getCalories = p => p ? parseValidNum(p.калории_ккал, 1, 10000, false) : null;
     const getWeight = p => p ? parseValidNum(p.вес_кг, 20, 300, false) : null;
+    const getScreenHours = p => p ? parseValidNum(p.экран_часов, 0, 24, true) : null;
+    const getSteps = p => p ? parseValidNum(p.шаги, 0, 100000, true) : null;
 
     const isNoteActivelyFilled = p => {
       if (!p) return false;
@@ -1890,56 +1892,78 @@ if (mode === "all" || mode === "main") {
           <span style="color:var(--text-muted); font-size:0.72rem;">Вес: ${wText}</span>
         `;
       } else if (h.key === "тренировка") {
-        const sessions = dv.pages('"Знания"').array()
-          .filter(p => p.тип === "Тренировка" && asDate(p.дата) && asDate(p.дата) <= today)
-          .sort((a, b) => asDate(b.дата).toMillis() - asDate(a.дата).toMillis() || mtime(b) - mtime(a));
-        const sessionsToday = sessions.filter(p => asDate(p.дата).toISODate() === todayISO);
-        const latest = sessions[0];
-        const selected = sessionsToday.length ? sessionsToday : latest
-          ? sessions.filter(p => asDate(p.дата).toISODate() === asDate(latest.дата).toISODate()) : [];
-        const ex = new Map();
-        let reps = 0, seconds = 0, sets = 0;
-        const validAmount = value => {
-          if (typeof value !== "number" && typeof value !== "string") return null;
-          if (typeof value === "string" && !value.trim()) return null;
-          const n = Number(String(value).replace(",", "."));
-          return Number.isFinite(n) && n > 0 ? n : null;
-        };
-        for (const p of selected) {
-          for (const item of Array.from(p.file.lists ?? [])) {
-            const name = typeof item.упражнение === "string" ? item.упражнение.trim() : "";
-            if (!name) continue;
-            const r = validAmount(item.повторы), s = validAmount(item.секунды);
-            if (r !== null) { reps += r; sets++; ex.set(name, (ex.get(name) || 0) + r); }
-            else if (s !== null) { seconds += s; sets++; }
+        const wasT = todayRecord && todayRecord.тренировка === true;
+
+        let trainingPage = dv.pages('"Знания"').array().find(p => p.тип === "Тренировка" && asDate(p.дата)?.toISODate() === todayISO);
+        let isPastSession = false;
+
+        if (!trainingPage) {
+          const pastSessions = dv.pages('"Знания"').array()
+            .filter(p => p.тип === "Тренировка" && asDate(p.дата) && asDate(p.дата) <= today)
+            .sort((a, b) => asDate(b.дата).toMillis() - asDate(a.дата).toMillis());
+          if (pastSessions.length > 0) {
+            trainingPage = pastSessions[0];
+            isPastSession = true;
           }
         }
-        detailBox.replaceChildren();
-        detailBox.style.flexDirection = "column";
-        detailBox.style.alignItems = "stretch";
-        const title = detailBox.createSpan();
-        if (sessionsToday.length) {
-          title.textContent = "🏋️ " + sessionsToday.map(p => String(p.название_тренировки || p.file.name)).join(" · ");
-        } else if (todayRecord?.тренировка === true) {
-          title.textContent = "🏋️ Отмечено в дневнике; сессия за сегодня не найдена";
-        } else {
-          title.textContent = latest ? "Последняя тренировка · " + asDate(latest.дата).toFormat("dd.MM") : "Тренировок пока нет";
+
+        let totalReps = 0;
+        let setsCount = 0;
+        const exerciseReps = new Map();
+
+        if (trainingPage) {
+          const listItems = Array.from(trainingPage.file.lists ?? []);
+          listItems.forEach(item => {
+            const exName = item.упражнение ? String(item.упражнение).trim() : "";
+            const reps = typeof item.повторы === "number" ? item.повторы : Number(item.повторы);
+            if (exName && Number.isFinite(reps) && reps > 0) {
+              totalReps += reps;
+              setsCount++;
+              exerciseReps.set(exName, (exerciseReps.get(exName) || 0) + reps);
+            }
+          });
         }
-        title.style.overflowWrap = "anywhere";
-        if (selected.length) {
-          const parts = [];
-          if (reps > 0) parts.push(fmt(reps) + " повт.");
-          if (seconds > 0) parts.push(fmt(seconds) + " с удержаний");
-          parts.push(sets ? sets + " подх." : "Подходы пока не записаны");
-          detailBox.createSpan({ text: parts.join(" · ") });
-          const breakdown = [...ex.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2)
-            .map(([name, count]) => name + ": " + fmt(count)).join(" · ");
-          if (breakdown) detailBox.createSpan({ text: breakdown });
+
+        const topExercises = [...exerciseReps.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 2)
+          .map(([name, reps]) => `${name}: ${reps}`)
+          .join(" · ");
+
+        if (wasT && trainingPage && !isPastSession) {
+          const sessionName = String(trainingPage.название_тренировки || trainingPage.file.name).replace(/^Тренировка\s*/i, "").trim() || "Силовая";
+          const subInfo = topExercises ? `(${topExercises})` : `${setsCount} подх.`;
+          detailBox.innerHTML = `
+            <span style="color:var(--color-green); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏋️ ${sessionName}</span>
+            <span style="color:var(--text-muted); font-size:0.72rem; font-variant-numeric:tabular-nums;" title="${topExercises}">${totalReps > 0 ? totalReps + " повт." : setsCount + " подх."} ${subInfo}</span>
+          `;
+        } else if (isPastSession && trainingPage) {
+          const pastDateStr = asDate(trainingPage.дата)?.toFormat("dd.MM") || "";
+          detailBox.innerHTML = `
+            <span style="color:var(--text-muted);">Отдых (посл: ${pastDateStr})</span>
+            <span style="color:var(--text-faint); font-size:0.72rem;">${totalReps > 0 ? totalReps + " повт." : "—"}</span>
+          `;
+        } else {
+          detailBox.innerHTML = `
+            <span style="color:var(--text-muted);">🏋️ Тренировки не было</span>
+            <span style="color:var(--text-faint); font-size:0.72rem;">0 повт.</span>
+          `;
         }
       } else if (h.key === "nofap") {
         detailBox.innerHTML = `
           <span style="color:var(--text-muted);">🛡️ Чистый день: ${doneToday ? "Да ✓" : "В процессе"}</span>
         `;
+      } else if (h.key === "без_соцсетей") {
+        const doneNS = todayRecord && todayRecord.без_соцсетей === true;
+        const screenH = todayRecord && typeof todayRecord.экран_часов === "number" ? todayRecord.экран_часов : null;
+        const stepsVal = todayRecord && typeof todayRecord.шаги === "number" ? todayRecord.шаги : null;
+        const subParts = [];
+        if (screenH !== null) subParts.push(`${screenH} ч экран`);
+        if (stepsVal !== null) subParts.push(`${stepsVal.toLocaleString("ru-RU")} шаг.`);
+        const subText = subParts.length ? subParts.join(" · ") : "экран не записан";
+        detailBox.innerHTML = doneNS
+          ? `<span style="color:var(--color-green); font-weight:600;">🛡️ Без скроллинга</span><span style="color:var(--text-muted); font-size:0.72rem;">${subText}</span>`
+          : `<span style="color:var(--text-muted);">📱 Обычный день</span><span style="color:var(--text-faint); font-size:0.72rem;">${subText}</span>`;
       }
 
       const seven = c.createDiv({ cls: "dh-seven" });
