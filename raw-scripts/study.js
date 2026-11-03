@@ -1,6 +1,6 @@
 // =====================================================================
 // УЧЁБА: ВИТРИНА ПРОЕКТОВ (СВЯЗКА С MY-STUDY-COMPILER) → MY-SR-TRAINER → ЗАВЕРШЁННЫЕ
-// Требуются включённые плагины my-study-compiler (0.3.2+) и my-sr-trainer (0.1.2+).
+// Требуются включённые плагины my-study-compiler (0.4.0+) и my-sr-trainer (0.1.2+).
 // =====================================================================
 
 const AREA = "Учёба";
@@ -67,9 +67,42 @@ const PRESET_WORK_TYPES = [
 ];
 const QUICK_ICONS = ["📁", "🧪", "🎤", "🎓", "📄", "📐", "⚡", "🔬", "📊", "🏛️", "🚀", "📌"];
 
-const DEFAULT_EXCLUDED_FOLDERS = ["Templates", "Шаблоны", "Знания/Карточки", "Знания/Сборки"];
-const DEFAULT_EXCLUDED_PREFIXES = ["Учёба — ", "Шаблон", "Template"];
+const DEFAULT_EXCLUDED_FOLDERS = [
+  "Templates",
+  "Шаблоны",
+  "Знания/Карточки",
+  "Знания/Сборки",
+  "Ежедневник",
+  "Система",
+  "Горизонты",
+  "Грамматика",
+  "Всякое"
+];
+const DEFAULT_EXCLUDED_PREFIXES = ["Учёба — ", "Шаблон", "Template", "Тренировка "];
 const DEFAULT_EXCLUDED_TAGS = ["шаблон", "template"];
+
+const HARD_EXCLUDED_FOLDERS = [
+  "ежедневник",
+  "система",
+  "горизонты",
+  "грамматика",
+  "всякое",
+  "шаблоны",
+  "templates",
+  "знания/карточки",
+  "знания/сборки"
+];
+
+const HUB_NOTE_BASENAMES = new Set([
+  "🏠главная",
+  "🎓учёба",
+  "💪здоровье",
+  "📓дневник",
+  "🌎английский и книги",
+  "🧊3d",
+  "знания",
+  "ежедневник"
+]);
 
 const INBOX_LIMIT = 10;
 const MATURE_DAYS = 21;
@@ -118,6 +151,8 @@ function getEffectiveCompilerSettings() {
   return {
     studyAreaName: typeof s?.studyAreaName === "string" && s.studyAreaName.trim() ? s.studyAreaName.trim() : AREA,
     newNoteFolder: typeof s?.newNoteFolder === "string" && s.newNoteFolder.trim() ? s.newNoteFolder.trim() : TARGET_FOLDER,
+    autoInheritFromLinks: typeof s?.autoInheritFromLinks === "boolean" ? s.autoInheritFromLinks : true,
+    defaultAutoNoteType: typeof s?.defaultAutoNoteType === "string" && s.defaultAutoNoteType.trim() ? s.defaultAutoNoteType.trim() : "Заметка",
     excludedFolders: Array.isArray(s?.excludedFolders) && s.excludedFolders.length ? s.excludedFolders : DEFAULT_EXCLUDED_FOLDERS,
     excludedTitlePrefixes: Array.isArray(s?.excludedTitlePrefixes) && s.excludedTitlePrefixes.length ? s.excludedTitlePrefixes : DEFAULT_EXCLUDED_PREFIXES,
     excludedTags: Array.isArray(s?.excludedTags) && s.excludedTags.length ? s.excludedTags : DEFAULT_EXCLUDED_TAGS
@@ -131,15 +166,23 @@ function isCardDeckPage(p, fm) {
 }
 
 function isTemplateOrExcludedPage(p, settings) {
+  const baseLower = String(p.file?.name ?? "").toLowerCase();
+  if (HUB_NOTE_BASENAMES.has(baseLower)) return true;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(baseLower)) return true;
+  if (/^тренировка\s+\d{4}-\d{2}-\d{2}$/i.test(baseLower)) return true;
+
   const fileObj = app.vault.getAbstractFileByPath(p.file.path);
   const cache = fileObj ? app.metadataCache.getFileCache(fileObj) : null;
   const fm = cache?.frontmatter || {};
 
   if (isCardDeckPage(p, fm)) return true;
 
-  const excludedFolders = settings.excludedFolders
-    .map(f => String(f).trim().replace(/^\/+|\/+$/g, "").toLowerCase())
-    .filter(Boolean);
+  const excludedFolders = [
+    ...HARD_EXCLUDED_FOLDERS,
+    ...settings.excludedFolders
+      .map(f => String(f).trim().replace(/^\/+|\/+$/g, "").toLowerCase())
+      .filter(Boolean)
+  ];
 
   const pathLower = p.file.path.toLowerCase();
   const folderSegments = pathLower.split("/").slice(0, -1);
@@ -152,7 +195,6 @@ function isTemplateOrExcludedPage(p, settings) {
   const prefixes = settings.excludedTitlePrefixes
     .map(pr => String(pr).trim().toLowerCase())
     .filter(Boolean);
-  const baseLower = p.file.name.toLowerCase();
   if (prefixes.some(pref => baseLower.startsWith(pref))) {
     return true;
   }
@@ -166,7 +208,12 @@ function isTemplateOrExcludedPage(p, settings) {
   }
 
   const noteTypeLower = normalizeSpaces(fm[KEYS.type] ?? p[KEYS.type]).toLowerCase();
-  if (noteTypeLower === "шаблон" || noteTypeLower === "template") {
+  if (
+    noteTypeLower === "шаблон" ||
+    noteTypeLower === "template" ||
+    noteTypeLower === "тренировка" ||
+    noteTypeLower === "книга"
+  ) {
     return true;
   }
   const tplFlag = fm[KEYS.templateFlag] ?? p[KEYS.templateFlag];
@@ -194,6 +241,30 @@ const parentPaths = p => flat(p[KEYS.parent]).map(x => {
   const f = app.metadataCache.getFirstLinkpathDest(s, p.file.path);
   return f ? f.path : null;
 }).filter(Boolean);
+
+/**
+ * Извлекает пути всех markdown-заметок, на которые ведут вики-ссылки из тела заметки `sourcePath`
+ * (через metadataCache.getFileCache(file)?.links, игнорируя ссылки из YAML).
+ */
+function resolveBodyOutlinkPaths(sourcePath) {
+  const sourceFile = app.vault.getAbstractFileByPath(sourcePath);
+  if (!sourceFile) return [];
+  const cache = app.metadataCache.getFileCache(sourceFile);
+  if (!cache?.links || !cache.links.length) return [];
+
+  const out = [];
+  const seen = new Set();
+  for (const linkRef of cache.links) {
+    const cleanLink = String(linkRef.link || "").split("#")[0]?.split("|")[0]?.trim();
+    if (!cleanLink) continue;
+    const dest = app.metadataCache.getFirstLinkpathDest(cleanLink, sourcePath);
+    if (dest && dest.extension === "md" && dest.path !== sourcePath && !seen.has(dest.path)) {
+      seen.add(dest.path);
+      out.push(dest.path);
+    }
+  }
+  return out;
+}
 
 const HASH_PALETTE = [
   "var(--color-blue, #599ed6)",
@@ -396,8 +467,6 @@ function ensureStudyCardsState() {
 }
 const ui = ensureStudyCardsState();
 
-// Очистка старого тренажёра при замене скрипта без перезапуска Obsidian.
-// Заметки, черновики форм, localStorage и состояние плагина не изменяются.
 if (window.__dhStudyCardsKeyHandler) {
   window.removeEventListener("keydown", window.__dhStudyCardsKeyHandler);
   delete window.__dhStudyCardsKeyHandler;
@@ -413,7 +482,6 @@ for (const key of Object.keys(ui)) {
   }
 }
 
-// Параметры сверены с OpenTrainerParams и openTrainer в исходниках плагина.
 function openStudyTrainer(mode = "DUE_AND_NEW") {
   const plugin = app.plugins?.plugins?.["my-sr-trainer"];
   if (!plugin || typeof plugin.openTrainer !== "function") {
@@ -464,7 +532,6 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-sp-icon-pick-btn { width: 32px !important; min-width: 32px !important; height: 32px !important; min-height: 32px !important; padding: 0 !important; border-radius: 8px !important; font-size: var(--dh-sp-fs-title) !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; background: var(--background-primary) !important; border: 1px solid var(--background-modifier-border) !important; cursor: pointer; box-shadow: none !important; }",
   ".dashboard-home .dh-sp-input { height: 32px; min-height: 32px; padding: 0 var(--dh-sp-s2); border-radius: 8px; font-size: var(--dh-sp-fs); min-width: 0; }",
   ".dashboard-home .dh-sp-icons-bar { display: flex; gap: var(--dh-sp-s1); align-items: center; flex-wrap: wrap; padding-top: var(--dh-sp-s2); border-top: 1px solid var(--background-modifier-border); }",
-  "/* Сетка плиток: auto-fit растягивает плитки на всю ширину без пустой дыры справа */",
   ".dashboard-home .dh-sp-grid { display: grid; width: 100%; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--dh-sp-s4); margin-bottom: var(--dh-sp-s4); align-items: stretch; }",
   ".dashboard-home .dh-sp-grid[data-count='1'] { grid-template-columns: minmax(0, 520px); }",
   ".dashboard-home .dh-sp-card { position: relative; width: 100%; min-width: 0; overflow: hidden; padding: var(--dh-sp-s4) !important; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-top: 3px solid var(--card-accent, var(--interactive-accent)); border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: var(--dh-sp-s3); transition: border-color 0.16s ease, background-color 0.16s ease; }",
@@ -524,7 +591,6 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-study-cards-hub .dsc-btn-sec { flex: 1; min-width: 100px; height: 34px; font-size: 0.78rem; font-weight: 600; padding: 0 10px; border-radius: 7px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-normal); cursor: pointer; }",
   ".dashboard-home .dh-study-cards-hub .dsc-btn-sec.is-active { border-color: #599ed6; color: #599ed6; }",
   ".dashboard-home .dh-study-cards-hub .dsc-drawer { margin-top: 12px; padding: 12px 14px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-top: 2px solid #9c83e8; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }",
-  "/* На сенсорных экранах (iPad / телефон) все действия видны сразу и имеют зону нажатия >= 44x44 px */",
   "@media (pointer: coarse), (any-pointer: coarse), (hover: none) {",
   "  .dashboard-home .dh-sp-btn { height: 40px !important; min-height: 40px !important; }",
   "  .dashboard-home .dh-sp-deadline { height: 32px !important; min-height: 32px !important; padding: 0 10px !important; }",
@@ -564,24 +630,107 @@ const openNote = (el, path) => {
 };
 
 // =====================================================================
-// ДАННЫЕ ПРОЕКТОВ И МАТЕРИАЛОВ (СИНХРОНИЗИРОВАНО С MY-STUDY-COMPILER)
+// ДАННЫЕ ПРОЕКТОВ И МАТЕРИАЛОВ (СИНХРОНИЗИРОВАНО С MY-STUDY-COMPILER 0.4.0)
 // =====================================================================
 function getDataset() {
   const cfg = getEffectiveCompilerSettings();
   const areaName = cfg.studyAreaName;
 
-  const rawPages = dv.pages().where(p => {
-    const areas = flat(p[KEYS.area]).map(x => String(x).trim());
-    if (!areas.includes(areaName)) return false;
-    return !isTemplateOrExcludedPage(p, cfg);
-  }).array();
+  const allVaultPages = dv.pages().array();
+  const eligibleByPath = new Map();
+  const initialStudyPages = [];
 
-  const merged = [...rawPages];
+  for (const p of allVaultPages) {
+    if (localOverrides.get(p.file.path)?.deleted) continue;
+    if (isTemplateOrExcludedPage(p, cfg)) continue;
+
+    const areas = flat(p[KEYS.area]).map(x => String(x).trim()).filter(Boolean);
+    const hasOtherArea = areas.length > 0 && !areas.includes(areaName);
+    if (hasOtherArea) continue;
+
+    eligibleByPath.set(p.file.path, p);
+    if (areas.includes(areaName)) {
+      initialStudyPages.push(p);
+    }
+  }
+
+  const mergedMap = new Map(initialStudyPages.map(p => [p.file.path, p]));
   localCreatedNotes.forEach(cn => {
-    if (!merged.some(p => p.file.path === cn.file.path)) merged.push(cn);
+    if (!localOverrides.get(cn.file.path)?.deleted && !mergedMap.has(cn.file.path)) {
+      mergedMap.set(cn.file.path, cn);
+      eligibleByPath.set(cn.file.path, cn);
+    }
   });
 
-  const activeAll = merged.filter(p => !localOverrides.get(p.file.path)?.deleted);
+  const rawExplicitParentsOf = new Map();
+  for (const [path, p] of mergedMap.entries()) {
+    const ov = localOverrides.get(path);
+    const rawPs = ov?.parents ? ov.parents : parentPaths(p);
+    rawExplicitParentsOf.set(path, [...new Set(rawPs)].filter(pp => pp !== path));
+  }
+
+  const inferredParentOf = new Map();
+
+  function isAncestorInCurrentGraph(candidateAncestor, nodePath) {
+    const visited = new Set();
+    const stack = [nodePath];
+    while (stack.length > 0) {
+      const cur = stack.pop();
+      if (!cur || visited.has(cur)) continue;
+      if (cur === candidateAncestor) return true;
+      visited.add(cur);
+      const exp = rawExplicitParentsOf.get(cur) || [];
+      for (const ep of exp) stack.push(ep);
+      const inf = inferredParentOf.get(cur);
+      if (inf) stack.push(inf);
+    }
+    return false;
+  }
+
+  // Транзитивный BFS по исходящим вики-ссылкам из текста (A -> B -> C ...)
+  if (cfg.autoInheritFromLinks) {
+    const queue = [...mergedMap.keys()];
+    const queuedSet = new Set(queue);
+
+    while (queue.length > 0) {
+      const parentPath = queue.shift();
+      if (!parentPath) continue;
+
+      const outlinkPaths = resolveBodyOutlinkPaths(parentPath);
+      for (const targetPath of outlinkPaths) {
+        const candidatePage = eligibleByPath.get(targetPath);
+        if (!candidatePage) continue;
+
+        const ov = localOverrides.get(targetPath);
+        const explicitPs = rawExplicitParentsOf.get(targetPath) ?? (ov?.parents ? ov.parents : parentPaths(candidatePage));
+        const hasExplicitParent = explicitPs.length > 0;
+
+        if (!mergedMap.has(targetPath)) {
+          mergedMap.set(targetPath, candidatePage);
+          rawExplicitParentsOf.set(targetPath, explicitPs);
+          if (!hasExplicitParent) {
+            inferredParentOf.set(targetPath, parentPath);
+          }
+        } else if (!hasExplicitParent && !inferredParentOf.has(targetPath)) {
+          const tStatus = normalizeSpaces(ov?.[KEYS.status] ?? candidatePage[KEYS.status]);
+          const tDeadline = toISO(ov?.[KEYS.deadline] ?? candidatePage[KEYS.deadline]) || toISO(ov?.[KEYS.deadlineAlt] ?? candidatePage[KEYS.deadlineAlt]);
+          const tType = typeOf(candidatePage) || cfg.defaultAutoNoteType;
+          const isTargetRootProject = Boolean(tStatus || tDeadline) && !LEGACY_MATERIAL_TYPES_LOWER.has(tType.toLowerCase());
+
+          if (!isTargetRootProject && !isAncestorInCurrentGraph(targetPath, parentPath)) {
+            inferredParentOf.set(targetPath, parentPath);
+          }
+        }
+
+        if (!queuedSet.has(targetPath)) {
+          queuedSet.add(targetPath);
+          queue.push(targetPath);
+        }
+      }
+    }
+  }
+
+  const activeAll = [...mergedMap.values()];
   const byPath = new Map(activeAll.map(p => [p.file.path, p]));
   const parentsOf = new Map();
   const children = new Map();
@@ -591,11 +740,17 @@ function getDataset() {
   };
 
   activeAll.forEach(p => {
-    const ov = localOverrides.get(p.file.path);
-    const rawPs = ov?.parents ? ov.parents : parentPaths(p);
-    const validPs = [...new Set(rawPs)].filter(pp => pp !== p.file.path && byPath.has(pp));
-    parentsOf.set(p.file.path, validPs);
-    validPs.forEach(pp => link(p.file.path, pp));
+    const path = p.file.path;
+    const explicitPs = (rawExplicitParentsOf.get(path) || []).filter(pp => pp !== path && byPath.has(pp));
+    let finalPs = explicitPs;
+    if (finalPs.length === 0 && inferredParentOf.has(path)) {
+      const infP = inferredParentOf.get(path);
+      if (infP && infP !== path && byPath.has(infP)) {
+        finalPs = [infP];
+      }
+    }
+    parentsOf.set(path, finalPs);
+    finalPs.forEach(pp => link(path, pp));
   });
 
   function descendants(path) {
@@ -650,10 +805,11 @@ function getDataset() {
     const statusStr = normalizeSpaces(getStatus(p));
     const deadlineIso = getDeadlineISO(p);
     const hasRootMarkers = Boolean(statusStr || deadlineIso);
+    const effType = typeOf(p) || cfg.defaultAutoNoteType;
     const isLegacyLeafMaterial =
       !hasChildren &&
       !hasRootMarkers &&
-      LEGACY_MATERIAL_TYPES_LOWER.has(typeOf(p).toLowerCase());
+      LEGACY_MATERIAL_TYPES_LOWER.has(effType.toLowerCase());
 
     if (isLegacyLeafMaterial) {
       orphans.push(p);
@@ -1145,9 +1301,6 @@ function parseBulkInputLines(rawText, defaultBi) {
   return parsed;
 }
 
-
-
-
 async function modifyStudyCardLine(card, { newQuestion, newAnswer, newHint, newIsBi, deleteCard = false }) {
   return enqueueDiskWrite(async () => {
     const fileObj = app.vault.getAbstractFileByPath(card.deckPath);
@@ -1180,7 +1333,6 @@ async function modifyStudyCardLine(card, { newQuestion, newAnswer, newHint, newI
   });
 }
 
-
 // =====================================================================
 // ОТРИСОВКА СЕКЦИИ КАРТОЧЕК
 // =====================================================================
@@ -1206,7 +1358,6 @@ async function renderCardsSection(cardsContainer, activeProjects) {
   let scopedDirections = activeDeck ? activeDeck.totalDirections : totals.sumDirections;
   let scopedMature = activeDeck ? activeDeck.matureDirections : totals.sumMature;
   let scopedReviewedToday = activeDeck ? activeDeck.reviewedTodayDirections : totals.sumReviewedToday;
-
 
   const panel = cardsContainer.createDiv({ cls: "dsc-panel" });
 
@@ -1398,16 +1549,16 @@ async function renderCardsSection(cardsContainer, activeProjects) {
   });
   dueBox.createDiv({ cls: "dsc-stat-label", text: activeDeck ? "К повторению · " + activeDeck.title : "К повторению" });
   const dueValRow = dueBox.createDiv({ cls: "dsc-stat-val-row" });
-  const dueValSpan = dueValRow.createSpan({
+  dueValRow.createSpan({
     cls: "dsc-stat-val",
     text: String(scopedDue),
     attr: { style: "color: " + (scopedDue > 0 ? "#e5a158" : "#4aab80") + ";" }
   });
-  const dueSubSpan = dueValRow.createSpan({
+  dueValRow.createSpan({
     text: scopedDue === 0 ? "Очередь закрыта ✓" : "карт. по расписанию",
     attr: { style: "font-size: 0.71rem; color: var(--text-muted);" }
   });
-  const dueHintDiv = dueBox.createDiv({
+  dueBox.createDiv({
     cls: "dsc-stat-hint",
     text: scopedNew > 0 ? "+ " + scopedNew + " новых в запасе" : "Вопросов в выборке: " + scopedEntries
   });
@@ -1427,11 +1578,10 @@ async function renderCardsSection(cardsContainer, activeProjects) {
     text: "закреплено " + masteryPct + "%",
     attr: { style: "font-size: 0.72rem; font-weight: 600; color: #4aab80;" }
   });
-  const mastHintDiv = mastBox.createDiv({
+  mastBox.createDiv({
     cls: "dsc-stat-hint",
     text: "За день: " + scopedReviewedToday + " · Сторон: " + scopedDirections
   });
-
 
   const actBox = summaryGrid.createDiv({ cls: "dsc-actions-box" });
   const actRow = actBox.createDiv({ cls: "dsc-actions-row" });
@@ -1448,7 +1598,6 @@ async function renderCardsSection(cardsContainer, activeProjects) {
   trainBtn.onclick = () => {
     openStudyTrainer(scopedDue === 0 && scopedNew === 0 ? "CRAM_ALL" : "DUE_AND_NEW");
   };
-
 
   const addCardsBtn = actRow.createEl("button", {
     cls: "dsc-btn-sec" + (ui.isAddCardsOpen ? " is-active" : ""),
@@ -1859,7 +2008,7 @@ async function renderCardsSection(cardsContainer, activeProjects) {
 }
 
 // =====================================================================
-// ГЛАВНАЯ ФУНКЦИЯ ОТРИСОВКИ ВИТРИНЫ УЧЁБЫ
+// ГЛАВНАЯ ФУНКЦИЯ ОТРИСОВКА ВИТРИНЫ УЧЁБЫ
 // =====================================================================
 async function renderAll() {
   try {
@@ -2070,7 +2219,6 @@ async function renderAll() {
           attr: { style: "--card-accent: " + accent + ";" }
         });
 
-        // ВЕРХНЯЯ ЧАСТЬ ПЛИТКИ: 1) тип и дисциплина слева, срок справа; 2) название без обрезки смысла
         const topWrap = card.createDiv({ cls: "dh-sp-card-top" });
         const headRow = topWrap.createDiv({ cls: "dh-sp-card-head" });
 
@@ -2232,9 +2380,6 @@ async function renderAll() {
           }
         }
 
-        // НИЖНЯЯ ЧАСТЬ ПЛИТКИ:
-        // Ряд 1: сводка слева + компактный ряд вторичных действий справа (✎ переименовать, ✓ завершить, ✕ удалить)
-        // Ряд 2: главная кнопка «Открыть в конструкторе» + квадратная кнопка «＋» одной высоты
         const bottomWrap = card.createDiv({ cls: "dh-sp-card-bottom" });
 
         const metaRow = bottomWrap.createDiv({ cls: "dh-sp-meta-row" });
@@ -2388,7 +2533,7 @@ async function renderAll() {
         });
         openNote(a, p.file.path);
 
-        const mMeta = getWorkMeta(typeOf(p), p[KEYS.icon]);
+        const mMeta = getWorkMeta(typeOf(p) || cfg.defaultAutoNoteType, p[KEYS.icon]);
         row.createSpan({
           cls: "dh-sp-type-pill",
           text: mMeta.label,

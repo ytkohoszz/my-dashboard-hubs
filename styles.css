@@ -883,7 +883,6 @@ border-bottom: 1px solid var(--background-modifier-border);
 .dashboard-home .dh-sp-icon-pick-btn { width: 32px !important; min-width: 32px !important; height: 32px !important; min-height: 32px !important; padding: 0 !important; border-radius: 8px !important; font-size: var(--dh-sp-fs-title) !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; background: var(--background-primary) !important; border: 1px solid var(--background-modifier-border) !important; cursor: pointer; box-shadow: none !important; }
 .dashboard-home .dh-sp-input { height: 32px; min-height: 32px; padding: 0 var(--dh-sp-s2); border-radius: 8px; font-size: var(--dh-sp-fs); min-width: 0; }
 .dashboard-home .dh-sp-icons-bar { display: flex; gap: var(--dh-sp-s1); align-items: center; flex-wrap: wrap; padding-top: var(--dh-sp-s2); border-top: 1px solid var(--background-modifier-border); }
-/* Сетка плиток: auto-fit растягивает плитки на всю ширину без пустой дыры справа */
 .dashboard-home .dh-sp-grid { display: grid; width: 100%; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--dh-sp-s4); margin-bottom: var(--dh-sp-s4); align-items: stretch; }
 .dashboard-home .dh-sp-grid[data-count='1'] { grid-template-columns: minmax(0, 520px); }
 .dashboard-home .dh-sp-card { position: relative; width: 100%; min-width: 0; overflow: hidden; padding: var(--dh-sp-s4) !important; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-top: 3px solid var(--card-accent, var(--interactive-accent)); border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: var(--dh-sp-s3); transition: border-color 0.16s ease, background-color 0.16s ease; }
@@ -943,7 +942,6 @@ border-bottom: 1px solid var(--background-modifier-border);
 .dashboard-home .dh-study-cards-hub .dsc-btn-sec { flex: 1; min-width: 100px; height: 34px; font-size: 0.78rem; font-weight: 600; padding: 0 10px; border-radius: 7px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-normal); cursor: pointer; }
 .dashboard-home .dh-study-cards-hub .dsc-btn-sec.is-active { border-color: #599ed6; color: #599ed6; }
 .dashboard-home .dh-study-cards-hub .dsc-drawer { margin-top: 12px; padding: 12px 14px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-top: 2px solid #9c83e8; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }
-/* На сенсорных экранах (iPad / телефон) все действия видны сразу и имеют зону нажатия >= 44x44 px */
 @media (pointer: coarse), (any-pointer: coarse), (hover: none) {
   .dashboard-home .dh-sp-btn { height: 40px !important; min-height: 40px !important; }
   .dashboard-home .dh-sp-deadline { height: 32px !important; min-height: 32px !important; padding: 0 10px !important; }
