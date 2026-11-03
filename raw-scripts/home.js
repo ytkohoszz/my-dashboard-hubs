@@ -341,6 +341,7 @@ const readingSync = computeTodayReadingProgress();
     { key: "чтение", name: "Чтение", color: "#599ed6" },
     { key: "режим_сна", name: "Режим сна", color: "#69b5aa" },
     { key: "диета", name: "Диета", color: "#8bac5e" },
+    { key: "без_соцсетей", name: "Без соцсетей", color: "#e06c75" },
   ];
 
   const COLORS = [
@@ -348,11 +349,36 @@ const readingSync = computeTodayReadingProgress();
     "#a6b25a", "#8cb666", "#73b473", "#5ab17f", "#4aab80"
   ];
 
-  // Поля с ручным вводом (Калории теперь считаются автоматически через плагин my-nutrition-tracker)
+  // Функция расчёта сна из времени отбоя и подъёма (с переходом через полночь)
+  function computeSleepDurationHours(sleepTimeStr, wakeTimeStr) {
+    if (!sleepTimeStr || !wakeTimeStr) return null;
+    const sMatch = String(sleepTimeStr).trim().match(/^(\d{1,2})[:.](\d{2})$/);
+    const wMatch = String(wakeTimeStr).trim().match(/^(\d{1,2})[:.](\d{2})$/);
+    if (!sMatch || !wMatch) return null;
+    const sh = Number(sMatch[1]), sm = Number(sMatch[2]);
+    const wh = Number(wMatch[1]), wm = Number(wMatch[2]);
+    if (sh < 0 || sh > 23 || sm < 0 || sm > 59 || wh < 0 || wh > 23 || wm < 0 || wm > 59) return null;
+    let diff = (wh * 60 + wm) - (sh * 60 + sm);
+    if (diff <= 0) diff += 24 * 60;
+    return Math.round((diff / 60) * 10) / 10;
+  }
+
+  function normalizeTimeString(v) {
+    if (!v) return "";
+    const m = String(v).trim().match(/^(\d{1,2})[:.](\d{2})$/);
+    if (!m) return "";
+    const h = Number(m[1]), min = Number(m[2]);
+    if (h < 0 || h > 23 || min < 0 || min > 59) return "";
+    return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+  }
+
+  // Поля с ручным вводом (Калории считаются автоматически через плагин my-nutrition-tracker)
   const INPUT_METRICS = [
     { label: "Вес", key: "вес_кг", unit: "кг", min: 20, max: 300, digits: 1, placeholder: "—" },
     { label: "Сон", key: "сон_часов", unit: "ч", min: 0, max: 24, digits: 1, placeholder: "—", hint: `авто-режим >${AUTO_SLEEP_MIN_HOURS} ч` },
     { label: "Чтение", key: "страниц_прочитано", unit: "стр.", min: 0, max: 1500, digits: 0, placeholder: "—", hint: readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages} стр.` : "авто из читалки" },
+    { label: "Экран", key: "экран_часов", unit: "ч", min: 0, max: 24, digits: 1, placeholder: "—", hint: "из Screen Time" },
+    { label: "Шаги", key: "шаги", unit: "шаг", min: 0, max: 100000, digits: 0, placeholder: "—", hint: "активность за день" },
   ];
 
   function formatNumForInput(v, digits = 1) {
@@ -1250,10 +1276,165 @@ const readingSync = computeTodayReadingProgress();
       inputRefs.set(m.key, input);
     };
 
-    // 1. Карточка «Вес» (ручной ввод)
-    renderInputMetricCard(INPUT_METRICS[0]);
+    // Функция отрисовки времени (Отбой и Подъём с автоподсчётом сна)
+    const renderTimeMetricCard = (label, key, placeholder, hint) => {
+      const card = metricsGrid.createEl("label", { cls: "dh-metric-item" });
+      const top = card.createDiv({ cls: "dh-metric-top" });
+      top.createSpan({ cls: "dh-metric-label", text: label });
+      const statusSpan = top.createSpan({ cls: "dh-metric-status" });
 
-    // 2. Карточка «Калории» (автоматически из плагина my-nutrition-tracker, открывает плагин по клику)
+      const control = card.createDiv({ cls: "dh-metric-control" });
+      const input = control.createEl("input", {
+        cls: "dh-metric-input",
+        attr: {
+          type: "text",
+          placeholder,
+          "aria-label": label,
+          style: "width: 72px !important; text-align: center !important;"
+        }
+      });
+      control.createSpan({ cls: "dh-metric-unit", text: "" });
+
+      if (hint) {
+        card.createDiv({ cls: "dh-metric-subhint", text: hint });
+      }
+
+      const errorEl = card.createDiv({ cls: "dh-metric-error" });
+      errorEl.style.display = "none";
+
+      const savedVal = typeof note[key] === "string" ? note[key].trim() : "";
+      const hasDraft = Object.prototype.hasOwnProperty.call(uiDrafts.inputs, key);
+      input.value = hasDraft ? uiDrafts.inputs[key] : savedVal;
+
+      if (uiDrafts.errors[key]) {
+        card.classList.add("is-invalid");
+        errorEl.setText(uiDrafts.errors[key]);
+        errorEl.style.display = "block";
+      } else if (uiDrafts.savedStamp[key] && Date.now() - uiDrafts.savedStamp[key] < 2200) {
+        statusSpan.setText("✓");
+        setTimeout(() => { if (statusSpan.isConnected) statusSpan.setText(""); }, 1800);
+      }
+
+      input.onfocus = () => { uiDrafts.activeKey = key; };
+      input.oninput = () => {
+        uiDrafts.inputs[key] = input.value;
+        if (uiDrafts.errors[key]) {
+          delete uiDrafts.errors[key];
+          card.classList.remove("is-invalid");
+          errorEl.style.display = "none";
+        }
+      };
+
+      input.onkeydown = e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          input.blur();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          delete uiDrafts.inputs[key];
+          delete uiDrafts.errors[key];
+          card.classList.remove("is-invalid");
+          errorEl.style.display = "none";
+          input.value = savedVal;
+          input.blur();
+        }
+      };
+
+      let isSavingTime = false;
+      const commitTime = async () => {
+        if (isSavingTime) return;
+        if (uiDrafts.activeKey === key) uiDrafts.activeKey = null;
+
+        const raw = input.value.trim();
+        if (raw === "") {
+          delete uiDrafts.inputs[key];
+          delete uiDrafts.errors[key];
+          card.classList.remove("is-invalid");
+          errorEl.style.display = "none";
+          if (savedVal === "") return;
+          isSavingTime = true;
+          try {
+            await saveField(key, null);
+            uiDrafts.savedStamp[key] = Date.now();
+            statusSpan.setText("✓");
+          } catch (err) {
+            notify(`Ошибка очистки «${label}»: ${err?.message ?? err}`);
+          } finally {
+            isSavingTime = false;
+          }
+          return;
+        }
+
+        const normalized = normalizeTimeString(raw);
+        if (!normalized) {
+          const msg = "Формат: ЧЧ:ММ (напр. 23:30)";
+          uiDrafts.errors[key] = msg;
+          card.classList.add("is-invalid");
+          errorEl.setText(msg);
+          errorEl.style.display = "block";
+          return;
+        }
+
+        input.value = normalized;
+        delete uiDrafts.inputs[key];
+        delete uiDrafts.errors[key];
+        card.classList.remove("is-invalid");
+        errorEl.style.display = "none";
+
+        if (normalized === savedVal) return;
+
+        isSavingTime = true;
+        try {
+          const counterpartKey = key === "отбой" ? "подъём" : "отбой";
+          const counterpartVal = typeof note[counterpartKey] === "string" ? note[counterpartKey].trim() : "";
+          const otboy = key === "отбой" ? normalized : counterpartVal;
+          const podjom = key === "подъём" ? normalized : counterpartVal;
+          const autoSleep = computeSleepDurationHours(otboy, podjom);
+
+          let autoSleepHabit = null;
+          if (autoSleep !== null) {
+            autoSleepHabit = autoSleep > AUTO_SLEEP_MIN_HOURS;
+            if (manualOverrides.режим_сна === undefined) {
+              states.set("режим_сна", autoSleepHabit);
+              habitPainters.get("режим_сна")?.();
+              updateHabitsSummary();
+            }
+          }
+
+          await enqueueFrontMatterSave(file, fm => {
+            fm[key] = normalized;
+            if (autoSleep !== null) {
+              fm["сон_часов"] = autoSleep;
+              if (autoSleepHabit !== null && manualOverrides.режим_сна === undefined) {
+                fm["режим_сна"] = autoSleepHabit;
+              }
+            }
+          });
+
+          // Обновляем отображение поля сна, если было рассчитано
+          if (autoSleep !== null && inputRefs.has("сон_часов")) {
+            inputRefs.get("сон_часов").value = formatNumForInput(autoSleep, 1);
+          }
+
+          uiDrafts.savedStamp[key] = Date.now();
+          statusSpan.setText("✓");
+        } catch (err) {
+          uiDrafts.inputs[key] = raw;
+          notify(`Ошибка сохранения «${label}»: ${err?.message ?? err}`);
+        } finally {
+          isSavingTime = false;
+        }
+      };
+
+      input.onchange = commitTime;
+      input.onblur = commitTime;
+      inputRefs.set(key, input);
+    };
+
+    // РЯД 1: Вес, Калории, Сон (авто/ручной), Чтение
+    renderInputMetricCard(INPUT_METRICS[0]); // Вес
+
+    // Калории (из плагина my-nutrition-tracker)
     {
       const calCard = metricsGrid.createDiv({
         cls: "dh-metric-item is-clickable",
@@ -1298,9 +1479,14 @@ const readingSync = computeTodayReadingProgress();
       };
     }
 
-    // 3 и 4. Карточки «Сон» и «Чтение» (ручной ввод)
-    renderInputMetricCard(INPUT_METRICS[1]);
-    renderInputMetricCard(INPUT_METRICS[2]);
+    renderInputMetricCard(INPUT_METRICS[1]); // Сон
+    renderInputMetricCard(INPUT_METRICS[2]); // Чтение
+
+    // РЯД 2: Отбой, Подъём, Экран, Шаги
+    renderTimeMetricCard("Отбой", "отбой", "23:30", "время засыпания");
+    renderTimeMetricCard("Подъём", "подъём", "07:15", "время пробуждения");
+    renderInputMetricCard(INPUT_METRICS[3]); // Экран
+    renderInputMetricCard(INPUT_METRICS[4]); // Шаги
 
     const bottomGrid = body.createDiv({ cls: "dh-today-bottom-grid" });
 
