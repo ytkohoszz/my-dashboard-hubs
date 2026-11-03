@@ -30,6 +30,23 @@ function getWorkoutPlugin() {
   return app.plugins?.plugins?.["my-workout-companion"] ?? null;
 }
 
+function getFocusPlugin() {
+  return app.plugins?.plugins?.["my-focus-tracker"] || window.__myFocusTracker || null;
+}
+
+function openFocusTrackerFromHome() {
+  const plugin = getFocusPlugin();
+  if (!plugin || typeof plugin.openFocusModal !== "function") {
+    notify("Включи плагин «Фокус-таймер» (my-focus-tracker) в настройках Obsidian.");
+    return;
+  }
+  try {
+    plugin.openFocusModal();
+  } catch (err) {
+    notify("Не удалось открыть таймер фокуса: " + (err instanceof Error ? err.message : String(err)));
+  }
+}
+
 // Читаем дневную цель калорий напрямую из настроек my-nutrition-tracker (если цель отключена — null)
 const nutPlugin = getNutritionPlugin();
 const rawCalorieGoal = nutPlugin?.settings ? nutPlugin.settings.dailyCalorieGoal : null;
@@ -372,7 +389,7 @@ const readingSync = computeTodayReadingProgress();
     return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
   }
 
-  // Поля с ручным вводом (Калории считаются автоматически через плагин my-nutrition-tracker)
+  // Поля с ручным вводом (Калории считаются через плагин питания, Фокус через плагин таймера)
   const INPUT_METRICS = [
     { label: "Вес", key: "вес_кг", unit: "кг", min: 20, max: 300, digits: 1, placeholder: "—" },
     { label: "Сон", key: "сон_часов", unit: "ч", min: 0, max: 24, digits: 1, placeholder: "—", hint: `авто-режим >${AUTO_SLEEP_MIN_HOURS} ч` },
@@ -928,6 +945,7 @@ const readingSync = computeTodayReadingProgress();
     const savedCarbs = parseNum(note.углеводы_г);
     const savedSleep = parseNum(note.сон_часов);
     const savedPages = parseNum(note.страниц_прочитано);
+    const savedFocus = parseNum(note.глубокая_работа_часов);
     const effectivePages = readingSync.autoBookPages > 0 && (savedPages === null || readingSync.totalPages > savedPages)
       ? readingSync.totalPages
       : savedPages;
@@ -1411,7 +1429,6 @@ const readingSync = computeTodayReadingProgress();
             }
           });
 
-          // Обновляем отображение поля сна, если было рассчитано
           if (autoSleep !== null && inputRefs.has("сон_часов")) {
             inputRefs.get("сон_часов").value = formatNumForInput(autoSleep, 1);
           }
@@ -1482,7 +1499,54 @@ const readingSync = computeTodayReadingProgress();
     renderInputMetricCard(INPUT_METRICS[1]); // Сон
     renderInputMetricCard(INPUT_METRICS[2]); // Чтение
 
-    // РЯД 2: Отбой, Подъём, Экран, Шаги
+    // РЯД 2: Фокус (из плагина my-focus-tracker), Отбой, Подъём, Экран, Шаги
+    // Карточка «Фокус» (кликабельная, открывает таймер my-focus-tracker)
+    {
+      const focusCard = metricsGrid.createDiv({
+        cls: "dh-metric-item is-clickable",
+        attr: {
+          role: "button",
+          tabindex: "0",
+          title: "Нажми, чтобы открыть таймер глубокой работы (my-focus-tracker)"
+        }
+      });
+      const top = focusCard.createDiv({ cls: "dh-metric-top" });
+      top.createSpan({ cls: "dh-metric-label", text: "Фокус" });
+      top.createSpan({
+        cls: "dh-metric-status",
+        text: "⏱️ ＋",
+        attr: { style: "color: #9c83e8;" }
+      });
+
+      const control = focusCard.createDiv({ cls: "dh-metric-control" });
+      control.createSpan({
+        cls: "dh-metric-readonly-val",
+        text: savedFocus !== null ? String(savedFocus).replace(".", ",") : "—"
+      });
+      control.createSpan({
+        cls: "dh-metric-unit",
+        text: "ч"
+      });
+
+      const focusPlugin = getFocusPlugin();
+      const activeSession = focusPlugin?.session;
+      let focusHint = "нажми для запуска таймера";
+      if (activeSession && activeSession.isRunning) {
+        focusHint = `идёт: ${activeSession.project}`;
+      } else if (savedFocus !== null && savedFocus > 0) {
+        focusHint = "сессии записаны";
+      }
+      focusCard.createDiv({ cls: "dh-metric-subhint", text: focusHint });
+
+      focusCard.onclick = () => openFocusTrackerFromHome();
+      focusCard.onkeydown = e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openFocusTrackerFromHome();
+        }
+      };
+    }
+
     renderTimeMetricCard("Отбой", "отбой", "23:30", "время засыпания");
     renderTimeMetricCard("Подъём", "подъём", "07:15", "время пробуждения");
     renderInputMetricCard(INPUT_METRICS[3]); // Экран
@@ -1668,6 +1732,16 @@ const readingSync = computeTodayReadingProgress();
       text: `Тренировок сегодня: ${trainings.length}`,
       attr: { style: "font-weight: 600; color: var(--text-normal);" }
     });
+
+    // Плашка глубокой работы / фокуса
+    if (savedFocus !== null && savedFocus > 0) {
+      const fPill = trLeft.createEl("button", {
+        cls: "dh-training-pill",
+        text: `⏱️ Фокус: ${String(savedFocus).replace(".", ",")} ч`,
+        attr: { type: "button", title: "Открыть таймер глубокой работы", style: "cursor: pointer; color: #9c83e8; border-color: rgba(156, 131, 232, 0.4);" }
+      });
+      fPill.onclick = () => openFocusTrackerFromHome();
+    }
 
     if (trainings.length > 0) {
       trainings.forEach(p => {
