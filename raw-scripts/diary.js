@@ -7,6 +7,7 @@ if (mode === "all" || mode === "main") {
   const SOURCE = '"Ежедневник"';
   const WEEKS = 10;
   const MIN_WEEK_DAYS = 4; // минимум заполненных дней с оценкой в каждом 7-дневном периоде
+  const SOCIAL_LIMIT_MIN = 30; // лимит дофаминового скроллинга соцсетей (мин/день)
   const HABITS = [
     { key: "nofap", name: "NoFap", color: "#9c83e8" },
     { key: "тренировка", name: "Тренировки", color: "#d69852" },
@@ -986,7 +987,7 @@ if (mode === "all" || mode === "main") {
     const getSleepHours = p => p ? parseValidNum(p.сон_часов, 0.5, 24, false) : null;
     const getCalories = p => p ? parseValidNum(p.калории_ккал, 1, 10000, false) : null;
     const getWeight = p => p ? parseValidNum(p.вес_кг, 20, 300, false) : null;
-    const getScreenHours = p => p ? parseValidNum(p.экран_часов, 0, 24, true) : null;
+    const getSocialMin = p => p ? parseValidNum(p.соцсети_мин, 0, 1440, true) : null;
     const getSteps = p => p ? parseValidNum(p.шаги, 0, 100000, true) : null;
 
     const isNoteActivelyFilled = p => {
@@ -1588,6 +1589,29 @@ if (mode === "all" || mode === "main") {
             }
           }
         }
+      } else if (key === "без_соцсетей") {
+        const socialList30 = slots30.map(s => getSocialMin(s.page)).filter(v => v !== null);
+        const avgSocial30 = socialList30.length ? average(socialList30) : null;
+        keyMetrics.push({
+          k: "Выполнено (30 дн.)",
+          v: s30.marked.length ? `${s30.done.length} из ${s30.marked.length} дн. (${s30.rate}%)` : "—"
+        });
+        keyMetrics.push({
+          k: "Средний скроллинг",
+          v: avgSocial30 !== null ? `${Math.round(avgSocial30)} мин/день` : "—"
+        });
+        keyMetrics.push({
+          k: "Лучшая серия (30 дн.)",
+          v: maxRun30 ? `${maxRun30.len} дн.` : "—"
+        });
+        whatChanged = formatFlagWeekComparison("Без соцсетей");
+        if (avgSocial30 !== null) {
+          observations.push(
+            avgSocial30 <= SOCIAL_LIMIT_MIN
+              ? `В среднем ${Math.round(avgSocial30)} мин/день — держишься в пределах лимита ≤${SOCIAL_LIMIT_MIN} мин.`
+              : `В среднем ${Math.round(avgSocial30)} мин/день — превышение лимита на +${Math.round(avgSocial30 - SOCIAL_LIMIT_MIN)} мин.`
+          );
+        }
       }
 
       return {
@@ -1954,16 +1978,26 @@ if (mode === "all" || mode === "main") {
           <span style="color:var(--text-muted);">🛡️ Чистый день: ${doneToday ? "Да ✓" : "В процессе"}</span>
         `;
       } else if (h.key === "без_соцсетей") {
-        const doneNS = todayRecord && todayRecord.без_соцсетей === true;
-        const screenH = todayRecord && typeof todayRecord.экран_часов === "number" ? todayRecord.экран_часов : null;
-        const stepsVal = todayRecord && typeof todayRecord.шаги === "number" ? todayRecord.шаги : null;
-        const subParts = [];
-        if (screenH !== null) subParts.push(`${screenH} ч экран`);
-        if (stepsVal !== null) subParts.push(`${stepsVal.toLocaleString("ru-RU")} шаг.`);
-        const subText = subParts.length ? subParts.join(" · ") : "экран не записан";
-        detailBox.innerHTML = doneNS
-          ? `<span style="color:var(--color-green); font-weight:600;">🛡️ Без скроллинга</span><span style="color:var(--text-muted); font-size:0.72rem;">${subText}</span>`
-          : `<span style="color:var(--text-muted);">📱 Обычный день</span><span style="color:var(--text-faint); font-size:0.72rem;">${subText}</span>`;
+        const socialMin = todayRecord ? getSocialMin(todayRecord) : null;
+        if (socialMin !== null) {
+          if (socialMin <= SOCIAL_LIMIT_MIN) {
+            detailBox.innerHTML = `
+              <span style="color:var(--color-green); font-weight:600;">🛡️ Лимит удержан: ${socialMin} из ${SOCIAL_LIMIT_MIN} мин</span>
+              <span style="color:var(--color-green); font-size:0.72rem; font-weight:600;">в норме ✓</span>
+            `;
+          } else {
+            const over = socialMin - SOCIAL_LIMIT_MIN;
+            detailBox.innerHTML = `
+              <span style="color:var(--color-red, #d85b57); font-weight:600;">📱 Превышение: ${socialMin} мин</span>
+              <span style="color:var(--color-red, #d85b57); font-size:0.72rem; font-weight:600;">+${over} мин</span>
+            `;
+          }
+        } else {
+          const doneNS = todayRecord && todayRecord.без_соцсетей === true;
+          detailBox.innerHTML = doneNS
+            ? `<span style="color:var(--color-green); font-weight:600;">🛡️ Без скроллинга</span><span style="color:var(--text-muted); font-size:0.72rem;">лимит ≤${SOCIAL_LIMIT_MIN} мин</span>`
+            : `<span style="color:var(--text-muted);">📱 Время не записано</span><span style="color:var(--text-faint); font-size:0.72rem;">лимит ≤${SOCIAL_LIMIT_MIN} мин</span>`;
+        }
       }
 
       const seven = c.createDiv({ cls: "dh-seven" });
