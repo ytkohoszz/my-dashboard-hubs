@@ -2,6 +2,7 @@
 // ОБЩИЕ ДАННЫЕ, АВТОСИНХРОНИЗАЦИЯ И УТИЛИТЫ (ГЛАВНАЯ v2.2)
 // ========================================================
 const AUTO_SLEEP_MIN_HOURS = 6;   // Сон > 6 часов автоматически отмечает «Режим сна»
+const SOCIAL_LIMIT_MIN = 30;       // Лимит дофаминового скроллинга соцсетей (мин)
 const BOOKS_FOLDER = "Знания/Книги";
 const READING_TRACKER_KEY = "dh_reading_daily_tracker_v1";
 const MANUAL_HABITS_PREFIX = "dh_today_manual_habits_v1:";
@@ -366,7 +367,6 @@ const readingSync = computeTodayReadingProgress();
     "#a6b25a", "#8cb666", "#73b473", "#5ab17f", "#4aab80"
   ];
 
-  // Функция расчёта сна из времени отбоя и подъёма (с переходом через полночь)
   function computeSleepDurationHours(sleepTimeStr, wakeTimeStr) {
     if (!sleepTimeStr || !wakeTimeStr) return null;
     const sMatch = String(sleepTimeStr).trim().match(/^(\d{1,2})[:.](\d{2})$/);
@@ -394,7 +394,7 @@ const readingSync = computeTodayReadingProgress();
     { label: "Вес", key: "вес_кг", unit: "кг", min: 20, max: 300, digits: 1, placeholder: "—" },
     { label: "Сон", key: "сон_часов", unit: "ч", min: 0, max: 24, digits: 1, placeholder: "—", hint: `авто-режим >${AUTO_SLEEP_MIN_HOURS} ч` },
     { label: "Чтение", key: "страниц_прочитано", unit: "стр.", min: 0, max: 1500, digits: 0, placeholder: "—", hint: readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages} стр.` : "авто из читалки" },
-    { label: "Экран", key: "экран_часов", unit: "ч", min: 0, max: 24, digits: 1, placeholder: "—", hint: "из Screen Time" },
+    { label: "Соцсети", key: "соцсети_мин", unit: "мин", min: 0, max: 1440, digits: 0, placeholder: "—", hint: `лимит ≤${SOCIAL_LIMIT_MIN} мин` },
     { label: "Шаги", key: "шаги", unit: "шаг", min: 0, max: 100000, digits: 0, placeholder: "—", hint: "активность за день" },
   ];
 
@@ -946,6 +946,7 @@ const readingSync = computeTodayReadingProgress();
     const savedSleep = parseNum(note.сон_часов);
     const savedPages = parseNum(note.страниц_прочитано);
     const savedFocus = parseNum(note.глубокая_работа_часов);
+    const savedSocialMin = parseNum(note.соцсети_мин);
     const effectivePages = readingSync.autoBookPages > 0 && (savedPages === null || readingSync.totalPages > savedPages)
       ? readingSync.totalPages
       : savedPages;
@@ -980,6 +981,15 @@ const readingSync = computeTodayReadingProgress();
     if (savedSleep !== null && savedSleep > AUTO_SLEEP_MIN_HOURS && manualOverrides.режим_сна === undefined && states.get("режим_сна") !== true) {
       states.set("режим_сна", true);
       pendingPatch.режим_сна = true;
+    }
+
+    // 5. Автосинхронизация привычки «Без соцсетей» при соцсети_мин <= SOCIAL_LIMIT_MIN
+    if (savedSocialMin !== null && manualOverrides.без_соцсетей === undefined) {
+      const withinLimit = savedSocialMin <= SOCIAL_LIMIT_MIN;
+      if (states.get("без_соцсетей") !== withinLimit) {
+        states.set("без_соцсетей", withinLimit);
+        pendingPatch.без_соцсетей = withinLimit;
+      }
     }
 
     if (Object.keys(pendingPatch).length > 0) {
@@ -1259,6 +1269,9 @@ const readingSync = computeTodayReadingProgress();
           updateReadingManualOffset(finalValue, readingSync.autoBookPages);
           autoHabitKey = "чтение";
           autoHabitVal = finalValue > 0;
+        } else if (m.key === "соцсети_мин") {
+          autoHabitKey = "без_соцсетей";
+          autoHabitVal = finalValue <= SOCIAL_LIMIT_MIN;
         }
 
         const habitNeedsUpdate = autoHabitKey !== null && states.get(autoHabitKey) !== autoHabitVal;
@@ -1499,8 +1512,8 @@ const readingSync = computeTodayReadingProgress();
     renderInputMetricCard(INPUT_METRICS[1]); // Сон
     renderInputMetricCard(INPUT_METRICS[2]); // Чтение
 
-    // РЯД 2: Фокус (из плагина my-focus-tracker), Отбой, Подъём, Экран, Шаги
-    // Карточка «Фокус» (кликабельная, открывает таймер my-focus-tracker)
+    // РЯД 2: Фокус (my-focus-tracker), Отбой, Подъём, Соцсети (мин), Шаги
+    // Карточка «Фокус»
     {
       const focusCard = metricsGrid.createDiv({
         cls: "dh-metric-item is-clickable",
@@ -1549,7 +1562,7 @@ const readingSync = computeTodayReadingProgress();
 
     renderTimeMetricCard("Отбой", "отбой", "23:30", "время засыпания");
     renderTimeMetricCard("Подъём", "подъём", "07:15", "время пробуждения");
-    renderInputMetricCard(INPUT_METRICS[3]); // Экран
+    renderInputMetricCard(INPUT_METRICS[3]); // Соцсети (мин)
     renderInputMetricCard(INPUT_METRICS[4]); // Шаги
 
     const bottomGrid = body.createDiv({ cls: "dh-today-bottom-grid" });
