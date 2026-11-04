@@ -1,4 +1,19 @@
-import { App, Component, MarkdownPostProcessorContext, Notice, TFile, moment, normalizePath, requestUrl } from "obsidian";
+import {
+  App,
+  Component,
+  MarkdownPostProcessorContext,
+  Notice,
+  TFile,
+  normalizePath,
+  requestUrl,
+} from "obsidian";
+import * as obsidianModule from "obsidian";
+
+// Безопасная ссылка на глобальную функцию moment из окружения Obsidian
+const getMoment = (): any => {
+  const win = typeof window !== "undefined" ? (window as any) : {};
+  return win.moment ?? (obsidianModule as any).moment ?? ((obsidianModule as any).default ?? null);
+};
 
 export interface HubInputParams {
   module: string;
@@ -15,7 +30,7 @@ export function parseHubCodeblockSource(source: string): HubInputParams {
     const parts = (lines[0] ?? "").split(/\s+/);
     return {
       module: (parts[0] ?? "home").toLowerCase(),
-      section: parts[1] || "all",
+      section: parts[1] ?? "all",
     };
   }
 
@@ -25,111 +40,86 @@ export function parseHubCodeblockSource(source: string): HubInputParams {
     if (idx === -1) continue;
     const key = line.slice(0, idx).trim().toLowerCase();
     const val = line.slice(idx + 1).trim().replace(/^["']|["']$/g, "");
-    if (key === "module" || key === "hub" || key === "модуль") res.module = val.toLowerCase();
-    else if (key === "section" || key === "секция" || key === "mode") res.section = val;
+    if (key === "module" || key === "hub") {
+      res.module = val.toLowerCase();
+    } else if (key === "section" || key === "key" || key === "mode") {
+      res.section = val;
+    }
   }
   return res;
 }
 
 export class NativeDateWrapper {
-  private m: moment.Moment;
+  private m: any;
 
   constructor(inp?: unknown) {
+    const momentFn = getMoment();
+    if (!momentFn) {
+      this.m = null;
+      return;
+    }
+
     if (inp instanceof NativeDateWrapper) {
-      this.m = inp.m.clone();
+      this.m = inp.m ? inp.m.clone() : null;
     } else if (inp === "today") {
-      this.m = moment().startOf("day");
+      this.m = momentFn().startOf("day");
     } else if (inp === "now") {
-      this.m = moment();
+      this.m = momentFn();
     } else if (typeof inp === "number") {
-      this.m = moment(inp);
+      this.m = momentFn(inp);
     } else if (typeof inp === "string") {
       const clean = inp.trim();
-      this.m = moment(clean, ["YYYY-MM-DD", moment.ISO_8601], false);
+      const isoFmt = momentFn.ISO_8601 ?? (obsidianModule as any).moment?.ISO_8601;
+      this.m = momentFn(clean, ["YYYY-MM-DD", isoFmt], false);
     } else if (inp && typeof inp === "object" && "toISODate" in (inp as Record<string, unknown>)) {
-      const iso = (inp as { toISODate: () => string }).toISODate();
-      this.m = moment(iso);
+      const iso = (inp as { toISODate?: () => string }).toISODate?.() ?? "";
+      this.m = momentFn(iso);
     } else {
-      this.m = moment.invalid();
+      this.m = typeof momentFn.invalid === "function" ? momentFn.invalid() : momentFn(NaN);
     }
   }
 
   get isValid(): boolean {
-    return this.m.isValid();
+    return Boolean(this.m?.isValid?.());
   }
 
-  get weekday(): number {
-    return this.m.isoWeekday();
-  }
-
-  get daysInMonth(): number {
-    return this.m.daysInMonth();
-  }
-
-  startOf(unit: "day" | "month" | "year"): NativeDateWrapper {
-    const next = new NativeDateWrapper();
-    next.m = this.m.clone().startOf(unit);
-    return next;
-  }
-
-  minus(opts: { days?: number; months?: number }): NativeDateWrapper {
-    const next = new NativeDateWrapper();
-    const c = this.m.clone();
-    if (opts.days) c.subtract(opts.days, "days");
-    if (opts.months) c.subtract(opts.months, "months");
-    next.m = c;
-    return next;
-  }
-
-  plus(opts: { days?: number; months?: number }): NativeDateWrapper {
-    const next = new NativeDateWrapper();
-    const c = this.m.clone();
-    if (opts.days) c.add(opts.days, "days");
-    if (opts.months) c.add(opts.months, "months");
-    next.m = c;
-    return next;
-  }
-
-  set(opts: { day?: number }): NativeDateWrapper {
-    const next = new NativeDateWrapper();
-    const c = this.m.clone();
-    if (opts.day !== undefined) c.date(opts.day);
-    next.m = c;
-    return next;
-  }
-
-  setLocale(loc: string): NativeDateWrapper {
-    const next = new NativeDateWrapper();
-    next.m = this.m.clone().locale(loc);
-    return next;
-  }
-
-  toISODate(): string {
-    return this.m.format("YYYY-MM-DD");
-  }
-
-  toMillis(): number {
-    return this.m.valueOf();
-  }
-
-  valueOf(): number {
-    return this.m.valueOf();
-  }
-
-  diff(other: NativeDateWrapper, _unit = "days"): { days: number } {
-    const diffMs = this.m.valueOf() - other.toMillis();
-    return { days: diffMs / 86_400_000 };
+  toISODate(): string | null {
+    return this.isValid ? this.m.format("YYYY-MM-DD") : null;
   }
 
   toFormat(fmt: string): string {
-    const mapped = fmt
-      .replace(/yyyy/g, "YYYY")
-      .replace(/yy/g, "YY")
-      .replace(/dd/g, "DD")
-      .replace(/cccc/g, "dddd")
-      .replace(/LLLL/g, "MMMM")
-      .replace(/(?<![dD])d(?![dD])/g, "D");
-    return this.m.format(mapped);
+    return this.isValid ? this.m.format(fmt) : "";
+  }
+
+  get toMillis(): number {
+    return this.m?.valueOf?.() ?? 0;
+  }
+
+  get weekday(): number {
+    const d = this.m?.day?.() ?? 0;
+    return d === 0 ? 7 : d;
+  }
+
+  startOf(unit: string): NativeDateWrapper {
+    if (!this.m) return new NativeDateWrapper(NaN);
+    const cloned = this.m.clone().startOf(unit);
+    return new NativeDateWrapper(cloned.valueOf());
+  }
+
+  minus(duration: { days?: number; hours?: number }): NativeDateWrapper {
+    if (!this.m) return new NativeDateWrapper(NaN);
+    const cloned = this.m.clone();
+    if (duration.days) cloned.subtract(duration.days, "days");
+    if (duration.hours) cloned.subtract(duration.hours, "hours");
+    return new NativeDateWrapper(cloned.valueOf());
+  }
+
+  plus(duration: { days?: number; hours?: number }): NativeDateWrapper {
+    if (!this.m) return new NativeDateWrapper(NaN);
+    const cloned = this.m.clone();
+    if (duration.days) cloned.add(duration.days, "days");
+    if (duration.hours) cloned.add(duration.hours, "hours");
+    return new NativeDateWrapper(cloned.valueOf());
   }
 }
 
@@ -161,9 +151,10 @@ export function buildDvShim(
       plugins?: Record<string, { api?: Record<string, unknown> }>;
     };
   };
-  const realDvApi = pluginsHolder.plugins?.plugins?.["dataview"]?.api as
+
+  const realDvApi = pluginsHolder.plugins?.plugins?.dataview?.api as
     | {
-        pages?: (q?: string) => unknown[];
+        pages?: (q?: string) => unknown;
         page?: (p: string) => Record<string, unknown>;
         date?: (d: unknown) => unknown;
         isArray?: (v: unknown) => boolean;
@@ -180,7 +171,7 @@ export function buildDvShim(
       pages: (query?: string) => realDvApi.pages?.(query) ?? [],
       page: (path: string) => realDvApi.page?.(path) ?? null,
       date: (d: unknown) => realDvApi.date?.(d) ?? null,
-      isArray: (v: unknown) => Array.isArray(v) || Boolean(realDvApi.isArray?.(v)),
+      isArray: (v: unknown) => (Array.isArray(v) ? true : Boolean(realDvApi.isArray?.(v))),
     };
   }
 
@@ -202,6 +193,7 @@ export function buildDvShim(
         cday: ctimeDate.startOf("day"),
         mday: mtimeDate.startOf("day"),
         lists: [],
+        tags: cache?.tags?.map((t) => t.tag) ?? [],
       },
     };
   };
@@ -234,12 +226,12 @@ export function buildDvShim(
       }
       const files = app.vault.getMarkdownFiles().filter((f) => {
         if (!folderFilter) return true;
-        return f.path.startsWith(folderFilter + "/") || f.parent?.path === folderFilter;
+        return f.path.startsWith(folderFilter) || f.parent?.path === folderFilter;
       });
       return NativeDataArray.fromArray(files.map(buildPageObject));
     },
     page: (pathOrLink: string) => {
-      const clean = pathOrLink.replace(/^\[\[|\]\]$/g, "").trim();
+      const clean = pathOrLink.replace(/[\[\]]/g, "").trim();
       const direct = app.vault.getAbstractFileByPath(clean);
       if (direct instanceof TFile) return buildPageObject(direct);
       const dest = app.metadataCache.getFirstLinkpathDest(clean, ctx.sourcePath);
@@ -259,11 +251,21 @@ export async function runBundledHubModule(
   app: App,
   dvShim: ReturnType<typeof buildDvShim>,
   inputObj: { section?: string }
-) {
+): Promise<void> {
   if (typeof window !== "undefined") {
     (window as unknown as { requestUrl?: typeof requestUrl }).requestUrl = requestUrl;
   }
-  const obsidianShim = { Notice, normalizePath, requestUrl };
+
+  const momentFn = getMoment();
+
+  // Полный API Obsidian: классы (Modal, Setting, Component, TFile и др.)
+  const obsidianShim = {
+    ...obsidianModule,
+    Notice,
+    normalizePath,
+    requestUrl,
+    moment: momentFn,
+  };
 
   const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as new (
     ...args: string[]
@@ -271,7 +273,7 @@ export async function runBundledHubModule(
     appArg: App,
     dvArg: unknown,
     inputArg: unknown,
-    momentArg: typeof moment,
+    momentArg: unknown,
     NoticeArg: typeof Notice,
     obsidianArg: typeof obsidianShim
   ) => Promise<void>;
@@ -286,5 +288,5 @@ export async function runBundledHubModule(
     codeBody
   );
 
-  await runner(app, dvShim, inputObj, moment, Notice, obsidianShim);
+  await runner(app, dvShim, inputObj, momentFn, Notice, obsidianShim);
 }

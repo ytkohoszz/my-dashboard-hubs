@@ -8,11 +8,7 @@ import {
   Setting,
   TFile,
 } from "obsidian";
-import {
-  buildDvShim,
-  parseHubCodeblockSource,
-  runBundledHubModule,
-} from "./shim";
+import { buildDvShim, parseHubCodeblockSource, runBundledHubModule } from "./shim";
 import { BUNDLED_HUB_SCRIPTS } from "./modules";
 
 interface HubPluginSettings {
@@ -22,19 +18,19 @@ interface HubPluginSettings {
 }
 
 const DEFAULT_SETTINGS: HubPluginSettings = {
-  scriptsFolder: "Скрипты",
+  scriptsFolder: "",
   autoRefreshOnMetadataChange: true,
   refreshDebounceMs: 600,
 };
 
 const MODULE_FILE_CANDIDATES: Record<string, string[]> = {
-  home: ["home.js", "главная.js", "Scripts/home.js"],
-  diary: ["diary.js", "дневник.js", "Scripts/diary.js"],
-  health: ["health.js", "здоровье.js", "Scripts/health.js"],
-  study: ["study.js", "учеба.js", "Scripts/study.js"],
+  home: ["home.js", "Scripts/home.js"],
+  diary: ["diary.js", "Scripts/diary.js"],
+  health: ["health.js", "Scripts/health.js"],
+  study: ["study.js", "Scripts/study.js"],
   "3d": ["3d.js", "3D.js", "Scripts/3d.js"],
-  english: ["english2.js", "english.js", "английский.js", "Scripts/english.js"],
-  media: ["media.js", "медиа.js", "Scripts/media.js"], // <-- ДОБАВИТЬ
+  english: ["english_2.js", "english2.js", "english.js", "Scripts/english.js"],
+  media: ["media.js", "Media.js", "Scripts/media.js"],
 };
 
 class HubBlockRenderer extends MarkdownRenderChild {
@@ -82,6 +78,7 @@ class HubBlockRenderer extends MarkdownRenderChild {
     if (this.refreshTimer !== null) {
       window.clearTimeout(this.refreshTimer);
     }
+
     this.refreshTimer = window.setTimeout(() => {
       this.refreshTimer = null;
       if (!this.containerEl.isConnected) return;
@@ -89,8 +86,8 @@ class HubBlockRenderer extends MarkdownRenderChild {
       const activeEl = document.activeElement;
       const isFocusedInside =
         activeEl &&
-        (this.containerEl.contains(activeEl) ||
-          activeEl.tagName === "INPUT" ||
+        this.containerEl.contains(activeEl) &&
+        (activeEl.tagName === "INPUT" ||
           activeEl.tagName === "TEXTAREA" ||
           activeEl.tagName === "SELECT");
 
@@ -107,8 +104,8 @@ class HubBlockRenderer extends MarkdownRenderChild {
       this.pendingRerender = true;
       return;
     }
-    this.isRendering = true;
 
+    this.isRendering = true;
     try {
       const params = parseHubCodeblockSource(this.source);
       const codeBody = await this.plugin.resolveModuleScriptCode(params.module);
@@ -117,7 +114,7 @@ class HubBlockRenderer extends MarkdownRenderChild {
         this.containerEl.empty();
         const err = this.containerEl.createDiv({ cls: "dh-panel" });
         err.setText(
-          `Модуль «${params.module}» не найден. Запусти "npm run import" при сборке или проверь папку скриптов в настройках.`
+          `Модуль "${params.module}" не найден. Запусти npm run import при сборке или проверь папку скриптов в настройках.`
         );
         return;
       }
@@ -130,20 +127,12 @@ class HubBlockRenderer extends MarkdownRenderChild {
       this.containerEl.empty();
       this.containerEl.addClass("dashboard-home", "my-hub-native-container");
 
-      const dvShim = buildDvShim(
-        this.plugin.app,
-        this.containerEl,
-        this.ctx,
-        this
-      );
-      await runBundledHubModule(codeBody, this.plugin.app, dvShim, {
-        section: params.section,
-      });
-
+      const dvShim = buildDvShim(this.plugin.app, this.containerEl, this.ctx, this);
+      await runBundledHubModule(codeBody, this.plugin.app, dvShim, { section: params.section });
       this.containerEl.style.minHeight = "";
     } catch (err: unknown) {
       this.containerEl.style.minHeight = "";
-      const msg = err instanceof Error ? err.stack || err.message : String(err);
+      const msg = err instanceof Error ? (err.stack ?? err.message) : String(err);
       this.containerEl.createDiv({
         text: `Ошибка модуля дашборда: ${msg}`,
         attr: {
@@ -172,17 +161,14 @@ class HubsSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
-
-    containerEl.createEl("h3", { text: "Мои дашборды (Ускоритель)" });
+    containerEl.createEl("h3", { text: "Настройки My Dashboard Hubs" });
 
     new Setting(containerEl)
-      .setName("Папка со скриптами в хранилище (резервная)")
-      .setDesc(
-        "Если скрипт не вшит внутрь плагина, плагин может подгружать .js файл напрямую из этой папки хранилища"
-      )
+      .setName("Папка скриптов (опционально)")
+      .setDesc("Путь к папке в хранилище со скриптами .js (для разработки без пересборки).")
       .addText((text) =>
         text
-          .setPlaceholder("Скрипты")
+          .setPlaceholder("Raw Scripts")
           .setValue(this.plugin.settings.scriptsFolder)
           .onChange(async (val) => {
             this.plugin.settings.scriptsFolder = val.trim();
@@ -191,10 +177,8 @@ class HubsSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Автообновление при изменении заметок")
-      .setDesc(
-        "Автоматически обновлять карточки и счётчики в фоне (без сброса фокуса в полях ввода)"
-      )
+      .setName("Автообновление при смене метаданных")
+      .setDesc("Перерисовывать дашборды при сохранении заметок.")
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.autoRefreshOnMetadataChange)
@@ -219,24 +203,19 @@ export default class MyDashboardHubsPlugin extends Plugin {
       ctx.addChild(child);
     });
 
-    const shortModules = ["home", "diary", "health", "study", "3d", "english", "media"]; // <-- ДОБАВИТЬ "media"
+    const shortModules = ["home", "diary", "health", "study", "3d", "english", "media"];
     for (const modName of shortModules) {
-      this.registerMarkdownCodeBlockProcessor(
-        `my-${modName}`,
-        (source, el, ctx) => {
-          const trimmed = source.trim();
-          const fullSource = trimmed
-            ? `module: ${modName}\nsection: ${trimmed}`
-            : `module: ${modName}`;
-          const child = new HubBlockRenderer(el, this, fullSource, ctx);
-          ctx.addChild(child);
-        }
-      );
+      this.registerMarkdownCodeBlockProcessor(`my-${modName}`, (source, el, ctx) => {
+        const trimmed = source.trim();
+        const fullSource = trimmed ? `module: ${modName}\n${trimmed}` : `module: ${modName}`;
+        const child = new HubBlockRenderer(el, this, fullSource, ctx);
+        ctx.addChild(child);
+      });
     }
 
     this.addCommand({
       id: "refresh-active-hubs",
-      name: "Обновить все открытые дашборды",
+      name: "Обновить активные дашборды",
       callback: () => {
         for (const r of this.activeRenderers) {
           void r.renderBlock();
@@ -249,12 +228,12 @@ export default class MyDashboardHubsPlugin extends Plugin {
   async resolveModuleScriptCode(moduleName: string): Promise<string | null> {
     const key = moduleName.toLowerCase().trim();
 
+    // 1. Проверяем упакованный бандл
     const bundled = BUNDLED_HUB_SCRIPTS[key];
-    if (bundled && bundled.length > 10) {
-      return bundled;
-    }
+    if (bundled && bundled.length > 10) return bundled;
 
-    const folder = this.settings.scriptsFolder.replace(/\/+$/, "");
+    // 2. Ищем файл в хранилище (включая кандидаты)
+    const folder = this.settings.scriptsFolder.replace(/^\/+|\/+$/g, "");
     const candidates = [
       ...(folder ? [`${folder}/${key}.js`] : []),
       ...(MODULE_FILE_CANDIDATES[key] ?? [`${key}.js`]),
@@ -266,7 +245,7 @@ export default class MyDashboardHubsPlugin extends Plugin {
         try {
           return await this.app.vault.cachedRead(file);
         } catch {
-          // Игнорируем
+          /* пробуем следующий путь */
         }
       }
     }
