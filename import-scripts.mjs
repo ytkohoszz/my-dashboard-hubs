@@ -1,7 +1,9 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "fs";
 import path from "path";
 
 const RAW_DIR = "raw-scripts";
+const RAW_DIR_CANDIDATES = [RAW_DIR, "Raw Scripts"];
+
 if (!existsSync(RAW_DIR)) {
   mkdirSync(RAW_DIR, { recursive: true });
 }
@@ -12,8 +14,27 @@ const FILES_MAP = {
   health: ["health.js"],
   study: ["study.js"],
   "3d": ["3d.js"],
-  english: ["english_2.js", "english.js"],
+  english: ["english_2.js", "english2.js", "english.js"],
+  media: ["media.js"],
 };
+
+function findScript(fileNames) {
+  const wanted = fileNames.map((n) => n.toLowerCase());
+  for (const dir of [...RAW_DIR_CANDIDATES, "."]) {
+    if (!existsSync(dir)) continue;
+    let entries = [];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const w of wanted) {
+      const hit = entries.find((e) => e.toLowerCase() === w);
+      if (hit) return dir === "." ? hit : path.join(dir, hit);
+    }
+  }
+  return null;
+}
 
 const bundledModules = {};
 const extractedCssChunks = [
@@ -22,13 +43,7 @@ const extractedCssChunks = [
 ];
 
 for (const [modKey, fileNames] of Object.entries(FILES_MAP)) {
-  let foundPath = null;
-  for (const fn of fileNames) {
-    const p1 = path.join(RAW_DIR, fn);
-    const p2 = fn;
-    if (existsSync(p1)) { foundPath = p1; break; }
-    if (existsSync(p2)) { foundPath = p2; break; }
-  }
+  const foundPath = findScript(fileNames);
 
   if (!foundPath) {
     console.log(`[пропуск] Файл для модуля "${modKey}" не найден в ${RAW_DIR}/`);
@@ -47,11 +62,17 @@ for (const [modKey, fileNames] of Object.entries(FILES_MAP)) {
   );
 
   // 2. Отключаем повторную инжекцию таблиц стилей в study.js и english.js
-  const arrayCssMatch = code.match(/const\s+(?:STUDY_HUB_CSS|HUB_CSS_TEXT)\s*=\s*\[([\s\S]*?)\]\.join\("\\n"\);/);
+  const arrayCssMatch = code.match(
+    /const\s+(?:STUDY_HUB_CSS|HUB_CSS_TEXT)\s*=\s*\[([\s\S]*?)\]\.join\("\\n"\);/
+  );
   if (arrayCssMatch && arrayCssMatch[1]) {
     try {
-      const parsedCss = Function(`"use strict"; return [${arrayCssMatch[1]}].join("\\n");`)();
-      extractedCssChunks.push(`/* --- Module Array CSS: ${modKey} --- */\n` + parsedCss);
+      const parsedCss = Function(
+        `"use strict"; return [${arrayCssMatch[1]}].join("\\n");`
+      )();
+      extractedCssChunks.push(
+        `/* --- Module Array CSS: ${modKey} --- */\n` + parsedCss
+      );
       code = code.replace(
         /function\s+inject(?:Study|EnglishHub)Styles\s*\([^)]*\)\s*\{[\s\S]*?\}/g,
         "function injectStudyStyles() {} function injectEnglishHubStyles() {}"
