@@ -1033,60 +1033,136 @@
 }
 
 /* --- Module: media --- */
-.dashboard-home.dh-media-hub {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 0.5rem 0;
-  color: var(--text-normal);
-  font-family: var(--font-interface);
+@keyframes lbCardReveal {
+  0% { opacity: 0; transform: translateY(10px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes lbHeartPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.38); }
+  75% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+.dashboard-home.dh-media-hub {
+  --lb-green: #00e054;
+  --lb-orange: #ff8000;
+  --lb-blue: #40bcf4;
+  --lb-heart: #ff4757;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 6px 0 24px 0;
+  color: var(--text-normal);
+  font-family: var(--font-interface);
+  box-sizing: border-box;
+}
+
+.dashboard-home.dh-media-hub * {
+  box-sizing: border-box;
+}
+
+/* Верхняя навигация вкладок */
 .dashboard-home .lb-topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 10px;
+}
+
+.dashboard-home .lb-tabs-wrap {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .dashboard-home .lb-tabs {
-  display: flex;
+  display: inline-flex;
+  flex-wrap: wrap;
   background: var(--background-secondary);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 3px;
-  gap: 4px;
+  gap: 3px;
   border: 1px solid var(--background-modifier-border);
 }
 
 .dashboard-home .lb-tab-btn {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  border-radius: 6px;
-  padding: 6px 14px;
-  font-size: 0.85rem;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 7px !important;
+  padding: 6px 12px !important;
+  height: 32px !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
   cursor: pointer;
-  color: var(--text-muted);
-  transition: all 0.15s ease-in-out;
+  color: var(--text-muted) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  transition: background-color 0.16s ease, color 0.16s ease, transform 0.12s ease;
 }
 
 .dashboard-home .lb-tab-btn:hover {
-  color: var(--text-normal);
-  background: var(--background-modifier-hover);
+  color: var(--text-normal) !important;
+  background: var(--background-modifier-hover) !important;
+}
+
+.dashboard-home .lb-tab-btn:active {
+  transform: scale(0.96);
 }
 
 .dashboard-home .lb-tab-btn.active {
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
-  font-weight: 600;
+  background: var(--background-primary) !important;
+  color: var(--text-normal) !important;
+  font-weight: 650 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22) !important;
 }
 
+.dashboard-home .lb-tab-count {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--background-secondary-alt);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-home .lb-tab-btn.active .lb-tab-count {
+  color: var(--lb-green);
+  background: color-mix(in srgb, var(--lb-green) 14%, transparent);
+}
+
+.dashboard-home .lb-add-cta {
+  background: color-mix(in srgb, var(--lb-green) 16%, var(--background-secondary)) !important;
+  border: 1px solid color-mix(in srgb, var(--lb-green) 45%, var(--background-modifier-border)) !important;
+  color: var(--lb-green) !important;
+  font-weight: 650 !important;
+  padding: 0 14px !important;
+  height: 34px !important;
+  border-radius: 9px !important;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.dashboard-home .lb-add-cta:hover {
+  background: color-mix(in srgb, var(--lb-green) 26%, var(--background-secondary)) !important;
+  transform: translateY(-1px);
+}
+
+/* Статистика, гистограмма оценок и топ авторов */
 .dashboard-home .lb-stats-section {
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .dashboard-home .lb-stats-bar {
@@ -1094,7 +1170,7 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 1.25rem;
+  gap: 14px;
 }
 
 .dashboard-home .lb-summary {
@@ -1107,21 +1183,87 @@
 .dashboard-home .lb-stat-badge {
   background: var(--background-primary);
   padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.82rem;
+  border-radius: 7px;
+  font-size: 0.79rem;
+  font-weight: 500;
   border: 1px solid var(--background-modifier-border);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.dashboard-home .lb-stat-badge.accent {
-  color: var(--text-accent);
+.dashboard-home .lb-stat-badge.is-green {
+  color: var(--lb-green);
+  border-color: color-mix(in srgb, var(--lb-green) 35%, var(--background-modifier-border));
+  font-weight: 650;
+}
+
+.dashboard-home .lb-stat-badge.is-orange {
+  color: var(--lb-orange);
+  border-color: color-mix(in srgb, var(--lb-orange) 35%, var(--background-modifier-border));
+}
+
+.dashboard-home .lb-creators-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.dashboard-home .lb-creators-label {
+  font-size: 0.73rem;
   font-weight: 600;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.dashboard-home .lb-creator-pill {
+  height: 24px !important;
+  padding: 0 9px !important;
+  border-radius: 999px !important;
+  font-size: 0.73rem !important;
+  font-weight: 500 !important;
+  background: var(--background-primary) !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  color: var(--text-normal) !important;
+  cursor: pointer;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  transition: all 0.14s ease;
+}
+
+.dashboard-home .lb-creator-pill:hover {
+  border-color: var(--lb-blue) !important;
+  color: var(--lb-blue) !important;
+}
+
+.dashboard-home .lb-creator-pill.is-active {
+  background: color-mix(in srgb, var(--lb-blue) 18%, var(--background-primary)) !important;
+  border-color: var(--lb-blue) !important;
+  color: var(--lb-blue) !important;
+  font-weight: 650 !important;
+}
+
+.dashboard-home .lb-histogram-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .dashboard-home .lb-histogram {
   display: flex;
   align-items: flex-end;
-  height: 44px;
+  height: 42px;
   gap: 4px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
 }
 
 .dashboard-home .lb-hist-col {
@@ -1130,28 +1272,72 @@
   align-items: center;
   height: 100%;
   justify-content: flex-end;
-  width: 13px;
+  width: 14px;
+  cursor: pointer;
 }
 
 .dashboard-home .lb-hist-fill {
   width: 100%;
-  background: var(--interactive-accent);
+  background: var(--lb-green);
   border-radius: 2px 2px 0 0;
   min-height: 2px;
-  opacity: 0.75;
-  transition: opacity 0.15s;
+  opacity: 0.55;
+  transition: height 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.15s ease, background-color 0.15s ease;
 }
 
-.dashboard-home .lb-hist-fill:hover {
+.dashboard-home .lb-hist-col:hover .lb-hist-fill,
+.dashboard-home .lb-hist-col.is-active .lb-hist-fill {
   opacity: 1;
+  background: var(--lb-orange);
 }
 
 .dashboard-home .lb-hist-label {
   font-size: 9px;
   color: var(--text-faint);
   margin-top: 2px;
+  font-variant-numeric: tabular-nums;
 }
 
+.dashboard-home .lb-hist-col.is-active .lb-hist-label {
+  color: var(--lb-orange);
+  font-weight: 700;
+}
+
+/* Полоса списков (Lists) */
+.dashboard-home .lb-lists-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dashboard-home .lb-list-chip {
+  height: 28px !important;
+  padding: 0 11px !important;
+  border-radius: 999px !important;
+  font-size: 0.76rem !important;
+  font-weight: 500 !important;
+  background: var(--background-secondary) !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  color: var(--text-muted) !important;
+  cursor: pointer;
+  box-shadow: none !important;
+  transition: all 0.15s ease;
+}
+
+.dashboard-home .lb-list-chip:hover {
+  color: var(--text-normal) !important;
+  border-color: var(--lb-orange) !important;
+}
+
+.dashboard-home .lb-list-chip.is-active {
+  background: color-mix(in srgb, var(--lb-orange) 18%, var(--background-secondary)) !important;
+  border-color: var(--lb-orange) !important;
+  color: var(--text-normal) !important;
+  font-weight: 650 !important;
+}
+
+/* Панель фильтров и поиска */
 .dashboard-home .lb-filters-bar {
   display: flex;
   align-items: center;
@@ -1159,49 +1345,84 @@
   gap: 8px;
 }
 
+.dashboard-home .lb-search-input {
+  flex: 1 1 180px;
+  min-width: 150px;
+  height: 32px !important;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  font-size: 0.82rem !important;
+  background: var(--background-secondary) !important;
+  border: 1px solid var(--background-modifier-border) !important;
+}
+
 .dashboard-home .lb-filters-bar select {
-  font-size: 0.82rem;
-  padding: 4px 8px;
-  border-radius: 6px;
+  height: 32px;
+  font-size: 0.8rem;
+  padding: 0 24px 0 10px;
+  border-radius: 8px;
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
 }
 
-.dashboard-home .lb-checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
+.dashboard-home .lb-chip-toggle {
+  height: 32px !important;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+  background: var(--background-secondary) !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  color: var(--text-muted) !important;
   cursor: pointer;
-  user-select: none;
-  margin-left: 4px;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
 }
 
+.dashboard-home .lb-chip-toggle.is-active {
+  border-color: var(--lb-heart) !important;
+  color: var(--lb-heart) !important;
+  background: color-mix(in srgb, var(--lb-heart) 14%, var(--background-secondary)) !important;
+}
+
+/* Сетка постеров (Letterboxd Poster Grid) */
 .dashboard-home .lb-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(135px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(146px, 1fr));
+  gap: 14px;
 }
 
 .dashboard-home .lb-card {
   position: relative;
-  cursor: pointer;
-  border-radius: 6px;
-  overflow: hidden;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.2s ease;
-}
-
-.dashboard-home .lb-card:hover {
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
-  border-color: var(--interactive-accent);
-  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  background: transparent;
+  animation: lbCardReveal 0.26s cubic-bezier(0.2, 0.85, 0.25, 1) both;
 }
 
 .dashboard-home .lb-poster-wrapper {
   position: relative;
   width: 100%;
   aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--background-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+              box-shadow 0.22s ease,
+              border-color 0.18s ease;
+}
+
+.dashboard-home .lb-card:hover .lb-poster-wrapper {
+  transform: translateY(-5px) scale(1.025);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.48), 0 0 0 2px var(--lb-green);
+  border-color: var(--lb-green);
+  z-index: 3;
 }
 
 .dashboard-home .lb-poster-img {
@@ -1209,6 +1430,11 @@
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.35s ease;
+}
+
+.dashboard-home .lb-card:hover .lb-poster-img {
+  transform: scale(1.04);
 }
 
 .dashboard-home .lb-poster-fallback {
@@ -1218,33 +1444,45 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 10px;
+  padding: 14px;
   text-align: center;
-  background: var(--background-secondary-alt);
+  background: radial-gradient(circle at 50% 25%, var(--background-secondary-alt), var(--background-secondary));
+  gap: 6px;
+}
+
+.dashboard-home .lb-fallback-icon {
+  font-size: 1.6rem;
+  opacity: 0.55;
 }
 
 .dashboard-home .lb-fallback-title {
-  font-size: 0.8rem;
-  font-weight: 600;
-  line-height: 1.25;
+  font-size: 0.84rem;
+  font-weight: 650;
+  line-height: 1.28;
+  color: var(--text-normal);
 }
 
-.dashboard-home .lb-fallback-year {
-  font-size: 0.75rem;
+.dashboard-home .lb-fallback-sub {
+  font-size: 0.72rem;
   color: var(--text-muted);
-  margin-top: 4px;
 }
 
+/* Оверлей поверх постера с быстрыми кнопками */
 .dashboard-home .lb-overlay {
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.88) 100%);
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(10, 12, 16, 0.82) 0%,
+    rgba(10, 12, 16, 0.12) 42%,
+    rgba(10, 12, 16, 0.92) 100%
+  );
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: 8px;
   opacity: 0;
-  transition: opacity 0.2s ease-in-out;
+  transition: opacity 0.18s ease-in-out;
 }
 
 .dashboard-home .lb-card:hover .lb-overlay {
@@ -1255,59 +1493,325 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%;
+  gap: 4px;
 }
 
-.dashboard-home .lb-heart {
-  color: #ff4757;
-  font-size: 0.95rem;
+.dashboard-home .lb-quick-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dashboard-home .lb-mini-btn {
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  padding: 0 !important;
+  border-radius: 6px !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  background: rgba(18, 20, 26, 0.78) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-size: 0.78rem !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(6px);
+  transition: transform 0.12s ease, background-color 0.12s ease, color 0.12s ease;
+}
+
+.dashboard-home .lb-mini-btn:hover {
+  background: rgba(30, 34, 44, 0.95) !important;
+  color: #ffffff !important;
+  transform: scale(1.08);
+}
+
+.dashboard-home .lb-mini-btn.is-fav {
+  color: var(--lb-heart) !important;
+  border-color: rgba(255, 71, 87, 0.5) !important;
+  animation: lbHeartPop 0.28s ease;
+}
+
+.dashboard-home .lb-mini-btn.is-rewatch {
+  color: var(--lb-blue) !important;
+  border-color: rgba(64, 188, 244, 0.5) !important;
 }
 
 .dashboard-home .lb-score-pill {
-  background: rgba(0, 0, 0, 0.8);
-  color: #00e054;
-  font-size: 0.75rem;
+  background: rgba(14, 16, 20, 0.88);
+  color: var(--lb-green);
+  font-size: 0.73rem;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 2px 7px;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 224, 84, 0.35);
+  font-variant-numeric: tabular-nums;
 }
 
 .dashboard-home .lb-overlay-bottom {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .dashboard-home .lb-overlay-title {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #fff;
-  line-height: 1.2;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #ffffff;
+  line-height: 1.22;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.dashboard-home .lb-overlay-date {
+.dashboard-home .lb-overlay-creator {
+  font-size: 0.69rem;
+  font-weight: 500;
+  color: var(--lb-blue);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-home .lb-overlay-creator:hover {
+  text-decoration: underline;
+}
+
+.dashboard-home .lb-overlay-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
   font-size: 0.65rem;
-  color: #bbb;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* Подпись под постером в стиле Letterboxd (звёзды + сердечко + автор) */
+.dashboard-home .lb-card-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 2px 0 2px;
+}
+
+.dashboard-home .lb-caption-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-height: 16px;
+}
+
+.dashboard-home .lb-stars {
+  font-size: 0.74rem;
+  color: var(--lb-green);
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+.dashboard-home .lb-caption-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+}
+
+.dashboard-home .lb-caption-creator {
+  font-size: 0.71rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.dashboard-home .lb-caption-creator:hover {
+  color: var(--lb-blue);
+}
+
+/* Хронологический Дневник (Letterboxd Diary View) */
+.dashboard-home .lb-diary-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dashboard-home .lb-diary-month {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.dashboard-home .lb-diary-month-head {
+  padding: 8px 14px;
+  background: var(--background-secondary-alt);
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.dashboard-home .lb-diary-row {
+  display: grid;
+  grid-template-columns: 52px 42px minmax(140px, 1.5fr) minmax(110px, 1fr) 110px 36px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  font-size: 0.83rem;
+  transition: background-color 0.14s ease;
+}
+
+.dashboard-home .lb-diary-row:last-child {
+  border-bottom: none;
+}
+
+.dashboard-home .lb-diary-row:hover {
+  background: var(--background-modifier-hover);
+}
+
+.dashboard-home .lb-diary-day {
+  font-size: 1.05rem;
+  font-weight: 750;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.dashboard-home .lb-diary-thumb {
+  width: 34px;
+  height: 50px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+}
+
+/* Модальные окна (Логгер + Смена постера) */
+.lb-modal-grid {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.lb-modal-poster-preview {
+  width: 150px;
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.lb-modal-poster-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lb-poster-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.lb-poster-choice {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.14s ease, border-color 0.14s ease;
+}
+
+.lb-poster-choice:hover {
+  transform: scale(1.04);
+}
+
+.lb-poster-choice.is-selected {
+  border-color: var(--lb-green);
+  box-shadow: 0 0 0 2px rgba(0, 224, 84, 0.3);
+}
+
+.lb-poster-choice img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .dashboard-home .lb-pagination-section {
   display: flex;
   justify-content: center;
-  margin-top: 0.5rem;
+  margin-top: 6px;
 }
 
 .dashboard-home .lb-more-btn {
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
-  padding: 6px 20px;
-  border-radius: 6px;
+  padding: 7px 22px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
   color: var(--text-normal);
 }
 
 .dashboard-home .lb-empty-msg {
-  padding: 2.5rem;
+  padding: 36px 20px;
   text-align: center;
   color: var(--text-muted);
+  background: var(--background-secondary);
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: 12px;
+  font-size: 0.86rem;
+}
+
+@media (pointer: coarse), (hover: none) {
+  .dashboard-home .lb-overlay {
+    opacity: 1;
+    background: linear-gradient(180deg, rgba(10,12,16,0.55) 0%, transparent 45%, rgba(10,12,16,0.88) 100%);
+  }
+  .dashboard-home .lb-mini-btn {
+    width: 32px !important;
+    min-width: 32px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+  }
+}
+
+@media (max-width: 680px) {
+  .lb-modal-grid {
+    grid-template-columns: 1fr;
+  }
+  .lb-modal-poster-preview {
+    margin: 0 auto;
+  }
+  .dashboard-home .lb-diary-row {
+    grid-template-columns: 38px 1fr 74px;
+  }
+  .dashboard-home .lb-diary-thumb,
+  .dashboard-home .lb-diary-creator-col {
+    display: none;
+  }
 }
