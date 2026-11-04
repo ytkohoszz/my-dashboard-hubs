@@ -1,6 +1,6 @@
 // =====================================================================
-// УЧЁБА: ВИТРИНА ПРОЕКТОВ (СВЯЗКА С MY-STUDY-COMPILER) → MY-SR-TRAINER → ЗАВЕРШЁННЫЕ
-// Требуются включённые плагины my-study-compiler (0.4.0+) и my-sr-trainer (0.1.2+).
+// УЧЁБА: ВИТРИНА ПРОЕКТОВ (СВЯЗКА С MY-STUDY-COMPILER 0.5.0+) → MY-SR-TRAINER → ЗАВЕРШЁННЫЕ
+// Требуются включённые плагины my-study-compiler (0.5.0+) и my-sr-trainer (0.1.2+).
 // =====================================================================
 
 const AREA = "Учёба";
@@ -20,8 +20,31 @@ const KEYS = {
   templateFlag: "шаблон",
   finishedAt: "дата_завершения",
   start: "начало",
-  finishedLegacy: "завершено"
+  finishedLegacy: "завершено",
+  annotations: "схемы_аннотации"
 };
+
+const IMAGE_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "gif",
+  "svg",
+  "bmp",
+  "avif"
+]);
+
+const YAML_MEDIA_KEYS = [
+  "изображение",
+  "изображения",
+  "картинка",
+  "схема",
+  "медиа",
+  "обложка",
+  "image",
+  "media"
+];
 
 const ROOT_STATUS_ACTIVE = "В работе";
 const ROOT_STATUS_DONE = "Завершён";
@@ -124,6 +147,7 @@ const cleanLineText = s => String(s ?? "").replace(/\r?\n|\r/g, " ").replace(/\s
 
 function stripOuterWikiBrackets(str) {
   let s = String(str || "").trim();
+  if (s.startsWith("!")) s = s.slice(1).trim();
   if (s.startsWith("[[")) s = s.slice(2);
   if (s.endsWith("]]")) s = s.slice(0, -2);
   return s;
@@ -243,27 +267,111 @@ const parentPaths = p => flat(p[KEYS.parent]).map(x => {
 }).filter(Boolean);
 
 /**
+ * Извлекает вики-ссылки `[[...]]` из текстовых блоков внутри `схемы_аннотации`.
+ */
+function extractWikiLinksFromAnnotations(fm) {
+  if (!fm || typeof fm !== "object") return [];
+  const rawAnnotations = fm[KEYS.annotations];
+  if (!rawAnnotations || typeof rawAnnotations !== "object" || Array.isArray(rawAnnotations)) {
+    return [];
+  }
+  const out = [];
+  const wikiRegex = /\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]/g;
+  for (const list of Object.values(rawAnnotations)) {
+    if (!Array.isArray(list)) continue;
+    for (const el of list) {
+      if (el && typeof el === "object" && el.type === "text" && typeof el.text === "string") {
+        let match;
+        wikiRegex.lastIndex = 0;
+        while ((match = wikiRegex.exec(el.text)) !== null) {
+          const t = match[1]?.trim();
+          if (t) out.push(t);
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * Извлекает пути всех markdown-заметок, на которые ведут вики-ссылки из тела заметки `sourcePath`
- * (через metadataCache.getFileCache(file)?.links, игнорируя ссылки из YAML).
+ * И из текстовых блоков на интерактивных схемах (`схемы_аннотации`).
  */
 function resolveBodyOutlinkPaths(sourcePath) {
   const sourceFile = app.vault.getAbstractFileByPath(sourcePath);
   if (!sourceFile) return [];
   const cache = app.metadataCache.getFileCache(sourceFile);
-  if (!cache?.links || !cache.links.length) return [];
 
   const out = [];
   const seen = new Set();
-  for (const linkRef of cache.links) {
-    const cleanLink = String(linkRef.link || "").split("#")[0]?.split("|")[0]?.trim();
-    if (!cleanLink) continue;
+
+  const tryAddTarget = rawLink => {
+    const cleanLink = String(rawLink || "").split("#")[0]?.split("|")[0]?.trim();
+    if (!cleanLink) return;
     const dest = app.metadataCache.getFirstLinkpathDest(cleanLink, sourcePath);
     if (dest && dest.extension === "md" && dest.path !== sourcePath && !seen.has(dest.path)) {
       seen.add(dest.path);
       out.push(dest.path);
     }
+  };
+
+  if (cache?.links) {
+    for (const linkRef of cache.links) {
+      tryAddTarget(linkRef.link);
+    }
   }
+
+  for (const annLink of extractWikiLinksFromAnnotations(cache?.frontmatter)) {
+    tryAddTarget(annLink);
+  }
+
   return out;
+}
+
+/**
+ * Проверяет, есть ли у заметки прикреплённые изображения или нарисованные схемы (`схемы_аннотации`).
+ */
+function hasMediaOrAnnotations(path) {
+  const f = app.vault.getAbstractFileByPath(path);
+  if (!f) return false;
+  const cache = app.metadataCache.getFileCache(f);
+  const fm = cache?.frontmatter;
+
+  if (fm && fm[KEYS.annotations] && typeof fm[KEYS.annotations] === "object") {
+    for (const list of Object.values(fm[KEYS.annotations])) {
+      if (Array.isArray(list) && list.length > 0) return true;
+    }
+  }
+
+  if (cache?.embeds) {
+    for (const em of cache.embeds) {
+      const linkPath = stripOuterWikiBrackets(em.link).split("|")[0]?.split("#")[0]?.trim();
+      if (!linkPath) continue;
+      if (/^https?:\/\/\S+/i.test(linkPath)) return true;
+      const dest = app.metadataCache.getFirstLinkpathDest(linkPath, path);
+      if (dest && dest.extension && IMAGE_EXTENSIONS.has(dest.extension.toLowerCase())) {
+        return true;
+      }
+    }
+  }
+
+  if (fm) {
+    for (const k of YAML_MEDIA_KEYS) {
+      for (const rawVal of flat(fm[k])) {
+        const s = String(rawVal || "").trim();
+        if (!s) continue;
+        if (/^https?:\/\/\S+/i.test(s)) return true;
+        const cleaned = stripOuterWikiBrackets(s).split("|")[0]?.split("#")[0]?.trim();
+        if (!cleaned) continue;
+        const dest = app.metadataCache.getFirstLinkpathDest(cleaned, path);
+        if (dest && dest.extension && IMAGE_EXTENSIONS.has(dest.extension.toLowerCase())) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
 }
 
 const HASH_PALETTE = [
@@ -566,6 +674,7 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-sp-open-btn:active { transform: scale(0.98); }",
   ".dashboard-home .dh-sp-plus-btn { flex: 0 0 32px !important; width: 32px !important; min-width: 32px !important; height: 32px !important; min-height: 32px !important; padding: 0 !important; border-radius: 8px !important; font-size: 1rem !important; font-weight: 500 !important; line-height: 1 !important; color: var(--text-normal) !important; background: var(--background-primary) !important; border: 1px solid var(--background-modifier-border) !important; box-shadow: none !important; cursor: pointer; display: inline-flex !important; align-items: center !important; justify-content: center !important; transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease; }",
   ".dashboard-home .dh-sp-plus-btn:hover { color: var(--interactive-accent) !important; border-color: var(--interactive-accent) !important; background: var(--background-modifier-hover) !important; }",
+  ".dashboard-home .dh-sp-plus-btn.is-schema:hover { color: #e5a158 !important; border-color: #e5a158 !important; }",
   ".dashboard-home .dh-sp-plus-btn:active { transform: scale(0.94); }",
   ".dashboard-home .dh-sp-orphans { padding: var(--dh-sp-s4); margin-bottom: var(--dh-sp-s4); background: var(--background-secondary); border-radius: 12px; border: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: var(--dh-sp-s2); }",
   ".dashboard-home .dh-sp-orphan-row { display: flex; gap: var(--dh-sp-s2); align-items: center; padding: var(--dh-sp-s1) 0; border-top: 1px solid var(--background-modifier-border); flex-wrap: wrap; }",
@@ -630,7 +739,7 @@ const openNote = (el, path) => {
 };
 
 // =====================================================================
-// ДАННЫЕ ПРОЕКТОВ И МАТЕРИАЛОВ (СИНХРОНИЗИРОВАНО С MY-STUDY-COMPILER 0.4.0)
+// ДАННЫЕ ПРОЕКТОВ И МАТЕРИАЛОВ (СИНХРОНИЗИРОВАНО С MY-STUDY-COMPILER 0.5.0)
 // =====================================================================
 function getDataset() {
   const cfg = getEffectiveCompilerSettings();
@@ -687,7 +796,7 @@ function getDataset() {
     return false;
   }
 
-  // Транзитивный BFS по исходящим вики-ссылкам из текста (A -> B -> C ...)
+  // Транзитивный BFS по исходящим вики-ссылкам из текста и из текстовых блоков схем
   if (cfg.autoInheritFromLinks) {
     const queue = [...mergedMap.keys()];
     const queuedSet = new Set(queue);
@@ -2008,7 +2117,7 @@ async function renderCardsSection(cardsContainer, activeProjects) {
 }
 
 // =====================================================================
-// ГЛАВНАЯ ФУНКЦИЯ ОТРИСОВКА ВИТРИНЫ УЧЁБЫ
+// ГЛАВНАЯ ФУНКЦИЯ ОТРИСОВКИ ВИТРИНЫ УЧЁБЫ
 // =====================================================================
 async function renderAll() {
   try {
@@ -2052,7 +2161,7 @@ async function renderAll() {
       text: "Конструктор",
       attr: {
         type: "button",
-        title: "Открыть рабочее дерево и граф в плагине Конструктор учебных проектов"
+        title: "Открыть рабочее дерево, граф и схемы в плагине Конструктор учебных проектов"
       }
     });
     openCompilerTopBtn.onclick = () => openStudyCompiler();
@@ -2211,7 +2320,9 @@ async function renderAll() {
         const isEditingDate = uiState.openDeadlineFor === p.file.path;
         const isRenaming = uiState.renamingWorkPath === p.file.path;
         const currentTitle = getDisplayName(p);
-        const matCount = descendants(p.file.path).length;
+        const descPaths = descendants(p.file.path);
+        const matCount = descPaths.length;
+        const schemaNodesCount = [p.file.path, ...descPaths].filter(hasMediaOrAnnotations).length;
         const activeDays = startIso ? Math.max(1, Math.ceil(today.diff(dv.date(startIso), "days").days) + 1) : 1;
 
         const card = grid.createDiv({
@@ -2385,7 +2496,10 @@ async function renderAll() {
         const metaRow = bottomWrap.createDiv({ cls: "dh-sp-meta-row" });
         metaRow.createSpan({
           cls: "dh-sp-meta-text",
-          text: (matCount > 0 ? "Материалов: " + matCount : "Материалов пока нет") + " · в работе " + activeDays + " дн."
+          text:
+            (matCount > 0 ? "Материалов: " + matCount : "Материалов пока нет") +
+            (schemaNodesCount > 0 ? " · Схем: " + schemaNodesCount : "") +
+            " · в работе " + activeDays + " дн."
         });
 
         const tools = metaRow.createDiv({ cls: "dh-sp-card-tools" });
@@ -2489,6 +2603,20 @@ async function renderAll() {
         openInPluginBtn.onclick = e => {
           e.stopPropagation();
           openStudyCompiler({ rootPath: p.file.path });
+        };
+
+        const openSchemaBtn = footerRow.createEl("button", {
+          cls: "dh-sp-plus-btn is-schema",
+          text: "☊",
+          attr: {
+            type: "button",
+            title: "Открыть вкладку «Схема» для этого проекта",
+            "aria-label": "Открыть вкладку «Схема»"
+          }
+        });
+        openSchemaBtn.onclick = e => {
+          e.stopPropagation();
+          openStudyCompiler({ rootPath: p.file.path, schemaNotePath: p.file.path });
         };
 
         const quickAddInPluginBtn = footerRow.createEl("button", {
