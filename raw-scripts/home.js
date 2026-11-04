@@ -1,5 +1,5 @@
 // ========================================================
-// ОБЩИЕ ДАННЫЕ, АВТОСИНХРОНИЗАЦИЯ И УТИЛИТЫ (ГЛАВНАЯ v2.2)
+// ОБЩИЕ ДАННЫЕ, АВТОСИНХРОНИЗАЦИЯ И УТИЛИТЫ (ГЛАВНАЯ v2.3)
 // ========================================================
 const AUTO_SLEEP_MIN_HOURS = 6;   // Сон > 6 часов автоматически отмечает «Режим сна»
 const SOCIAL_LIMIT_MIN = 30;       // Лимит дофаминового скроллинга соцсетей (мин)
@@ -35,14 +35,14 @@ function getFocusPlugin() {
   return app.plugins?.plugins?.["my-focus-tracker"] || window.__myFocusTracker || null;
 }
 
-function openFocusTrackerFromHome() {
+function openFocusTrackerFromHome(initialProject) {
   const plugin = getFocusPlugin();
   if (!plugin || typeof plugin.openFocusModal !== "function") {
     notify("Включи плагин «Фокус-таймер» (my-focus-tracker) в настройках Obsidian.");
     return;
   }
   try {
-    plugin.openFocusModal();
+    plugin.openFocusModal(initialProject ? { initialProject } : {});
   } catch (err) {
     notify("Не удалось открыть таймер фокуса: " + (err instanceof Error ? err.message : String(err)));
   }
@@ -202,6 +202,12 @@ const readingSync = computeTodayReadingProgress();
     p.file.name !== "🧊3D"
   ).length;
 
+  const mediaCount = allPages.filter(p =>
+    !isTemplate(p) &&
+    p.file.path.startsWith("Знания/Медиа/") &&
+    p.file.name !== "🎬Медиатека"
+  ).length;
+
   const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) || 0;
   const pagesDoneToday = Math.max(parseNum(todayNote?.страниц_прочитано) || 0, readingSync.totalPages);
   let englishBadge = "Карточки и книги";
@@ -250,12 +256,12 @@ const readingSync = computeTodayReadingProgress();
       badge: `Заметок: ${notes3D}`
     },
     {
-    title: "Медиатека",
-    file: "Знания/Медиа/🎬Медиатека", // или имя вашей главной заметки медиа
-    icon: "🎬",
-    color: "#e06c75",
-    badge: `${mediaCount} позиций`
-  }
+      title: "Медиатека",
+      file: "Знания/Медиа/🎬Медиатека",
+      icon: "🎬",
+      color: "#e06c75",
+      badge: `${mediaCount} позиций`
+    }
   ];
 
   const root = dv.container.createDiv({ cls: "dh dh-hub-nav", attr: { style: "margin: 6px 0 22px 0;" } });
@@ -396,7 +402,6 @@ const readingSync = computeTodayReadingProgress();
     return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
   }
 
-  // Поля с ручным вводом (Калории считаются через плагин питания, Фокус через плагин таймера)
   const INPUT_METRICS = [
     { label: "Вес", key: "вес_кг", unit: "кг", min: 20, max: 300, digits: 1, placeholder: "—" },
     { label: "Сон", key: "сон_часов", unit: "ч", min: 0, max: 24, digits: 1, placeholder: "—", hint: `авто-режим >${AUTO_SLEEP_MIN_HOURS} ч` },
@@ -639,6 +644,10 @@ const readingSync = computeTodayReadingProgress();
   .dashboard-home .dh-metric-item.is-clickable:hover {
     border-color: var(--interactive-accent);
   }
+  .dashboard-home .dh-metric-item.is-running {
+    border-color: #9c83e8;
+    background: color-mix(in srgb, #9c83e8 10%, var(--background-primary));
+  }
   .dashboard-home .dh-metric-item:focus-within {
     border-color: #599ed6;
   }
@@ -702,6 +711,9 @@ const readingSync = computeTodayReadingProgress();
     font-size: 0.66rem;
     color: var(--text-faint);
     line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .dashboard-home .dh-metric-error {
     font-size: 0.7rem;
@@ -777,6 +789,29 @@ const readingSync = computeTodayReadingProgress();
     align-items: center;
     gap: 7px;
     min-width: 0;
+  }
+  .dashboard-home .dh-plan-item-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .dashboard-home .dh-plan-focus-btn {
+    height: 22px !important;
+    min-height: 22px !important;
+    padding: 0 6px !important;
+    border-radius: 5px !important;
+    font-size: 0.68rem !important;
+    font-weight: 600 !important;
+    font-variant-numeric: tabular-nums;
+    background: color-mix(in srgb, #9c83e8 14%, var(--background-primary)) !important;
+    border: 1px solid color-mix(in srgb, #9c83e8 35%, var(--background-modifier-border)) !important;
+    color: #9c83e8 !important;
+    cursor: pointer;
+    box-shadow: none !important;
+  }
+  .dashboard-home .dh-plan-focus-btn:hover {
+    background: color-mix(in srgb, #9c83e8 24%, var(--background-primary)) !important;
   }
   .dashboard-home .dh-plan-check {
     width: 16px;
@@ -940,6 +975,7 @@ const readingSync = computeTodayReadingProgress();
     });
   } else {
     const file = app.vault.getAbstractFileByPath(note.file.path);
+    const fmCache = file ? (app.metadataCache.getFileCache(file)?.frontmatter || {}) : {};
     const manualOverrides = getManualHabitOverrides();
 
     const saveField = (key, value) => enqueueFrontMatterSave(file, fm => {
@@ -957,6 +993,10 @@ const readingSync = computeTodayReadingProgress();
     const effectivePages = readingSync.autoBookPages > 0 && (savedPages === null || readingSync.totalPages > savedPages)
       ? readingSync.totalPages
       : savedPages;
+
+    const focusByGoalsMap = (fmCache.фокус_по_целям && typeof fmCache.фокус_по_целям === "object")
+      ? fmCache.фокус_по_целям
+      : {};
 
     const states = new Map(HABITS.map(h => [h.key, typeof note[h.key] === "boolean" ? note[h.key] : null]));
     const pendingPatch = {};
@@ -1006,11 +1046,19 @@ const readingSync = computeTodayReadingProgress();
     }
 
     const rawGoals = Array.isArray(note.цели_дня) ? note.цели_дня : [];
-    const goalsState = rawGoals.map(g => ({
-      text: String(g?.text ?? "Задача").trim(),
-      category: g?.category ? String(g.category).trim() : "",
-      progress: Math.max(0, Math.min(100, Number(g?.progress) || 0))
-    }));
+    const goalsState = rawGoals.map(g => {
+      const text = String(g?.text ?? "Задача").trim();
+      const focusMin = Math.max(
+        Number(g?.focus_minutes) || 0,
+        Number(focusByGoalsMap[text]) || 0
+      );
+      return {
+        text,
+        category: g?.category ? String(g.category).trim() : "",
+        progress: Math.max(0, Math.min(100, Number(g?.progress) || 0)),
+        focusMinutes: Math.round(focusMin)
+      };
+    });
 
     const calcPlanSummary = () => {
       const totalG = goalsState.length;
@@ -1145,7 +1193,6 @@ const readingSync = computeTodayReadingProgress();
     const metricsGrid = body.createDiv({ cls: "dh-metrics-grid" });
     const inputRefs = new Map();
 
-    // Функция отрисовки обычного поля ввода (Вес, Сон, Чтение)
     const renderInputMetricCard = (m) => {
       const card = metricsGrid.createEl("label", { cls: "dh-metric-item" });
       const top = card.createDiv({ cls: "dh-metric-top" });
@@ -1314,7 +1361,6 @@ const readingSync = computeTodayReadingProgress();
       inputRefs.set(m.key, input);
     };
 
-    // Функция отрисовки времени (Отбой и Подъём с автоподсчётом сна)
     const renderTimeMetricCard = (label, key, placeholder, hint) => {
       const card = metricsGrid.createEl("label", { cls: "dh-metric-item" });
       const top = card.createDiv({ cls: "dh-metric-top" });
@@ -1520,43 +1566,91 @@ const readingSync = computeTodayReadingProgress();
     renderInputMetricCard(INPUT_METRICS[2]); // Чтение
 
     // РЯД 2: Фокус (my-focus-tracker), Отбой, Подъём, Соцсети (мин), Шаги
-    // Карточка «Фокус»
     {
+      const focusPlugin = getFocusPlugin();
+      const activeSession = focusPlugin?.session;
+      const isRunningNow = Boolean(activeSession && activeSession.isRunning);
+
       const focusCard = metricsGrid.createDiv({
-        cls: "dh-metric-item is-clickable",
+        cls: "dh-metric-item is-clickable" + (isRunningNow ? " is-running" : ""),
         attr: {
           role: "button",
           tabindex: "0",
-          title: "Нажми, чтобы открыть таймер глубокой работы (my-focus-tracker)"
+          title: "Нажми, чтобы открыть таймер глубокой работы и выбрать цель дня"
         }
       });
       const top = focusCard.createDiv({ cls: "dh-metric-top" });
       top.createSpan({ cls: "dh-metric-label", text: "Фокус" });
-      top.createSpan({
+      const statusBadgeEl = top.createSpan({
         cls: "dh-metric-status",
-        text: "⏱️ ＋",
+        text: isRunningNow ? "🔥 Идёт" : "⏱️ ＋",
         attr: { style: "color: #9c83e8;" }
       });
 
       const control = focusCard.createDiv({ cls: "dh-metric-control" });
-      control.createSpan({
+      const valSpan = control.createSpan({
         cls: "dh-metric-readonly-val",
         text: savedFocus !== null ? String(savedFocus).replace(".", ",") : "—"
       });
-      control.createSpan({
+      const unitSpan = control.createSpan({
         cls: "dh-metric-unit",
         text: "ч"
       });
 
-      const focusPlugin = getFocusPlugin();
-      const activeSession = focusPlugin?.session;
-      let focusHint = "нажми для запуска таймера";
-      if (activeSession && activeSession.isRunning) {
-        focusHint = `идёт: ${activeSession.project}`;
+      const goalEntries = Object.entries(focusByGoalsMap)
+        .map(([k, v]) => [k, Number(v) || 0])
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1]);
+
+      let defaultHint = "выбрать цель дня и запустить";
+      if (goalEntries.length > 0) {
+        defaultHint = goalEntries.slice(0, 2).map(([k, v]) => `${k}: ${v}м`).join(" · ");
       } else if (savedFocus !== null && savedFocus > 0) {
-        focusHint = "сессии записаны";
+        defaultHint = "сессии записаны";
       }
-      focusCard.createDiv({ cls: "dh-metric-subhint", text: focusHint });
+
+      const hintEl = focusCard.createDiv({
+        cls: "dh-metric-subhint",
+        text: defaultHint,
+        attr: { title: goalEntries.map(([k, v]) => `${k}: ${v} мин`).join(", ") }
+      });
+
+      // Живое обновление карточки на главной, если сейчас запущен таймер или секундомер
+      if (window.__dhHomeFocusTicker) {
+        window.clearInterval(window.__dhHomeFocusTicker);
+        delete window.__dhHomeFocusTicker;
+      }
+
+      const paintRunningState = () => {
+        const curSession = getFocusPlugin()?.session;
+        if (!curSession || !curSession.isRunning) return;
+        if (curSession.endAt !== null) {
+          const remSec = Math.max(0, Math.ceil((curSession.endAt - Date.now()) / 1000));
+          const mm = String(Math.floor(remSec / 60)).padStart(2, "0");
+          const ss = String(remSec % 60).padStart(2, "0");
+          valSpan.setText(`${mm}:${ss}`);
+          unitSpan.setText("ост.");
+        } else {
+          const elSec = Math.max(0, Math.floor((Date.now() - curSession.startAt) / 1000));
+          const mm = String(Math.floor(elSec / 60)).padStart(2, "0");
+          const ss = String(elSec % 60).padStart(2, "0");
+          valSpan.setText(`${mm}:${ss}`);
+          unitSpan.setText("сек.");
+        }
+        statusBadgeEl.setText("🔥 Идёт");
+        hintEl.setText(`Цель: ${curSession.project}`);
+      };
+
+      if (isRunningNow) {
+        paintRunningState();
+        window.__dhHomeFocusTicker = window.setInterval(() => {
+          if (!focusCard.isConnected) {
+            window.clearInterval(window.__dhHomeFocusTicker);
+            return;
+          }
+          paintRunningState();
+        }, 1000);
+      }
 
       focusCard.onclick = () => openFocusTrackerFromHome();
       focusCard.onkeydown = e => {
@@ -1607,7 +1701,22 @@ const readingSync = computeTodayReadingProgress();
           cls: "dh-plan-text",
           text: goal.category ? `${goal.text} (${goal.category})` : goal.text
         });
-        const pctSpan = item.createSpan({ cls: "dh-plan-pct" });
+
+        const right = item.createDiv({ cls: "dh-plan-item-right" });
+        const focusBtn = right.createEl("button", {
+          cls: "dh-plan-focus-btn",
+          text: goal.focusMinutes > 0 ? `⏱️ ${goal.focusMinutes}м` : "⏱️",
+          attr: {
+            type: "button",
+            title: `Запустить фокус-сессию по цели «${goal.text}»`
+          }
+        });
+        focusBtn.onclick = e => {
+          e.stopPropagation();
+          openFocusTrackerFromHome(goal.text);
+        };
+
+        const pctSpan = right.createSpan({ cls: "dh-plan-pct" });
 
         const paintGoalItem = () => {
           const isDone = goal.progress >= 100;
@@ -1753,7 +1862,6 @@ const readingSync = computeTodayReadingProgress();
       attr: { style: "font-weight: 600; color: var(--text-normal);" }
     });
 
-    // Плашка глубокой работы / фокуса
     if (savedFocus !== null && savedFocus > 0) {
       const fPill = trLeft.createEl("button", {
         cls: "dh-training-pill",
@@ -1799,221 +1907,220 @@ const readingSync = computeTodayReadingProgress();
 
 // ========================================================
 // 3. БЛОК «НЕДАВНО В РАБОТЕ» (РАСКРЫВАЮЩИЙСЯ СПИСОК)
-// Показывает любые недавние заметки хранилища, не только с заполненными свойствами.
 // ========================================================
 {
-const LIMIT = 8;
-const SORT_BY = "mtime"; // "mtime" — по изменению, "ctime" — по созданию
-const EXCLUDE_FOLDERS = ["Ежедневник", "Шаблоны"];
-const EXCLUDE_NAMES = ["True Тренировки"];
-const NO_DIR = "Без направления";
+  const LIMIT = 8;
+  const SORT_BY = "mtime";
+  const EXCLUDE_FOLDERS = ["Ежедневник", "Шаблоны"];
+  const EXCLUDE_NAMES = ["True Тренировки"];
+  const NO_DIR = "Без направления";
 
-const DIRECTION_COLORS = {
-"Учёба": "#e5a158",
-"Любовь": "#e06c75",
-"Работа": "#599ed6",
-"3D": "#9c83e8",
-"Проекты": "#4aab80",
-"Досуг": "#c5ad55"
-};
+  const DIRECTION_COLORS = {
+    "Учёба": "#e5a158",
+    "Любовь": "#e06c75",
+    "Работа": "#599ed6",
+    "3D": "#9c83e8",
+    "Проекты": "#4aab80",
+    "Досуг": "#c5ad55"
+  };
 
-const TYPE_ICONS = {
-"Проект": "🚀",
-"Термин": "📖",
-"Алгоритм": "⚙️",
-"Заметка": "📝",
-"Источник": "📚"
-};
+  const TYPE_ICONS = {
+    "Проект": "🚀",
+    "Термин": "📖",
+    "Алгоритм": "⚙️",
+    "Заметка": "📝",
+    "Источник": "📚"
+  };
 
-if (!window.__dhRecentWorkState) {
-window.__dhRecentWorkState = {
-isOpen: false,
-selectedDirection: "Все"
-};
-}
-const uiState = window.__dhRecentWorkState;
+  if (!window.__dhRecentWorkState) {
+    window.__dhRecentWorkState = {
+      isOpen: false,
+      selectedDirection: "Все"
+    };
+  }
+  const uiState = window.__dhRecentWorkState;
 
-const stampOf = p => {
-try { return p.file[SORT_BY]?.toMillis?.() ?? 0; } catch { return 0; }
-};
-const dirOf = p => String(p.направление ?? "").trim() || NO_DIR;
-const isExcluded = p =>
-p.file.path === dv.currentFilePath ||
-EXCLUDE_NAMES.includes(p.file.name) ||
-EXCLUDE_FOLDERS.some(f => p.file.path.startsWith(f + "/"));
+  const stampOf = p => {
+    try { return p.file[SORT_BY]?.toMillis?.() ?? 0; } catch { return 0; }
+  };
+  const dirOf = p => String(p.направление ?? "").trim() || NO_DIR;
+  const isExcluded = p =>
+    p.file.path === dv.currentFilePath ||
+    EXCLUDE_NAMES.includes(p.file.name) ||
+    EXCLUDE_FOLDERS.some(f => p.file.path.startsWith(f + "/"));
 
-const pages = dv.pages().array()
-.filter(p => !isExcluded(p))
-.sort((a, b) => stampOf(b) - stampOf(a));
+  const pages = dv.pages().array()
+    .filter(p => !isExcluded(p))
+    .sort((a, b) => stampOf(b) - stampOf(a));
 
-const dirSet = new Set(pages.map(dirOf));
-const directions = ["Все", ...[...dirSet].filter(d => d !== NO_DIR), ...(dirSet.has(NO_DIR) ? [NO_DIR] : [])];
-if (!directions.includes(uiState.selectedDirection)) {
-uiState.selectedDirection = "Все";
-}
+  const dirSet = new Set(pages.map(dirOf));
+  const directions = ["Все", ...[...dirSet].filter(d => d !== NO_DIR), ...(dirSet.has(NO_DIR) ? [NO_DIR] : [])];
+  if (!directions.includes(uiState.selectedDirection)) {
+    uiState.selectedDirection = "Все";
+  }
 
-const root = dv.container.createDiv({ cls: "dh dh-recent-work", attr: { style: "margin: 15px 0 25px 0;" } });
+  const root = dv.container.createDiv({ cls: "dh dh-recent-work", attr: { style: "margin: 15px 0 25px 0;" } });
 
-const styleEl = root.createEl("style");
-styleEl.textContent = `
-.dashboard-home .dh-recent-work details.dh-recent-details > summary {
-list-style: none;
-display: flex;
-justify-content: space-between;
-align-items: center;
-gap: 10px;
-cursor: pointer;
-user-select: none;
-}
-.dashboard-home .dh-recent-work details.dh-recent-details > summary::-webkit-details-marker {
-display: none;
-}
-.dashboard-home .dh-recent-work details.dh-recent-details[open] > summary {
-margin-bottom: 14px;
-padding-bottom: 10px;
-border-bottom: 1px solid var(--background-modifier-border);
-}
-`;
+  const styleEl = root.createEl("style");
+  styleEl.textContent = `
+  .dashboard-home .dh-recent-work details.dh-recent-details > summary {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .dashboard-home .dh-recent-work details.dh-recent-details > summary::-webkit-details-marker {
+    display: none;
+  }
+  .dashboard-home .dh-recent-work details.dh-recent-details[open] > summary {
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--background-modifier-border);
+  }
+  `;
 
-const details = root.createEl("details", {
-cls: "dh-panel dh-recent-details",
-attr: {
-style: "padding: 14px 16px; background: var(--background-secondary); border-radius: 8px; border: 1px solid var(--background-modifier-border);"
-}
-});
-details.open = Boolean(uiState.isOpen);
+  const details = root.createEl("details", {
+    cls: "dh-panel dh-recent-details",
+    attr: {
+      style: "padding: 14px 16px; background: var(--background-secondary); border-radius: 8px; border: 1px solid var(--background-modifier-border);"
+    }
+  });
+  details.open = Boolean(uiState.isOpen);
 
-const summary = details.createEl("summary");
-summary.onmousedown = e => e.preventDefault();
+  const summary = details.createEl("summary");
+  summary.onmousedown = e => e.preventDefault();
 
-summary.createDiv({
-text: "Недавно в работе",
-attr: { style: "font-size: 1.05rem; font-weight: 600; color: var(--text-normal);" }
-});
+  summary.createDiv({
+    text: "Недавно в работе",
+    attr: { style: "font-size: 1.05rem; font-weight: 600; color: var(--text-normal);" }
+  });
 
-const toggleHint = summary.createSpan({
-text: details.open ? "Свернуть ▲" : "Развернуть ▾",
-attr: { style: "font-size: 0.76rem; font-weight: 600; color: var(--text-muted);" }
-});
+  const toggleHint = summary.createSpan({
+    text: details.open ? "Свернуть ▲" : "Развернуть ▾",
+    attr: { style: "font-size: 0.76rem; font-weight: 600; color: var(--text-muted);" }
+  });
 
-const contentWrap = details.createDiv();
-const filterChips = contentWrap.createDiv({
-cls: "dh-chips",
-attr: { style: "display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 12px;" }
-});
-const listContainer = contentWrap.createDiv({ attr: { style: "margin-top: 5px;" } });
+  const contentWrap = details.createDiv();
+  const filterChips = contentWrap.createDiv({
+    cls: "dh-chips",
+    attr: { style: "display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 12px;" }
+  });
+  const listContainer = contentWrap.createDiv({ attr: { style: "margin-top: 5px;" } });
 
-let isRendered = false;
+  let isRendered = false;
 
-function renderList() {
-isRendered = true;
-filterChips.empty();
-directions.forEach(dir => {
-const isAct = dir === uiState.selectedDirection;
-const chip = filterChips.createEl("button", {
-cls: `dh-chip ${isAct ? "is-active" : ""}`,
-text: dir,
-attr: {
-type: "button",
-style: "font-size: 0.75rem; padding: 2px 10px; border-radius: 12px; cursor: pointer; transition: all 0.15s ease;"
-}
-});
-chip.onclick = () => {
-uiState.selectedDirection = dir;
-renderList();
-};
-});
+  function renderList() {
+    isRendered = true;
+    filterChips.empty();
+    directions.forEach(dir => {
+      const isAct = dir === uiState.selectedDirection;
+      const chip = filterChips.createEl("button", {
+        cls: `dh-chip ${isAct ? "is-active" : ""}`,
+        text: dir,
+        attr: {
+          type: "button",
+          style: "font-size: 0.75rem; padding: 2px 10px; border-radius: 12px; cursor: pointer; transition: all 0.15s ease;"
+        }
+      });
+      chip.onclick = () => {
+        uiState.selectedDirection = dir;
+        renderList();
+      };
+    });
 
-const filtered = uiState.selectedDirection === "Все"
-? pages.slice(0, LIMIT)
-: pages.filter(p => dirOf(p) === uiState.selectedDirection).slice(0, LIMIT);
+    const filtered = uiState.selectedDirection === "Все"
+      ? pages.slice(0, LIMIT)
+      : pages.filter(p => dirOf(p) === uiState.selectedDirection).slice(0, LIMIT);
 
-listContainer.empty();
+    listContainer.empty();
 
-if (!filtered.length) {
-listContainer.createDiv({
-text: "В этой категории пока нет недавних заметок.",
-attr: { style: "font-size: 0.85rem; color: var(--text-muted); padding: 12px; text-align: center;" }
-});
-return;
-}
+    if (!filtered.length) {
+      listContainer.createDiv({
+        text: "В этой категории пока нет недавних заметок.",
+        attr: { style: "font-size: 0.85rem; color: var(--text-muted); padding: 12px; text-align: center;" }
+      });
+      return;
+    }
 
-const tableEl = listContainer.createEl("table", {
-cls: "dh-table",
-attr: { style: "width: 100%; border-collapse: collapse; font-size: 0.86rem;" }
-});
+    const tableEl = listContainer.createEl("table", {
+      cls: "dh-table",
+      attr: { style: "width: 100%; border-collapse: collapse; font-size: 0.86rem;" }
+    });
 
-const thead = tableEl.createEl("thead");
-const trH = thead.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border); text-align: left; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;" } });
-trH.createEl("th", { text: "Заметка", attr: { style: "padding: 8px 6px;" } });
-trH.createEl("th", { text: "Направление", attr: { style: "padding: 8px 6px; width: 140px;" } });
-trH.createEl("th", { text: "Тип", attr: { style: "padding: 8px 6px; width: 120px;" } });
-trH.createEl("th", { text: SORT_BY === "ctime" ? "Создана" : "Изменена", attr: { style: "padding: 8px 6px; width: 130px; text-align: right;" } });
+    const thead = tableEl.createEl("thead");
+    const trH = thead.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border); text-align: left; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;" } });
+    trH.createEl("th", { text: "Заметка", attr: { style: "padding: 8px 6px;" } });
+    trH.createEl("th", { text: "Направление", attr: { style: "padding: 8px 6px; width: 140px;" } });
+    trH.createEl("th", { text: "Тип", attr: { style: "padding: 8px 6px; width: 120px;" } });
+    trH.createEl("th", { text: SORT_BY === "ctime" ? "Создана" : "Изменена", attr: { style: "padding: 8px 6px; width: 130px; text-align: right;" } });
 
-const tbody = tableEl.createEl("tbody");
+    const tbody = tableEl.createEl("tbody");
 
-const todayStr = moment().format("YYYY-MM-DD");
-const yesterdayStr = moment().subtract(1, "days").format("YYYY-MM-DD");
+    const todayStr = moment().format("YYYY-MM-DD");
+    const yesterdayStr = moment().subtract(1, "days").format("YYYY-MM-DD");
 
-filtered.forEach(p => {
-const tr = tbody.createEl("tr", {
-attr: {
-style: "border-bottom: 1px solid var(--background-modifier-border); transition: background 0.1s ease; cursor: pointer;"
-}
-});
+    filtered.forEach(p => {
+      const tr = tbody.createEl("tr", {
+        attr: {
+          style: "border-bottom: 1px solid var(--background-modifier-border); transition: background 0.1s ease; cursor: pointer;"
+        }
+      });
 
-tr.onmouseenter = () => { tr.style.background = "var(--background-modifier-hover)"; };
-tr.onmouseleave = () => { tr.style.background = "transparent"; };
+      tr.onmouseenter = () => { tr.style.background = "var(--background-modifier-hover)"; };
+      tr.onmouseleave = () => { tr.style.background = "transparent"; };
 
-const tdName = tr.createEl("td", { attr: { style: "padding: 8px 6px; font-weight: 500;" } });
-tdName.createEl("a", {
-cls: "internal-link",
-text: p.file.name,
-attr: { href: p.file.path, style: "color: var(--text-accent); text-decoration: none;" }
-});
-tr.onclick = (e) => {
-e.preventDefault();
-app.workspace.openLinkText(p.file.path, dv.currentFilePath, e.ctrlKey || e.metaKey);
-};
+      const tdName = tr.createEl("td", { attr: { style: "padding: 8px 6px; font-weight: 500;" } });
+      tdName.createEl("a", {
+        cls: "internal-link",
+        text: p.file.name,
+        attr: { href: p.file.path, style: "color: var(--text-accent); text-decoration: none;" }
+      });
+      tr.onclick = (e) => {
+        e.preventDefault();
+        app.workspace.openLinkText(p.file.path, dv.currentFilePath, e.ctrlKey || e.metaKey);
+      };
 
-const tdDir = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
-const dirName = dirOf(p);
-if (dirName === NO_DIR) {
-tdDir.createSpan({
-text: "—",
-attr: { style: "color: var(--text-faint); font-size: 0.8rem;" }
-});
-} else {
-const dColor = DIRECTION_COLORS[dirName] || "var(--interactive-accent)";
-tdDir.createSpan({
-text: dirName,
-attr: {
-style: `font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: ${dColor}18; color: ${dColor}; border: 1px solid ${dColor}33; display: inline-block;`
-}
-});
-}
+      const tdDir = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
+      const dirName = dirOf(p);
+      if (dirName === NO_DIR) {
+        tdDir.createSpan({
+          text: "—",
+          attr: { style: "color: var(--text-faint); font-size: 0.8rem;" }
+        });
+      } else {
+        const dColor = DIRECTION_COLORS[dirName] || "var(--interactive-accent)";
+        tdDir.createSpan({
+          text: dirName,
+          attr: {
+            style: `font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: ${dColor}18; color: ${dColor}; border: 1px solid ${dColor}33; display: inline-block;`
+          }
+        });
+      }
 
-const tdType = tr.createEl("td", { attr: { style: "padding: 8px 6px; color: var(--text-muted); font-size: 0.8rem;" } });
-const typeName = p.тип ? String(p.тип).trim() : "—";
-const typeIcon = TYPE_ICONS[typeName] || "📄";
-tdType.setText(typeName !== "—" ? `${typeIcon} ${typeName}` : "—");
+      const tdType = tr.createEl("td", { attr: { style: "padding: 8px 6px; color: var(--text-muted); font-size: 0.8rem;" } });
+      const typeName = p.тип ? String(p.тип).trim() : "—";
+      const typeIcon = TYPE_ICONS[typeName] || "📄";
+      tdType.setText(typeName !== "—" ? `${typeIcon} ${typeName}` : "—");
 
-const tdTime = tr.createEl("td", { attr: { style: "padding: 8px 6px; text-align: right; color: var(--text-muted); font-size: 0.78rem;" } });
-const m = moment(stampOf(p));
-const mDay = m.format("YYYY-MM-DD");
-let timeLabel = m.format("DD.MM HH:mm");
-if (mDay === todayStr) timeLabel = `Сегодня, ${m.format("HH:mm")}`;
-else if (mDay === yesterdayStr) timeLabel = `Вчера, ${m.format("HH:mm")}`;
+      const tdTime = tr.createEl("td", { attr: { style: "padding: 8px 6px; text-align: right; color: var(--text-muted); font-size: 0.78rem;" } });
+      const m = moment(stampOf(p));
+      const mDay = m.format("YYYY-MM-DD");
+      let timeLabel = m.format("DD.MM HH:mm");
+      if (mDay === todayStr) timeLabel = `Сегодня, ${m.format("HH:mm")}`;
+      else if (mDay === yesterdayStr) timeLabel = `Вчера, ${m.format("HH:mm")}`;
 
-tdTime.setText(timeLabel);
-});
-}
+      tdTime.setText(timeLabel);
+    });
+  }
 
-details.ontoggle = () => {
-uiState.isOpen = details.open;
-toggleHint.setText(details.open ? "Свернуть ▲" : "Развернуть ▾");
-if (details.open && !isRendered) renderList();
-};
+  details.ontoggle = () => {
+    uiState.isOpen = details.open;
+    toggleHint.setText(details.open ? "Свернуть ▲" : "Развернуть ▾");
+    if (details.open && !isRendered) renderList();
+  };
 
-if (details.open) renderList();
+  if (details.open) renderList();
 }

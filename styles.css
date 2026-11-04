@@ -185,6 +185,10 @@
   .dashboard-home .dh-metric-item.is-clickable:hover {
     border-color: var(--interactive-accent);
   }
+  .dashboard-home .dh-metric-item.is-running {
+    border-color: #9c83e8;
+    background: color-mix(in srgb, #9c83e8 10%, var(--background-primary));
+  }
   .dashboard-home .dh-metric-item:focus-within {
     border-color: #599ed6;
   }
@@ -248,6 +252,9 @@
     font-size: 0.66rem;
     color: var(--text-faint);
     line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .dashboard-home .dh-metric-error {
     font-size: 0.7rem;
@@ -323,6 +330,29 @@
     align-items: center;
     gap: 7px;
     min-width: 0;
+  }
+  .dashboard-home .dh-plan-item-right {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .dashboard-home .dh-plan-focus-btn {
+    height: 22px !important;
+    min-height: 22px !important;
+    padding: 0 6px !important;
+    border-radius: 5px !important;
+    font-size: 0.68rem !important;
+    font-weight: 600 !important;
+    font-variant-numeric: tabular-nums;
+    background: color-mix(in srgb, #9c83e8 14%, var(--background-primary)) !important;
+    border: 1px solid color-mix(in srgb, #9c83e8 35%, var(--background-modifier-border)) !important;
+    color: #9c83e8 !important;
+    cursor: pointer;
+    box-shadow: none !important;
+  }
+  .dashboard-home .dh-plan-focus-btn:hover {
+    background: color-mix(in srgb, #9c83e8 24%, var(--background-primary)) !important;
   }
   .dashboard-home .dh-plan-check {
     width: 16px;
@@ -435,22 +465,22 @@
 
 /* --- Module: home --- */
 .dashboard-home .dh-recent-work details.dh-recent-details > summary {
-list-style: none;
-display: flex;
-justify-content: space-between;
-align-items: center;
-gap: 10px;
-cursor: pointer;
-user-select: none;
-}
-.dashboard-home .dh-recent-work details.dh-recent-details > summary::-webkit-details-marker {
-display: none;
-}
-.dashboard-home .dh-recent-work details.dh-recent-details[open] > summary {
-margin-bottom: 14px;
-padding-bottom: 10px;
-border-bottom: 1px solid var(--background-modifier-border);
-}
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .dashboard-home .dh-recent-work details.dh-recent-details > summary::-webkit-details-marker {
+    display: none;
+  }
+  .dashboard-home .dh-recent-work details.dh-recent-details[open] > summary {
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--background-modifier-border);
+  }
 
 /* --- Module: diary --- */
 .dh-calendar-v2 .dhc-panel {
