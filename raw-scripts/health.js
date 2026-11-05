@@ -650,6 +650,9 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
   }
 }
 
+// Файл: raw-scripts/health.js
+// Заменяет: функцию renderWorkoutsHub() и вызовы в конце файла
+
 // ========================================================
 // МОДУЛЬ 2: ВИТРИНА ТРЕНИРОВОК (MY-WORKOUT-COMPANION + РЕКОРДЫ И ИСТОРИЯ)
 // ========================================================
@@ -657,6 +660,7 @@ async function renderWorkoutsHub() {
   const KNOWLEDGE_FOLDER = "Знания";
   const SOURCE = '"' + KNOWLEDGE_FOLDER + '"';
   const HISTORY_LIMIT = 20;
+  const MIN_VALID_DATE_ISO = "2000-01-01";
 
   const BASE_EXERCISES = [
     { name: "Выходы силой", unit: "повт.", field: "повторы" },
@@ -679,11 +683,11 @@ async function renderWorkoutsHub() {
     { name: "Уголок на паралетсах", unit: "с", field: "секунды" }
   ];
 
-  const SET_LINE_REGEX = /-\s*\(упражнение::\s*([^)]+)\)\s*\((повторы|секунды)::\s*(\d+(?:[.,]\d+)?)\)\s*\(доп_вес_кг::\s*([\d.,]+)\)\s*\(вариант::\s*([^)]+)\)/;
+  const SET_LINE_REGEX = /-\s*\(упражнение::\s*([^)]+)\)\s*\((повторы|секунды)::\s*(\d+(?:[.,]\d+)?)\)\s*(?:\(доп_вес_кг::\s*([^)]*)\)\s*)?(?:\(вариант::\s*([^)]*)\))?/;
 
   const notify = msg => { try { new Notice(msg); } catch { console.log(msg); } };
   const text = v => typeof v === "string" ? v.trim() : "";
-  const empty = v => v == null || v === "";
+  const empty = v => v == null || (typeof v === "string" && v.trim() === "");
 
   function openWorkoutCompanion(options = {}) {
     const plugin = getWorkoutPlugin();
@@ -721,10 +725,56 @@ async function renderWorkoutsHub() {
   function number(v) {
     if (typeof v === "number") return Number.isFinite(v) ? v : null;
     if (typeof v !== "string") return null;
-    const s = v.trim().replace(",", ".");
+    const s = v.trim().replace(/^\+/, "").replace(/\s*кг$/i, "").replace(",", ".");
     if (!s) return null;
     const num = Number(s);
     return Number.isFinite(num) ? num : null;
+  }
+
+  const sum = a => a.reduce((x, y) => x + y, 0);
+  const r2 = v => Math.round(v * 100) / 100;
+  const fmt = v => v == null ? "—" : r2(v).toLocaleString("ru-RU");
+
+  /**
+   * Единая функция нормализации варианта упражнения и нагрузки для «Рекордов» и «Истории подходов».
+   * Различает:
+   * - loadType === "bw" (свой вес, доп_вес_кг === 0)
+   * - loadType === "weighted" (доп. вес > 0, нормализован через r2)
+   * - loadType === "unspec" (пустое значение / вес не указан, не приравнивается к 0)
+   */
+  function buildExerciseVariantSpec(rawName, rawVariant, rawWeight) {
+    const cleanName = text(rawName);
+    if (!cleanName) return null;
+    const cleanVariant = text(rawVariant) || "Основной";
+
+    let loadType = "unspec";
+    let weightVal = null;
+
+    if (!empty(rawWeight)) {
+      const parsedW = number(rawWeight);
+      if (parsedW === null || parsedW < 0) return null;
+      const normW = r2(parsedW);
+      if (normW === 0) {
+        loadType = "bw";
+        weightVal = 0;
+      } else {
+        loadType = "weighted";
+        weightVal = normW;
+      }
+    }
+
+    const weightToken = loadType === "weighted" ? String(weightVal) : loadType;
+    const key = `${cleanName}|${cleanVariant}|${loadType}|${weightToken}`;
+    const loadSortOrder = loadType === "bw" ? 0 : loadType === "weighted" ? 1 : 2;
+
+    return {
+      key,
+      name: cleanName,
+      variant: cleanVariant,
+      loadType,
+      weight: weightVal,
+      loadSortOrder
+    };
   }
 
   function asDate(v) {
@@ -747,22 +797,29 @@ async function renderWorkoutsHub() {
     return Number.isInteger(hh) && hh >= 0 && hh <= 23 && Number.isInteger(mm) && mm >= 0 && mm <= 59;
   }
 
-  const sum = a => a.reduce((x, y) => x + y, 0);
-  const r2 = v => Math.round(v * 100) / 100;
-  const fmt = v => v == null ? "—" : r2(v).toLocaleString("ru-RU");
-
-  function renderLoadBadge(container, w) {
-    if (w === 0) {
+  function renderLoadBadge(container, loadType, w) {
+    if (loadType === "bw") {
       container.createSpan({
         text: "Свой вес",
         attr: { style: "font-size:0.75rem; padding:1px 6px; border-radius:4px; background:var(--background-modifier-border); color:var(--text-muted);" }
       });
-    } else {
+    } else if (loadType === "weighted" && w != null) {
       container.createSpan({
         text: "+" + fmt(w) + " кг",
         attr: { style: "font-size:0.75rem; padding:1px 6px; border-radius:4px; background:#e5a15822; color:#e5a158; font-weight:600; border:1px solid #e5a15844;" }
       });
+    } else {
+      container.createSpan({
+        text: "Не указано",
+        attr: { style: "font-size:0.75rem; padding:1px 6px; border-radius:4px; background:var(--background-primary); color:var(--text-faint); border:1px dashed var(--background-modifier-border);" }
+      });
     }
+  }
+
+  function formatLoadTextForSummary(loadType, w) {
+    if (loadType === "bw") return "(свой вес)";
+    if (loadType === "weighted" && w != null) return "(+" + fmt(w) + " кг)";
+    return "(вес не указан)";
   }
 
   function renderDeltaSpan(container, v, unit = "повт.") {
@@ -814,20 +871,31 @@ async function renderWorkoutsHub() {
     content.split(/\r?\n/).forEach(line => {
       const m = line.match(SET_LINE_REGEX);
       if (!m) return;
-      const name = m[1].trim();
-      const field = m[2].trim();
-      const val = Number(m[3].replace(",", "."));
-      const weight = Number(m[4].replace(",", "."));
-      const variant = m[5].trim() || "Основной";
-      if (Number.isFinite(val) && val > 0 && Number.isFinite(weight) && weight >= 0) {
-        sets.push({ name, field, reps: val, weight, variant });
-      }
+      const name = text(m[1]);
+      const field = text(m[2]) === "секунды" ? "секунды" : "повторы";
+      const val = number(m[3]);
+      if (!name || val === null || val <= 0) return;
+
+      const spec = buildExerciseVariantSpec(name, m[5], m[4]);
+      if (!spec) return;
+
+      sets.push({
+        key: spec.key,
+        name: spec.name,
+        variant: spec.variant,
+        loadType: spec.loadType,
+        weight: spec.weight,
+        loadSortOrder: spec.loadSortOrder,
+        field,
+        reps: val
+      });
     });
     return sets;
   }
 
   const today = dv.date("today").startOf("day");
   const todayISO = today.toISODate();
+  const minValidDate = dv.date(MIN_VALID_DATE_ISO).startOf("day");
   const root = dv.container.createDiv({ cls: "dh dh-trainings-hub", attr: { style: "margin: 20px 0 25px 0;" } });
 
   const todayDirectPath = KNOWLEDGE_FOLDER + "/Тренировка " + todayISO + ".md";
@@ -931,8 +999,13 @@ async function renderWorkoutsHub() {
     });
     todaySets.forEach((s, idx) => {
       const exMeta = catalog.get(s.name) || { unit: s.field === "секунды" ? "с" : "повт." };
+      const loadSuffix = s.loadType === "weighted" && s.weight != null
+        ? " (+" + fmt(s.weight) + " кг)"
+        : s.loadType === "unspec"
+          ? " (вес не указан)"
+          : "";
       setsRow.createSpan({
-        text: (idx + 1) + ". " + s.name + ": " + fmt(s.reps) + " " + exMeta.unit + (s.weight > 0 ? " (+" + fmt(s.weight) + " кг)" : ""),
+        text: (idx + 1) + ". " + s.name + ": " + fmt(s.reps) + " " + exMeta.unit + loadSuffix,
         attr: {
           style: "font-size: 0.74rem; padding: 2px 8px; border-radius: 6px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); font-variant-numeric: tabular-nums;"
         }
@@ -945,7 +1018,9 @@ async function renderWorkoutsHub() {
   for (const p of dv.pages(SOURCE)) {
     if (p.тип !== "Тренировка") continue;
     const isTodayLoaded = Boolean(todayFile && p.file.path === todayFile.path);
-    const d = asDate(p.дата);
+    const d = asDate(p.дата) || asDate(p.file.name.replace(/^Тренировка\s+/i, ""));
+    if (!d || d < minValidDate || d > today) continue;
+
     const start = text(p.начало);
     const durationVal = isTodayLoaded && todayDurationMin !== null ? todayDurationMin : number(p.длительность_мин);
     const groups = new Map();
@@ -958,14 +1033,25 @@ async function renderWorkoutsHub() {
           catalogList.push(e);
           catalog.set(s.name, e);
         }
-        const key = JSON.stringify([s.name, s.variant, s.weight]);
-        if (!groups.has(key)) groups.set(key, {
-          key, name: s.name, variant: s.variant, weight: s.weight, unit: e.unit, values: [],
-          path: p.file.path, link: p.file.link, date: d, start,
-          title: todayTitle || text(p.название_тренировки) || p.file.name,
-          duration: durationVal
-        });
-        groups.get(key).values.push(s.reps);
+        if (!groups.has(s.key)) {
+          groups.set(s.key, {
+            key: s.key,
+            name: s.name,
+            variant: s.variant,
+            loadType: s.loadType,
+            weight: s.weight,
+            loadSortOrder: s.loadSortOrder,
+            unit: e.unit,
+            values: [],
+            path: p.file.path,
+            link: p.file.link,
+            date: d,
+            start,
+            title: todayTitle || text(p.название_тренировки) || p.file.name,
+            duration: durationVal
+          });
+        }
+        groups.get(s.key).values.push(s.reps);
       });
     } else {
       for (const s of Array.from(p.file.lists ?? []).sort((a, b) => a.line - b.line)) {
@@ -981,15 +1067,29 @@ async function renderWorkoutsHub() {
         }
         const value = number(s[e.field]);
         if (value === null || value <= 0) continue;
-        const weight = number(s.доп_вес_кг);
-        if (weight === null || weight < 0) continue;
-        const variant = text(s.вариант) || "Основной";
-        const key = JSON.stringify([name, variant, weight]);
-        if (!groups.has(key)) groups.set(key, {
-          key, name, variant, weight, unit: e.unit, values: [], path: p.file.path, link: p.file.link, date: d, start,
-          title: text(p.название_тренировки) || p.file.name, duration: durationVal,
-        });
-        groups.get(key).values.push(value);
+
+        const spec = buildExerciseVariantSpec(name, s.вариант, s.доп_вес_кг);
+        if (!spec) continue;
+
+        if (!groups.has(spec.key)) {
+          groups.set(spec.key, {
+            key: spec.key,
+            name: spec.name,
+            variant: spec.variant,
+            loadType: spec.loadType,
+            weight: spec.weight,
+            loadSortOrder: spec.loadSortOrder,
+            unit: e.unit,
+            values: [],
+            path: p.file.path,
+            link: p.file.link,
+            date: d,
+            start,
+            title: text(p.название_тренировки) || p.file.name,
+            duration: durationVal
+          });
+        }
+        groups.get(spec.key).values.push(value);
       }
     }
 
@@ -1013,13 +1113,24 @@ async function renderWorkoutsHub() {
         catalogList.push(e);
         catalog.set(s.name, e);
       }
-      const key = JSON.stringify([s.name, s.variant, s.weight]);
-      if (!groups.has(key)) groups.set(key, {
-        key, name: s.name, variant: s.variant, weight: s.weight, unit: e.unit, values: [],
-        path: todayFile.path, date: today, start: "",
-        title: todayTitle, duration: todayDurationMin
-      });
-      groups.get(key).values.push(s.reps);
+      if (!groups.has(s.key)) {
+        groups.set(s.key, {
+          key: s.key,
+          name: s.name,
+          variant: s.variant,
+          loadType: s.loadType,
+          weight: s.weight,
+          loadSortOrder: s.loadSortOrder,
+          unit: e.unit,
+          values: [],
+          path: todayFile.path,
+          date: today,
+          start: "",
+          title: todayTitle,
+          duration: todayDurationMin
+        });
+      }
+      groups.get(s.key).values.push(s.reps);
     });
     for (const g of groups.values()) {
       g.best = Math.max(...g.values);
@@ -1037,7 +1148,7 @@ async function renderWorkoutsHub() {
   const from = today.minus({ days: 29 });
   const recent = all.filter(g => g.date && g.date >= from && g.date <= today);
   const sessions = new Map(recent.map(g => [g.path, g]));
-  const durations = [...sessions.values()].map(g => g.duration).filter(n => n > 0);
+  const durations = [...sessions.values()].map(g => g.duration).filter(n => typeof n === "number" && n > 0);
   const periodRangeStr = from.toFormat("dd.MM") + "–" + today.toFormat("dd.MM");
 
   const summaryHeader = root.createDiv({
@@ -1078,10 +1189,27 @@ async function renderWorkoutsHub() {
       : "нет тренировок за последние 30 дней"
   );
 
+  // Единая карта группировки по каноническому ключу `название|вариант|тип_нагрузки|вес_кг`
   const byVariant = new Map();
-  for (const g of all) { if (!byVariant.has(g.key)) byVariant.set(g.key, []); byVariant.get(g.key).push(g); }
+  for (const g of all) {
+    if (!byVariant.has(g.key)) byVariant.set(g.key, []);
+    byVariant.get(g.key).push(g);
+  }
 
-  const dynamicRecords = [...byVariant.values()].filter(list => list[0].unit === "повт.");
+  const compareVariantGroups = (listA, listB) => {
+    const a = listA[0];
+    const b = listB[0];
+    return (
+      order(a.name) - order(b.name) ||
+      a.name.localeCompare(b.name, "ru") ||
+      a.variant.localeCompare(b.variant, "ru") ||
+      a.loadSortOrder - b.loadSortOrder ||
+      (a.weight ?? 0) - (b.weight ?? 0)
+    );
+  };
+
+  const sortedVariantGroups = [...byVariant.values()].sort(compareVariantGroups);
+  const dynamicRecords = sortedVariantGroups.filter(list => list[0].unit === "повт.");
 
   if (dynamicRecords.length) {
     const recordsPanel = root.createDiv({
@@ -1111,54 +1239,53 @@ async function renderWorkoutsHub() {
 
     const tbody = tableEl.createEl("tbody");
 
-    dynamicRecords
-      .sort((a, b) => order(a[0].name) - order(b[0].name) || a[0].variant.localeCompare(b[0].variant, "ru") || a[0].weight - b[0].weight)
-      .forEach(list => {
-        const sorted = [...list].sort(newest);
-        const latest = sorted[0];
-        const previous = previousOf(latest, list);
-        const best = Math.max(...list.map(g => g.best));
+    dynamicRecords.forEach(list => {
+      const sorted = [...list].sort(newest);
+      const latest = sorted[0];
+      const previous = previousOf(latest, list);
+      const best = Math.max(...list.map(g => g.best));
 
-        const tr = tbody.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border);" } });
+      const tr = tbody.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border);" } });
 
-        const tdName = tr.createEl("td", { attr: { style: "padding: 8px 6px; font-weight: 500;" } });
-        tdName.createEl("strong", { text: latest.name });
-        if (latest.variant !== "Основной") {
-          tdName.createSpan({
-            text: " (" + latest.variant + ")",
-            attr: { style: "font-size:0.75rem; color:var(--text-muted);" }
-          });
-        }
-
-        const tdLoad = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
-        renderLoadBadge(tdLoad, latest.weight);
-
-        const tdBest = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
-        tdBest.createSpan({ text: "🥇 " + best, attr: { style: "font-weight:700; color:var(--text-normal);" } });
-        tdBest.createSpan({ text: " " + latest.unit, attr: { style: "font-size:0.75rem; color:var(--text-muted);" } });
-
-        const tdCur = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
-        tdCur.createSpan({ text: String(latest.best) });
-        tdCur.createSpan({ text: " " + latest.unit, attr: { style: "font-size:0.75rem; color:var(--text-muted);" } });
-
-        const tdDelta = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
-        if (previous) {
-          renderDeltaSpan(tdDelta, latest.best - previous.best, latest.unit);
-        } else {
-          tdDelta.createSpan({ text: "—", attr: { style: "color:var(--text-muted);" } });
-        }
-
-        const tdDate = tr.createEl("td", { attr: { style: "padding: 8px 6px; text-align: right;" } });
-        const aLink = tdDate.createEl("a", {
-          cls: "internal-link",
-          text: latest.date ? latest.date.toFormat("dd.MM.yyyy") : "—",
-          attr: { href: latest.path, style: "font-size:0.8rem; color:var(--text-accent);" }
+      const tdName = tr.createEl("td", { attr: { style: "padding: 8px 6px; font-weight: 500;" } });
+      tdName.createEl("strong", { text: latest.name });
+      if (latest.variant !== "Основной") {
+        tdName.createSpan({
+          text: " (" + latest.variant + ")",
+          attr: { style: "font-size:0.75rem; color:var(--text-muted);" }
         });
-        aLink.onclick = e => { e.preventDefault(); app.workspace.openLinkText(latest.path, dv.currentFilePath, false); };
+      }
+
+      const tdLoad = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
+      renderLoadBadge(tdLoad, latest.loadType, latest.weight);
+
+      const tdBest = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
+      tdBest.createSpan({ text: "🥇 " + fmt(best), attr: { style: "font-weight:700; color:var(--text-normal);" } });
+      tdBest.createSpan({ text: " " + latest.unit, attr: { style: "font-size:0.75rem; color:var(--text-muted);" } });
+
+      const tdCur = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
+      tdCur.createSpan({ text: fmt(latest.best) });
+      tdCur.createSpan({ text: " " + latest.unit, attr: { style: "font-size:0.75rem; color:var(--text-muted);" } });
+
+      const tdDelta = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
+      if (previous) {
+        renderDeltaSpan(tdDelta, latest.best - previous.best, latest.unit);
+      } else {
+        tdDelta.createSpan({ text: "—", attr: { style: "color:var(--text-muted);" } });
+      }
+
+      const tdDate = tr.createEl("td", { attr: { style: "padding: 8px 6px; text-align: right;" } });
+      const aLink = tdDate.createEl("a", {
+        cls: "internal-link",
+        text: latest.date ? latest.date.toFormat("dd.MM.yyyy") : "—",
+        attr: { href: latest.path, style: "font-size:0.8rem; color:var(--text-accent);" }
       });
+      aLink.onclick = e => { e.preventDefault(); app.workspace.openLinkText(latest.path, dv.currentFilePath, false); };
+    });
   }
 
-  if (all.length) {
+  // Блок «История подходов» использует ту же самую группировку sortedVariantGroups (byVariant), что и «Рекорды»
+  if (sortedVariantGroups.length) {
     const openSet = new Set(hubUi.openHistoryKeys || []);
     const historyRoot = root.createDiv({ attr: { style: "margin-top: 15px;" } });
     historyRoot.createDiv({
@@ -1166,47 +1293,62 @@ async function renderWorkoutsHub() {
       attr: { style: "font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; color: var(--text-muted);" }
     });
 
-    for (const e of catalogList) {
-      for (const weighted of [true, false]) {
-        const list = all.filter(g => g.name === e.name && (g.weight > 0) === weighted).sort(newest);
-        if (!list.length) continue;
+    for (const rawList of sortedVariantGroups) {
+      const list = [...rawList].sort(newest);
+      if (!list.length) continue;
 
-        const detailsKey = e.name + "__" + (weighted ? "w" : "bw");
-        const part = list.slice(0, HISTORY_LIMIT);
-        const box = root.createEl("details", {
-          cls: "dh-details",
-          attr: { style: "margin-bottom: 6px; background: var(--background-secondary); border-radius: 6px; padding: 4px 8px;" }
-        });
-        if (openSet.has(detailsKey)) box.open = true;
-        box.ontoggle = () => {
-          const cur = new Set(hubUi.openHistoryKeys || []);
-          if (box.open) cur.add(detailsKey);
-          else cur.delete(detailsKey);
-          saveHubUi({ openHistoryKeys: [...cur] });
-        };
+      const sample = list[0];
+      const detailsKey = sample.key;
+      const part = list.slice(0, HISTORY_LIMIT);
+      const box = root.createEl("details", {
+        cls: "dh-details",
+        attr: { style: "margin-bottom: 6px; background: var(--background-secondary); border-radius: 6px; padding: 4px 8px;" }
+      });
+      if (openSet.has(detailsKey)) box.open = true;
+      box.ontoggle = () => {
+        const cur = new Set(hubUi.openHistoryKeys || []);
+        if (box.open) cur.add(detailsKey);
+        else cur.delete(detailsKey);
+        saveHubUi({ openHistoryKeys: [...cur] });
+      };
 
-        const summaryText = e.name + " " + (weighted ? "(+" + fmt(list[0].weight) + " кг)" : "(свой вес)") +
-          " · тренировок: " + list.length + " · лучший: " + Math.max(...list.map(g => g.best)) + " " + e.unit;
-        box.createEl("summary", { text: summaryText, attr: { style: "font-size: 0.82rem; cursor: pointer; color: var(--text-normal); font-weight: 500;" } });
+      const variantSuffix = sample.variant !== "Основной" ? " (" + sample.variant + ")" : "";
+      const loadLabel = formatLoadTextForSummary(sample.loadType, sample.weight);
+      const bestInGroup = Math.max(...list.map(g => g.best));
+      const summaryText =
+        sample.name +
+        variantSuffix +
+        " " +
+        loadLabel +
+        " · тренировок: " +
+        list.length +
+        " · лучший: " +
+        fmt(bestInGroup) +
+        " " +
+        sample.unit;
 
-        const subTable = box.createEl("table", { cls: "dh-table", attr: { style: "width: 100%; margin-top: 8px; font-size: 0.8rem;" } });
-        const tHead = subTable.createEl("thead");
-        const rH = tHead.createEl("tr", { attr: { style: "color: var(--text-muted); border-bottom: 1px solid var(--background-modifier-border);" } });
-        ["Дата", "Подходы", "Лучший", "Сумма", "Время"].forEach(h => rH.createEl("th", { text: h, attr: { style: "padding: 4px;" } }));
+      box.createEl("summary", {
+        text: summaryText,
+        attr: { style: "font-size: 0.82rem; cursor: pointer; color: var(--text-normal); font-weight: 500;" }
+      });
 
-        const tBody = subTable.createEl("tbody");
-        part.forEach(g => {
-          const tr = tBody.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border);" } });
-          const tdD = tr.createEl("td", { attr: { style: "padding: 4px;" } });
-          const aL = tdD.createEl("a", { text: g.date ? g.date.toFormat("dd.MM") : "—", cls: "internal-link" });
-          aL.onclick = ev => { ev.preventDefault(); app.workspace.openLinkText(g.path, dv.currentFilePath, false); };
+      const subTable = box.createEl("table", { cls: "dh-table", attr: { style: "width: 100%; margin-top: 8px; font-size: 0.8rem;" } });
+      const tHead = subTable.createEl("thead");
+      const rH = tHead.createEl("tr", { attr: { style: "color: var(--text-muted); border-bottom: 1px solid var(--background-modifier-border);" } });
+      ["Дата", "Подходы", "Лучший", "Сумма", "Время"].forEach(h => rH.createEl("th", { text: h, attr: { style: "padding: 4px;" } }));
 
-          tr.createEl("td", { text: g.values.map(fmt).join(" · "), attr: { style: "padding: 4px;" } });
-          tr.createEl("td", { text: fmt(g.best) + " " + e.unit, attr: { style: "padding: 4px; font-weight: 600;" } });
-          tr.createEl("td", { text: fmt(g.total) + " " + e.unit, attr: { style: "padding: 4px;" } });
-          tr.createEl("td", { text: g.duration > 0 ? fmt(g.duration) + " мин" : "—", attr: { style: "padding: 4px; color: var(--text-muted);" } });
-        });
-      }
+      const tBody = subTable.createEl("tbody");
+      part.forEach(g => {
+        const tr = tBody.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border);" } });
+        const tdD = tr.createEl("td", { attr: { style: "padding: 4px;" } });
+        const aL = tdD.createEl("a", { text: g.date ? g.date.toFormat("dd.MM") : "—", cls: "internal-link" });
+        aL.onclick = ev => { ev.preventDefault(); app.workspace.openLinkText(g.path, dv.currentFilePath, false); };
+
+        tr.createEl("td", { text: g.values.map(fmt).join(" · "), attr: { style: "padding: 4px;" } });
+        tr.createEl("td", { text: fmt(g.best) + " " + sample.unit, attr: { style: "padding: 4px; font-weight: 600;" } });
+        tr.createEl("td", { text: fmt(g.total) + " " + sample.unit, attr: { style: "padding: 4px;" } });
+        tr.createEl("td", { text: g.duration > 0 ? fmt(g.duration) + " мин" : "—", attr: { style: "padding: 4px; color: var(--text-muted);" } });
+      });
     }
   }
 }
