@@ -671,14 +671,8 @@ async function fetchTranslations(word) {
   throw lastErr || new Error("сервисы перевода временно недоступны");
 }
 
-
-
-
-
-
-// --- Автосинхронизация прочитанных страниц и привычки «чтение» с Ежедневником ---
-const PAGES_LAST_KEY = "dh_english_pages_last_v1";
-const PAGES_BASE_PREFIX = "dh_english_pages_base_v1:";
+// --- Автосинхронизация прочитанных страниц и привычки «чтение» с Ежедневником (единый ключ с home.js) ---
+const SHARED_READING_STATE_KEY = "dh_shared_book_reading_v2";
 const AUTO_READING_PREFIX = "dh_english_auto_reading_v1:";
 const MANUAL_HABITS_PREFIX = "dh_today_manual_habits_v1:";
 const DIARY_PAGES_FIELD = "страниц_прочитано";
@@ -704,64 +698,96 @@ function bookEffectivePages(b) {
   return { pages: read, finished };
 }
 
-// Страницы за сегодня = сумма прироста «прочитано» по каждой книге относительно утренней базы.
-// База берётся из вчерашнего снимка, а если его нет — из текущих значений (старые книги не засчитываются).
 function computeReadPagesToday(books, todayDate) {
   const todayISO = todayDate.toISODate();
   const yesterdayISO = todayDate.minus({ days: 1 }).toISODate();
   const dayStartMs = todayDate.toMillis();
 
-  const current = {};
-  const finishedMap = {};
+  let state = readLsJson(SHARED_READING_STATE_KEY);
+  if (!state || typeof state !== "object") {
+    state = { dateISO: "", baselines: {}, snapshotDateISO: "", snapshotValues: {}, manualOverridePages: null };
+  }
+  if (!state.baselines || typeof state.baselines !== "object") state.baselines = {};
+  if (!state.snapshotValues || typeof state.snapshotValues !== "object") state.snapshotValues = {};
+
+  const currentBooks = [];
   books.forEach(b => {
     const e = bookEffectivePages(b);
     if (e.pages === null) return;
-    current[b.path] = e.pages;
-    finishedMap[b.path] = e.finished;
+    const f = app.vault.getAbstractFileByPath(b.path);
+    const fm = f ? (app.metadataCache.getFileCache(f)?.frontmatter || {}) : {};
+    const posTimeRaw = String(fm.позиция_время ?? "").trim();
+    const posDateISO = /^\d{4}-\d{2}-\d{2}/.test(posTimeRaw) ? posTimeRaw.slice(0, 10) : "";
+    const touchedToday = b.lastReadISO === todayISO || posDateISO === todayISO;
+    const createdToday = Boolean(f?.stat && f.stat.ctime >= dayStartMs);
+
+    currentBooks.push({
+      path: b.path,
+      curRead: e.pages,
+      isFinished: e.finished,
+      touchedToday,
+      createdToday
+    });
   });
 
-  const baseKey = PAGES_BASE_PREFIX + todayISO;
-  let base = readLsJson(baseKey);
-  let dirty = false;
+  if (state.dateISO !== todayISO) {
+    const nextBaselines = {};
+    const hasYesterdaySnapshot = state.snapshotDateISO === yesterdayISO;
 
-  if (!base || typeof base !== "object" || Array.isArray(base)) {
-    const last = readLsJson(PAGES_LAST_KEY);
-    base = last && last.date === yesterdayISO && last.values && typeof last.values === "object"
-      ? { ...last.values }
-      : { ...current };
-    dirty = true;
+    for (const b of currentBooks) {
+      const snapVal = state.snapshotValues[b.path];
+      if (hasYesterdaySnapshot && typeof snapVal === "number" && Number.isFinite(snapVal)) {
+        nextBaselines[b.path] = Math.min(snapVal, b.curRead);
+      } else if (b.touchedToday && typeof snapVal === "number" && Number.isFinite(snapVal)) {
+        nextBaselines[b.path] = Math.min(snapVal, b.curRead);
+      } else if (!b.isFinished && b.createdToday && b.touchedToday) {
+        nextBaselines[b.path] = 0;
+      } else {
+        nextBaselines[b.path] = b.curRead;
+      }
+    }
+
+    state.dateISO = todayISO;
+    state.baselines = nextBaselines;
+    state.manualOverridePages = null;
   }
 
-  let total = 0;
-  for (const [path, cur] of Object.entries(current)) {
-    const b0 = base[path];
-    if (typeof b0 !== "number" || !Number.isFinite(b0)) {
-      let createdToday = false;
-      try {
-        const f = app.vault.getAbstractFileByPath(path);
-        createdToday = Boolean(f?.stat && f.stat.ctime >= dayStartMs);
-      } catch {}
-      base[path] = !finishedMap[path] && createdToday ? 0 : cur;
-      dirty = true;
-    } else if (cur < b0) {
-      base[path] = cur;
-      dirty = true;
+  let autoBookPages = 0;
+  const nextSnapshotValues = {};
+
+  for (const b of currentBooks) {
+    let baseVal = state.baselines[b.path];
+    if (typeof baseVal !== "number" || !Number.isFinite(baseVal)) {
+      baseVal = !b.isFinished && b.createdToday ? 0 : b.curRead;
+      state.baselines[b.path] = baseVal;
+    } else if (b.curRead < baseVal) {
+      baseVal = b.curRead;
+      state.baselines[b.path] = baseVal;
+    } else if (!b.touchedToday && b.curRead > baseVal && state.snapshotDateISO !== todayISO && state.snapshotDateISO !== yesterdayISO) {
+      baseVal = b.curRead;
+      state.baselines[b.path] = baseVal;
     }
-    total += Math.max(0, cur - base[path]);
+
+    autoBookPages += Math.max(0, b.curRead - baseVal);
+    nextSnapshotValues[b.path] = b.curRead;
   }
 
-  if (dirty) writeLsJson(baseKey, base);
-  writeLsJson(PAGES_LAST_KEY, { date: todayISO, values: current });
+  state.snapshotDateISO = todayISO;
+  state.snapshotValues = nextSnapshotValues;
+  writeLsJson(SHARED_READING_STATE_KEY, state);
 
-  try {
-    const ls = window.localStorage;
-    for (let i = ls.length - 1; i >= 0; i--) {
-      const k = ls.key(i);
-      if (k && k.startsWith(PAGES_BASE_PREFIX) && k.slice(PAGES_BASE_PREFIX.length) < yesterdayISO) ls.removeItem(k);
-    }
-  } catch {}
+  const manualOverridePages =
+    typeof state.manualOverridePages === "number" &&
+    Number.isFinite(state.manualOverridePages) &&
+    state.manualOverridePages >= 0
+      ? Math.round(state.manualOverridePages)
+      : null;
 
-  return total;
+  return {
+    autoBookPages,
+    manualOverridePages,
+    effectivePages: manualOverridePages !== null ? manualOverridePages : autoBookPages
+  };
 }
 
 // true — пользователь уже вручную трогал привычку «чтение» сегодня (ключ веду не я, формат разбираю с запасом)
@@ -1462,17 +1488,23 @@ async function renderHub() {
       savedTodayCount = Math.max(prevSaved, srTodayCount);
     }
 
-    // 3b. Автосинхронизация страниц_прочитано и привычки «чтение» (только рост, один раз за сутки для привычки)
+// Файл: raw-scripts/english.js
+// Заменяет: блок 3b внутри функции renderHub() (строки 770–801)
+
+    // 3b. Автосинхронизация страниц_прочитано и привычки «чтение» (единое правило приоритета с home.js)
     if (diaryPage) {
       try {
-        const pagesToday = computeReadPagesToday(books, todayDate);
-        const prevPages = typeof diaryPage[DIARY_PAGES_FIELD] === "number" ? diaryPage[DIARY_PAGES_FIELD] : 0;
-        const effectivePages = Math.max(prevPages, pagesToday);
+        const syncRes = computeReadPagesToday(books, todayDate);
+        const targetPages = syncRes.manualOverridePages !== null
+          ? syncRes.manualOverridePages
+          : (syncRes.autoBookPages > 0 ? syncRes.autoBookPages : null);
+
+        const prevPages = typeof diaryPage[DIARY_PAGES_FIELD] === "number" ? diaryPage[DIARY_PAGES_FIELD] : null;
         const readingAlreadyOn = diaryPage[DIARY_READING_FIELD] === true || String(diaryPage[DIARY_READING_FIELD]).toLowerCase() === "true";
 
-        const needPagesWrite = pagesToday > prevPages &&
-          (ui.lastSyncedPagesDate !== todayISO || ui.lastSyncedPagesCount !== pagesToday);
-        const needReadingWrite = effectivePages >= 1 && !readingAlreadyOn &&
+        const needPagesWrite = targetPages !== null && targetPages !== prevPages &&
+          (ui.lastSyncedPagesDate !== todayISO || ui.lastSyncedPagesCount !== targetPages);
+        const needReadingWrite = targetPages !== null && targetPages >= 1 && !readingAlreadyOn &&
           !hasAutoReadingMark(todayISO) && !isReadingHabitHandledManually(todayISO);
 
         if (needPagesWrite || needReadingWrite) {
@@ -1480,12 +1512,12 @@ async function renderHub() {
           if (dFilePages) {
             if (needPagesWrite) {
               ui.lastSyncedPagesDate = todayISO;
-              ui.lastSyncedPagesCount = pagesToday;
+              ui.lastSyncedPagesCount = targetPages;
             }
             if (needReadingWrite) setAutoReadingMark(todayISO);
             setTimeout(() => {
               app.fileManager.processFrontMatter(dFilePages, fm => {
-                if (needPagesWrite) fm[DIARY_PAGES_FIELD] = pagesToday;
+                if (needPagesWrite) fm[DIARY_PAGES_FIELD] = targetPages;
                 if (needReadingWrite) fm[DIARY_READING_FIELD] = true;
               }).catch(e => console.log(e));
             }, 150);

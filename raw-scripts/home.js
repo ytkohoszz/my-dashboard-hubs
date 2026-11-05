@@ -1,11 +1,12 @@
 // ========================================================
-// ОБЩИЕ ДАННЫЕ, АВТОСИНХРОНИЗАЦИЯ И УТИЛИТЫ (ГЛАВНАЯ v2.3)
+// ОБЩИЕ ДАННЫЕ, АВТОСИНХРОНИЗАЦИЯ И УТИЛИТЫ (ГЛАВНАЯ v2.4)
 // ========================================================
 const AUTO_SLEEP_MIN_HOURS = 6;   // Сон > 6 часов автоматически отмечает «Режим сна»
 const SOCIAL_LIMIT_MIN = 30;       // Лимит дофаминового скроллинга соцсетей (мин)
 const BOOKS_FOLDER = "Знания/Книги";
-const READING_TRACKER_KEY = "dh_reading_daily_tracker_v1";
+const SHARED_READING_STATE_KEY = "dh_shared_book_reading_v2";
 const MANUAL_HABITS_PREFIX = "dh_today_manual_habits_v1:";
+const MIN_VALID_DATE_ISO = "2000-01-01";
 
 const empty = v => v == null || v === "";
 function asDate(v) {
@@ -48,16 +49,21 @@ function openFocusTrackerFromHome(initialProject) {
   }
 }
 
-// Читаем дневную цель калорий напрямую из настроек my-nutrition-tracker (если цель отключена — null)
 const nutPlugin = getNutritionPlugin();
 const rawCalorieGoal = nutPlugin?.settings ? nutPlugin.settings.dailyCalorieGoal : null;
 const calorieGoal = typeof rawCalorieGoal === "number" && rawCalorieGoal > 0 ? Math.round(rawCalorieGoal) : null;
 
 const today = dv.date("today").startOf("day");
 const todayISO = today.toISODate();
+const yesterdayISO = today.minus({ days: 1 }).toISODate();
 
 const todayNote = dv.pages('"Ежедневник"').array()
-  .filter(p => (asDate(p.дата) || asDate(p.file.name))?.toISODate() === todayISO)
+  .filter(p => {
+    const d = asDate(p.дата) || asDate(p.file.name);
+    if (!d) return false;
+    const iso = d.toISODate();
+    return iso >= MIN_VALID_DATE_ISO && iso === todayISO;
+  })
   .sort((a, b) => mtime(b) - mtime(a) || a.file.path.localeCompare(b.file.path, "ru"))[0] || null;
 
 const knowledgePages = dv.pages('"Знания"').array();
@@ -83,8 +89,14 @@ function setManualHabitOverride(key, val) {
   } catch {}
 }
 
-// --- Автоматический подсчёт прочитанных за сегодня страниц из заметок книг ---
-function computeTodayReadingProgress() {
+/**
+ * ЕДИНЫЙ ИСТОЧНИК ИСТИНЫ ДЛЯ ПРОЧИТАННЫХ СТРАНИЦ ЗА СЕГОДНЯ (общий для home.js и english.js).
+ * - Считает чистый прирост `autoBookPages` по книгам в `Знания/Книги` за сегодня.
+ * - Не накапливает старую разницу за пропущенные дни: если книга не читалась сегодня, её база = текущему `прочитано`.
+ * - Не складывает ручной ввод с авто-страницами: `manualOverridePages` используется ТОЛЬКО если пользователь
+ *   явно ввёл своё число в поле «Чтение» за сегодня. Иначе приоритет у точного числа `autoBookPages`.
+ */
+function syncTodayBookReading() {
   let bookPages = [];
   try {
     bookPages = dv.pages('"' + BOOKS_FOLDER + '"').array();
@@ -92,93 +104,148 @@ function computeTodayReadingProgress() {
     bookPages = [];
   }
 
-  let tracker = null;
+  let state = null;
   try {
-    const raw = window.localStorage?.getItem(READING_TRACKER_KEY);
-    if (raw) tracker = JSON.parse(raw);
+    const raw = window.localStorage?.getItem(SHARED_READING_STATE_KEY);
+    if (raw) state = JSON.parse(raw);
   } catch {}
 
-  if (!tracker || typeof tracker !== "object") {
-    tracker = { dateISO: todayISO, baselines: {}, lastKnown: {}, manualOffset: 0 };
+  if (!state || typeof state !== "object") {
+    state = { dateISO: "", baselines: {}, snapshotDateISO: "", snapshotValues: {}, manualOverridePages: null };
   }
-  if (!tracker.baselines || typeof tracker.baselines !== "object") tracker.baselines = {};
-  if (!tracker.lastKnown || typeof tracker.lastKnown !== "object") tracker.lastKnown = {};
-  if (typeof tracker.manualOffset !== "number" || !Number.isFinite(tracker.manualOffset)) tracker.manualOffset = 0;
+  if (!state.baselines || typeof state.baselines !== "object") state.baselines = {};
+  if (!state.snapshotValues || typeof state.snapshotValues !== "object") state.snapshotValues = {};
 
-  const isNewDay = tracker.dateISO !== todayISO;
-  if (isNewDay) {
-    const nextBaselines = {};
-    for (const p of bookPages) {
-      const f = app.vault.getAbstractFileByPath(p.file.path);
-      const fm = f ? (app.metadataCache.getFileCache(f)?.frontmatter || {}) : {};
-      const curRead = Math.max(0, Math.round(parseNum(fm.прочитано ?? p.прочитано) || 0));
-      const prevKnown = tracker.lastKnown[p.file.path];
-      nextBaselines[p.file.path] = (typeof prevKnown === "number" && Number.isFinite(prevKnown))
-        ? Math.min(prevKnown, curRead)
-        : curRead;
-      tracker.lastKnown[p.file.path] = curRead;
-    }
-    tracker.dateISO = todayISO;
-    tracker.baselines = nextBaselines;
-    tracker.manualOffset = 0;
-  }
-
-  let autoBookPages = 0;
-  let readBookTitles = [];
-
+  // Читаем актуальные значения книг из metadataCache
+  const currentBooks = [];
   for (const p of bookPages) {
     const f = app.vault.getAbstractFileByPath(p.file.path);
     const fm = f ? (app.metadataCache.getFileCache(f)?.frontmatter || {}) : {};
-    const curRead = Math.max(0, Math.round(parseNum(fm.прочитано ?? p.прочитано) || 0));
+    const status = String(fm.статус ?? p.статус ?? "").trim();
+    const totalRaw = parseNum(fm.страниц ?? p.страниц);
+    const readRaw = parseNum(fm.прочитано ?? p.прочитано);
+    if (readRaw === null && totalRaw === null) continue;
+
+    const total = totalRaw !== null && totalRaw > 0 ? Math.round(totalRaw) : null;
+    let curRead = readRaw !== null && readRaw >= 0 ? Math.round(readRaw) : 0;
+    const isFinished = status === "Прочитано" || (total !== null && curRead >= total);
+    if (isFinished && total !== null) curRead = total;
+
     const title = String(fm.название ?? p.название ?? p.file.name).trim();
-
-    const lastReadRaw = fm.последнее_чтение ?? p.последнее_чтение;
-    const lastReadISO = asDate(lastReadRaw)?.toISODate() || "";
+    const lastReadISO = asDate(fm.последнее_чтение ?? p.последнее_чтение)?.toISODate() || "";
     const posTimeRaw = String(fm.позиция_время ?? p.позиция_время ?? "").trim();
-    const posDateISO = posTimeRaw.length >= 10 ? posTimeRaw.slice(0, 10) : "";
+    const posDateISO = /^\d{4}-\d{2}-\d{2}/.test(posTimeRaw) ? posTimeRaw.slice(0, 10) : "";
     const touchedToday = lastReadISO === todayISO || posDateISO === todayISO;
+    const createdToday = Boolean(f?.stat && f.stat.ctime >= today.toMillis());
 
-    if (tracker.baselines[p.file.path] === undefined) {
-      tracker.baselines[p.file.path] = curRead;
-    } else if (curRead < tracker.baselines[p.file.path]) {
-      tracker.baselines[p.file.path] = curRead;
-    }
-
-    const delta = Math.max(0, curRead - tracker.baselines[p.file.path]);
-    if (delta > 0) {
-      autoBookPages += delta;
-      readBookTitles.push(`${title} (+${delta})`);
-    } else if (touchedToday && !readBookTitles.includes(title)) {
-      readBookTitles.push(title);
-    }
-
-    tracker.lastKnown[p.file.path] = curRead;
+    currentBooks.push({
+      path: p.file.path,
+      title,
+      curRead,
+      isFinished,
+      touchedToday,
+      createdToday
+    });
   }
 
+  // Переход на новый день: формируем утреннюю базу строго без приписывания старых дней
+  if (state.dateISO !== todayISO) {
+    const nextBaselines = {};
+    const hasYesterdaySnapshot = state.snapshotDateISO === yesterdayISO;
+
+    for (const b of currentBooks) {
+      const snapVal = state.snapshotValues[b.path];
+      if (hasYesterdaySnapshot && typeof snapVal === "number" && Number.isFinite(snapVal)) {
+        nextBaselines[b.path] = Math.min(snapVal, b.curRead);
+      } else if (b.touchedToday && typeof snapVal === "number" && Number.isFinite(snapVal)) {
+        nextBaselines[b.path] = Math.min(snapVal, b.curRead);
+      } else if (!b.isFinished && b.createdToday && b.touchedToday) {
+        nextBaselines[b.path] = 0;
+      } else {
+        // Если книгу не открывали сегодня и нет вчерашнего снимка — база равна текущему прочитанному
+        nextBaselines[b.path] = b.curRead;
+      }
+    }
+
+    state.dateISO = todayISO;
+    state.baselines = nextBaselines;
+    state.manualOverridePages = null;
+  }
+
+  let autoBookPages = 0;
+  const readBookTitles = [];
+  const nextSnapshotValues = {};
+
+  for (const b of currentBooks) {
+    let baseVal = state.baselines[b.path];
+    if (typeof baseVal !== "number" || !Number.isFinite(baseVal)) {
+      baseVal = !b.isFinished && b.createdToday ? 0 : b.curRead;
+      state.baselines[b.path] = baseVal;
+    } else if (b.curRead < baseVal) {
+      // Если в читалке откатились назад или сменили шрифт в меньшую сторону — подтягиваем базу вниз
+      baseVal = b.curRead;
+      state.baselines[b.path] = baseVal;
+    } else if (!b.touchedToday && b.curRead > baseVal && state.snapshotDateISO !== todayISO && state.snapshotDateISO !== yesterdayISO) {
+      // Защита от ложного скачка у книг, которые сегодня вообще не открывались
+      baseVal = b.curRead;
+      state.baselines[b.path] = baseVal;
+    }
+
+    const delta = Math.max(0, b.curRead - baseVal);
+    if (delta > 0) {
+      autoBookPages += delta;
+      readBookTitles.push(`${b.title} (+${delta})`);
+    } else if (b.touchedToday && !readBookTitles.includes(b.title)) {
+      readBookTitles.push(b.title);
+    }
+
+    nextSnapshotValues[b.path] = b.curRead;
+  }
+
+  state.snapshotDateISO = todayISO;
+  state.snapshotValues = nextSnapshotValues;
+
+  const manualOverridePages =
+    typeof state.manualOverridePages === "number" &&
+    Number.isFinite(state.manualOverridePages) &&
+    state.manualOverridePages >= 0
+      ? Math.round(state.manualOverridePages)
+      : null;
+
   try {
-    window.localStorage?.setItem(READING_TRACKER_KEY, JSON.stringify(tracker));
+    window.localStorage?.setItem(SHARED_READING_STATE_KEY, JSON.stringify(state));
   } catch {}
 
-  const totalPages = Math.max(0, autoBookPages + tracker.manualOffset);
+  const effectivePages =
+    manualOverridePages !== null
+      ? manualOverridePages
+      : autoBookPages > 0
+        ? autoBookPages
+        : null;
+
   return {
     autoBookPages,
-    manualOffset: tracker.manualOffset,
-    totalPages,
+    manualOverridePages,
+    effectivePages,
     readBookTitles
   };
 }
 
-function updateReadingManualOffset(newTotalPages, autoBookPages) {
+function setManualReadingOverride(pagesOrNull) {
   try {
-    const raw = window.localStorage?.getItem(READING_TRACKER_KEY);
-    const tracker = raw ? JSON.parse(raw) : { dateISO: todayISO, baselines: {}, lastKnown: {}, manualOffset: 0 };
-    tracker.dateISO = todayISO;
-    tracker.manualOffset = Math.round((Number(newTotalPages) || 0) - (Number(autoBookPages) || 0));
-    window.localStorage?.setItem(READING_TRACKER_KEY, JSON.stringify(tracker));
+    const raw = window.localStorage?.getItem(SHARED_READING_STATE_KEY);
+    const state = raw ? JSON.parse(raw) : { dateISO: todayISO, baselines: {}, snapshotDateISO: todayISO, snapshotValues: {} };
+    state.dateISO = todayISO;
+    state.manualOverridePages =
+      typeof pagesOrNull === "number" && Number.isFinite(pagesOrNull) && pagesOrNull >= 0
+        ? Math.round(pagesOrNull)
+        : null;
+    window.localStorage?.setItem(SHARED_READING_STATE_KEY, JSON.stringify(state));
   } catch {}
 }
 
-const readingSync = computeTodayReadingProgress();
+const readingSync = syncTodayBookReading();
+window.__dhSyncTodayBookReading = syncTodayBookReading;
 
 // ========================================================
 // 1. НАВИГАЦИОННЫЕ ПЛИТКИ (ХАБЫ СИСТЕМЫ)
@@ -209,7 +276,7 @@ const readingSync = computeTodayReadingProgress();
   ).length;
 
   const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) || 0;
-  const pagesDoneToday = Math.max(parseNum(todayNote?.страниц_прочитано) || 0, readingSync.totalPages);
+  const pagesDoneToday = readingSync.effectivePages ?? parseNum(todayNote?.страниц_прочитано) ?? 0;
   let englishBadge = "Карточки и книги";
   if (cardsDoneToday > 0 && pagesDoneToday > 0) {
     englishBadge = `${cardsDoneToday} карт. · ${pagesDoneToday} стр.`;
@@ -402,10 +469,15 @@ const readingSync = computeTodayReadingProgress();
     return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
   }
 
+  const readingSubHint =
+    readingSync.manualOverridePages !== null
+      ? (readingSync.autoBookPages > 0 ? `вручную (из книг: ${readingSync.autoBookPages} стр.)` : "введено вручную")
+      : (readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages} стр.` : "авто из читалки");
+
   const INPUT_METRICS = [
     { label: "Вес", key: "вес_кг", unit: "кг", min: 20, max: 300, digits: 1, placeholder: "—" },
     { label: "Сон", key: "сон_часов", unit: "ч", min: 0, max: 24, digits: 1, placeholder: "—", hint: `авто-режим >${AUTO_SLEEP_MIN_HOURS} ч` },
-    { label: "Чтение", key: "страниц_прочитано", unit: "стр.", min: 0, max: 1500, digits: 0, placeholder: "—", hint: readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages} стр.` : "авто из читалки" },
+    { label: "Чтение", key: "страниц_прочитано", unit: "стр.", min: 0, max: 1500, digits: 0, placeholder: "—", hint: readingSubHint },
     { label: "Соцсети", key: "соцсети_мин", unit: "мин", min: 0, max: 1440, digits: 0, placeholder: "—", hint: `лимит ≤${SOCIAL_LIMIT_MIN} мин` },
     { label: "Шаги", key: "шаги", unit: "шаг", min: 0, max: 100000, digits: 0, placeholder: "—", hint: "активность за день" },
   ];
@@ -990,9 +1062,18 @@ const readingSync = computeTodayReadingProgress();
     const savedPages = parseNum(note.страниц_прочитано);
     const savedFocus = parseNum(note.глубокая_работа_часов);
     const savedSocialMin = parseNum(note.соцсети_мин);
-    const effectivePages = readingSync.autoBookPages > 0 && (savedPages === null || readingSync.totalPages > savedPages)
-      ? readingSync.totalPages
-      : savedPages;
+
+    // Правило приоритета для страниц за сегодня:
+    // 1) Если пользователь ввёл ручное значение за сегодня (manualOverridePages !== null) — берём его.
+    // 2) Иначе если есть автоматические страницы из книг (autoBookPages > 0) — берём ТОЧНОЕ число autoBookPages
+    //    (даже если в заметке ранее застряло завышенное число).
+    // 3) Иначе оставляем текущее значение из заметки (или null, если пусто).
+    let effectivePages = savedPages;
+    if (readingSync.manualOverridePages !== null) {
+      effectivePages = readingSync.manualOverridePages;
+    } else if (readingSync.autoBookPages > 0) {
+      effectivePages = readingSync.autoBookPages;
+    }
 
     const focusByGoalsMap = (fmCache.фокус_по_целям && typeof fmCache.фокус_по_целям === "object")
       ? fmCache.фокус_по_целям
@@ -1002,8 +1083,8 @@ const readingSync = computeTodayReadingProgress();
     const pendingPatch = {};
 
     // 1. Автосинхронизация страниц чтения из книг и привычки «Чтение»
-    if (readingSync.autoBookPages > 0 && (savedPages === null || readingSync.totalPages > savedPages)) {
-      pendingPatch.страниц_прочитано = readingSync.totalPages;
+    if (effectivePages !== null && effectivePages !== savedPages) {
+      pendingPatch.страниц_прочитано = effectivePages;
     }
     if ((effectivePages !== null && effectivePages > 0) || readingSync.readBookTitles.length > 0) {
       if (manualOverrides.чтение === undefined && states.get("чтение") !== true) {
@@ -1018,7 +1099,7 @@ const readingSync = computeTodayReadingProgress();
       pendingPatch.тренировка = true;
     }
 
-    // 3. Автосинхронизация привычки «Диета» только если в my-nutrition-tracker задана дневная цель калорий
+    // 3. Автосинхронизация привычки «Диета»
     if (calorieGoal !== null && savedCalories !== null && savedCalories >= calorieGoal && manualOverrides.диета === undefined && states.get("диета") !== true) {
       states.set("диета", true);
       pendingPatch.диета = true;
@@ -1211,10 +1292,11 @@ const readingSync = computeTodayReadingProgress();
       });
       control.createSpan({ cls: "dh-metric-unit", text: m.unit });
 
+      let subHintEl = null;
       if (m.hint) {
-        const subHint = card.createDiv({ cls: "dh-metric-subhint", text: m.hint });
+        subHintEl = card.createDiv({ cls: "dh-metric-subhint", text: m.hint });
         if (m.key === "страниц_прочитано" && readingSync.readBookTitles.length > 0) {
-          subHint.setAttribute("title", "Книги сегодня: " + readingSync.readBookTitles.join(", "));
+          subHintEl.setAttribute("title", "Книги сегодня: " + readingSync.readBookTitles.join(", "));
         }
       }
 
@@ -1273,18 +1355,27 @@ const readingSync = computeTodayReadingProgress();
         const rawTrimmed = input.value.trim();
         const normalized = rawTrimmed.replace(",", ".");
 
+        // Очистка поля: сбрасываем ручное переопределение и возвращаемся к авто-значению из книг (или null)
         if (normalized === "") {
           delete uiDrafts.inputs[m.key];
           delete uiDrafts.errors[m.key];
           card.classList.remove("is-invalid");
           errorEl.style.display = "none";
-          if (savedFormatted === "") return;
+          if (savedFormatted === "" && (m.key !== "страниц_прочитано" || readingSync.manualOverridePages === null)) return;
+
           isSavingMetric = true;
           try {
             if (m.key === "страниц_прочитано") {
-              updateReadingManualOffset(0, readingSync.autoBookPages);
+              setManualReadingOverride(null);
+              const fallbackPages = readingSync.autoBookPages > 0 ? readingSync.autoBookPages : null;
+              input.value = fallbackPages !== null ? formatNumForInput(fallbackPages, 0) : "";
+              if (subHintEl) {
+                subHintEl.setText(readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages} стр.` : "авто из читалки");
+              }
+              await saveField(m.key, fallbackPages);
+            } else {
+              await saveField(m.key, null);
             }
-            await saveField(m.key, null);
             uiDrafts.savedStamp[m.key] = Date.now();
             statusSpan.setText("✓");
           } catch (err) {
@@ -1320,7 +1411,20 @@ const readingSync = computeTodayReadingProgress();
           autoHabitKey = "режим_сна";
           autoHabitVal = finalValue > AUTO_SLEEP_MIN_HOURS;
         } else if (m.key === "страниц_прочитано") {
-          updateReadingManualOffset(finalValue, readingSync.autoBookPages);
+          // Если введённое число совпадает с autoBookPages — снимаем ручной флаг, иначе фиксируем ручной ввод
+          if (readingSync.autoBookPages > 0 && finalValue === readingSync.autoBookPages) {
+            setManualReadingOverride(null);
+            if (subHintEl) subHintEl.setText(`из книг: ${readingSync.autoBookPages} стр.`);
+          } else if (finalValue !== savedRaw) {
+            setManualReadingOverride(finalValue);
+            if (subHintEl) {
+              subHintEl.setText(
+                readingSync.autoBookPages > 0
+                  ? `вручную (из книг: ${readingSync.autoBookPages} стр.)`
+                  : "введено вручную"
+              );
+            }
+          }
           autoHabitKey = "чтение";
           autoHabitVal = finalValue > 0;
         } else if (m.key === "соцсети_мин") {
@@ -1615,7 +1719,6 @@ const readingSync = computeTodayReadingProgress();
         attr: { title: goalEntries.map(([k, v]) => `${k}: ${v} мин`).join(", ") }
       });
 
-      // Живое обновление карточки на главной, если сейчас запущен таймер или секундомер
       if (window.__dhHomeFocusTicker) {
         window.clearInterval(window.__dhHomeFocusTicker);
         delete window.__dhHomeFocusTicker;
