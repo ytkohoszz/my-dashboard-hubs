@@ -21,6 +21,7 @@ if (mode === "all" || mode === "main") {
     "#a6b25a", "#8cb666", "#73b473", "#5ab17f", "#4aab80"
   ];
   const MONTHS = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+  const MONTHS_FULL = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
   const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
   const empty = v => v == null || v === "";
@@ -38,6 +39,67 @@ if (mode === "all" || mode === "main") {
   const today = dv.date("today").startOf("day");
   const todayISO = today.toISODate();
   const from30Date = today.minus({ days: 29 });
+
+  const state = (p, key) => p && typeof p[key] === "boolean" ? p[key] : null;
+
+  const parseValidNum = (v, minVal, maxVal, allowZero = false) => {
+    if (empty(v) || typeof v === "boolean") return null;
+    const n = typeof v === "number" ? v : Number(String(v).trim().replace(",", "."));
+    if (!Number.isFinite(n)) return null;
+    if (!allowZero && n <= 0) return null;
+    if (n < minVal || n > maxVal) return null;
+    return n;
+  };
+
+  const getPagesRead = p => p ? parseValidNum(p.страниц_прочитано, 0, 1500, true) : null;
+  const getSleepHours = p => p ? parseValidNum(p.сон_часов, 0.5, 24, false) : null;
+  const getCalories = p => p ? parseValidNum(p.калории_ккал, 1, 10000, false) : null;
+  const getWeight = p => p ? parseValidNum(p.вес_кг, 20, 300, false) : null;
+  const getSocialMin = p => p ? parseValidNum(p.соцсети_мин, 0, 1440, true) : null;
+  const getSteps = p => p ? parseValidNum(p.шаги, 0, 100000, true) : null;
+  const getProtein = p => p ? parseValidNum(p.белки_г ?? p.белки, 0, 600, false) : null;
+  const getFat = p => p ? parseValidNum(p.жиры_г ?? p.жиры, 0, 600, false) : null;
+  const getCarbs = p => p ? parseValidNum(p.углеводы_г ?? p.углеводы, 0, 1200, false) : null;
+
+  const getDayGoalsInfo = p => {
+    if (!p || empty(p.цели_дня)) return null;
+    const raw = p.цели_дня;
+    if (Array.isArray(raw)) {
+      const items = raw.map(x => String(x ?? "").trim()).filter(Boolean);
+      return items.length ? items.length : null;
+    }
+    if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) return raw;
+    if (typeof raw === "string") {
+      const trimmed = raw.trim();
+      if (!trimmed) return null;
+      const n = Number(trimmed.replace(",", "."));
+      if (Number.isFinite(n) && n >= 0) return n;
+      return trimmed.split(/\r?\n|;/).map(s => s.trim()).filter(Boolean).length;
+    }
+    return null;
+  };
+
+  const isNoteActivelyFilled = p => {
+    if (!p) return false;
+    if (score(p.оценка_дня) !== null || score(p.энергия) !== null) return true;
+    if (getWeight(p) !== null || getCalories(p) !== null || getSleepHours(p) !== null) return true;
+    const pr = getPagesRead(p);
+    if (pr !== null && pr > 0) return true;
+    if (typeof p.главное_событие === "string" && p.главное_событие.trim() !== "") return true;
+    return HABITS.some(hb => p[hb.key] === true);
+  };
+
+  const formatSigned = (rawDiff, minD = 0, maxD = 1, unit = "") => {
+    if (rawDiff == null || !Number.isFinite(rawDiff)) return "—";
+    const factor = 10 ** maxD;
+    const rounded = Math.round(rawDiff * factor) / factor;
+    const suffix = unit ? ` ${unit}` : "";
+    if (Object.is(rounded, -0) || Math.abs(rounded) < (maxD > 0 ? 0.05 : 0.5)) {
+      return `0${minD > 0 ? "," + "0".repeat(minD) : ""}${suffix}`;
+    }
+    const sign = rounded > 0 ? "+" : "−";
+    return `${sign}${fmt(Math.abs(rounded), minD, maxD)}${suffix}`;
+  };
 
   const problems = [];
   const groups = new Map();
@@ -883,7 +945,7 @@ if (mode === "all" || mode === "main") {
     legend.createSpan({ text: "· 🏋️ — тренировка" });
   }
 
-  // Привычки
+  // Привычки и сводки за месяц / год
   {
     const HABIT_MIN_WEEK_MARKED = 4;
     const HABIT_MAX_WEEK_GAP = 2;
@@ -891,7 +953,6 @@ if (mode === "all" || mode === "main") {
     const HABIT_MIN_MONTH_MARKED = 8;
     const HABIT_MIN_MONTH_NUMERIC = 5;
     const HABIT_MIN_GROUP_SIZE = 4;
-
 
     // Витрина аналитики: расчёты выполняет my-correlation-analytics
     {
@@ -968,49 +1029,1483 @@ if (mode === "all" || mode === "main") {
         host.createDiv({ text: "Плагин аналитики подгружается..." });
       }
     }
+
+    // Итог за месяц и Итог за год
+    {
+      const summariesRoot = root.createDiv({ cls: "dh-period-summaries" });
+      const doc = summariesRoot.ownerDocument;
+      const win = doc.defaultView || window;
+
+      const styleEl = summariesRoot.createEl("style");
+      styleEl.textContent = `
+        .dh-period-summaries {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          margin: 16px 0;
+          font-variant-numeric: tabular-nums;
+        }
+        .dh-period-summaries .dhps-panel {
+          border: 1px solid var(--background-modifier-border);
+          border-radius: 10px;
+          background: var(--background-secondary);
+          overflow: hidden;
+        }
+        .dh-period-summaries .dhps-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+          padding: 11px 15px;
+          cursor: pointer;
+          user-select: none;
+          transition: background-color 0.14s ease;
+        }
+        .dh-period-summaries .dhps-header:hover {
+          background: var(--background-modifier-hover);
+        }
+        .dh-period-summaries .dhps-title-wrap {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+        }
+        .dh-period-summaries .dhps-arrow {
+          display: inline-block;
+          font-size: 0.72rem;
+          color: var(--text-muted);
+          transition: transform 0.16s ease;
+        }
+        .dh-period-summaries .dhps-panel.is-open .dhps-arrow {
+          transform: rotate(90deg);
+        }
+        .dh-period-summaries .dhps-title {
+          font-weight: 700;
+          font-size: 0.94rem;
+          color: var(--text-normal);
+        }
+        .dh-period-summaries .dhps-sub {
+          font-size: 0.74rem;
+          color: var(--text-muted);
+        }
+        .dh-period-summaries .dhps-controls {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+        }
+        .dh-period-summaries button.dhps-nav-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 30px;
+          height: 30px;
+          margin: 0;
+          padding: 0 7px;
+          border-radius: 6px;
+          border: 1px solid var(--background-modifier-border);
+          background: var(--background-primary);
+          color: var(--text-normal);
+          font-size: 0.88rem;
+          font-weight: 600;
+          line-height: 1;
+          cursor: pointer;
+          box-shadow: none;
+          transition: border-color 0.14s ease, color 0.14s ease;
+        }
+        .dh-period-summaries button.dhps-nav-btn:hover:not(:disabled) {
+          border-color: var(--interactive-accent);
+          color: var(--text-accent);
+        }
+        .dh-period-summaries button.dhps-nav-btn:disabled {
+          opacity: 0.38;
+          cursor: default;
+        }
+        .dh-period-summaries .dhps-period-label {
+          min-width: 112px;
+          text-align: center;
+          font-size: 0.81rem;
+          font-weight: 650;
+          color: var(--text-normal);
+          padding: 0 4px;
+        }
+        .dh-period-summaries select.dhps-select {
+          height: 30px;
+          padding: 0 24px 0 9px;
+          border-radius: 6px;
+          border: 1px solid var(--background-modifier-border);
+          background: var(--background-primary);
+          color: var(--text-normal);
+          font-size: 0.78rem;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .dh-period-summaries .dhps-body {
+          display: none;
+          flex-direction: column;
+          gap: 12px;
+          padding: 0 15px 15px;
+          border-top: 1px solid var(--background-modifier-border);
+        }
+        .dh-period-summaries .dhps-panel.is-open .dhps-body {
+          display: flex;
+          padding-top: 13px;
+        }
+        .dh-period-summaries .dhps-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 215px), 1fr));
+          gap: 10px;
+        }
+        .dh-period-summaries .dhps-card {
+          display: flex;
+          flex-direction: column;
+          gap: 5px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: var(--background-primary);
+          border: 1px solid var(--background-modifier-border);
+          border-top: 2px solid var(--dhps-accent, var(--background-modifier-border));
+          min-width: 0;
+        }
+        .dh-period-summaries .dhps-card-head {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 8px;
+        }
+        .dh-period-summaries .dhps-card-label {
+          font-size: 0.73rem;
+          font-weight: 600;
+          color: var(--text-muted);
+        }
+        .dh-period-summaries .dhps-delta {
+          font-size: 0.7rem;
+          font-weight: 650;
+          padding: 1px 5px;
+          border-radius: 4px;
+          white-space: nowrap;
+          background: var(--background-secondary);
+          color: var(--text-muted);
+        }
+        .dh-period-summaries .dhps-delta.is-good {
+          color: #4aab80;
+          background: #4aab801a;
+        }
+        .dh-period-summaries .dhps-delta.is-bad {
+          color: #d85b57;
+          background: #d85b571a;
+        }
+        .dh-period-summaries .dhps-card-main {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .dh-period-summaries .dhps-card-val {
+          font-size: 1.18rem;
+          font-weight: 700;
+          line-height: 1.2;
+          color: var(--text-normal);
+        }
+        .dh-period-summaries .dhps-card-unit {
+          font-size: 0.72rem;
+          color: var(--text-muted);
+        }
+        .dh-period-summaries .dhps-card-rows {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          margin-top: 2px;
+          padding-top: 5px;
+          border-top: 1px solid var(--background-modifier-border);
+          font-size: 0.72rem;
+        }
+        .dh-period-summaries .dhps-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 8px;
+        }
+        .dh-period-summaries .dhps-row-k {
+          color: var(--text-muted);
+        }
+        .dh-period-summaries .dhps-row-v {
+          color: var(--text-normal);
+          font-weight: 600;
+          text-align: right;
+        }
+        .dh-period-summaries a.dhps-note-link {
+          color: var(--text-accent);
+          text-decoration: none;
+          font-weight: 650;
+          cursor: pointer;
+        }
+        .dh-period-summaries a.dhps-note-link:hover {
+          text-decoration: underline;
+        }
+        .dh-period-summaries .dhps-dist-bar {
+          display: grid;
+          grid-template-columns: repeat(10, minmax(0, 1fr));
+          gap: 3px;
+          margin-top: 4px;
+        }
+        .dh-period-summaries .dhps-dist-step {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 2px;
+        }
+        .dh-period-summaries .dhps-dist-swatch {
+          width: 100%;
+          height: 7px;
+          border-radius: 2px;
+          background: var(--step-color);
+          opacity: 0.22;
+        }
+        .dh-period-summaries .dhps-dist-step.has-count .dhps-dist-swatch {
+          opacity: 1;
+        }
+        .dh-period-summaries .dhps-dist-num {
+          font-size: 0.63rem;
+          line-height: 1;
+          color: var(--text-muted);
+        }
+        .dh-period-summaries .dhps-dist-step.has-count .dhps-dist-num {
+          color: var(--text-normal);
+          font-weight: 650;
+        }
+        .dh-period-summaries .dhps-subbox {
+          padding: 10px 12px;
+          border-radius: 8px;
+          background: var(--background-primary);
+          border: 1px solid var(--background-modifier-border);
+        }
+        .dh-period-summaries .dhps-subbox-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 8px;
+          flex-wrap: wrap;
+          margin-bottom: 8px;
+        }
+        .dh-period-summaries .dhps-subbox-title {
+          font-size: 0.76rem;
+          font-weight: 650;
+          color: var(--text-muted);
+        }
+        .dh-period-summaries .dhps-subbox-hint {
+          font-size: 0.7rem;
+          color: var(--text-faint);
+        }
+        .dh-period-summaries .dhps-chart-svg {
+          display: block;
+          width: 100%;
+          height: 112px;
+          overflow: visible;
+        }
+        .dh-period-summaries .dhps-chart-node {
+          cursor: pointer;
+          transition: r 0.12s ease;
+        }
+        .dh-period-summaries .dhps-chart-node:hover {
+          r: 4.8px;
+        }
+        .dh-period-summaries .dhps-habits-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 175px), 1fr));
+          gap: 8px;
+        }
+        .dh-period-summaries .dhps-habit-chip {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          padding: 8px 10px;
+          border-radius: 7px;
+          background: var(--background-secondary);
+          border: 1px solid var(--background-modifier-border);
+          border-left: 3px solid var(--h-color);
+        }
+        .dh-period-summaries .dhps-habit-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 6px;
+        }
+        .dh-period-summaries .dhps-habit-name {
+          font-size: 0.76rem;
+          font-weight: 650;
+          color: var(--text-normal);
+        }
+        .dh-period-summaries .dhps-habit-rate {
+          font-size: 0.78rem;
+          font-weight: 700;
+          color: var(--h-color);
+        }
+        .dh-period-summaries .dhps-habit-meta {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 6px;
+          font-size: 0.69rem;
+          color: var(--text-muted);
+        }
+        .dh-period-summaries .dhps-months-strip {
+          display: grid;
+          grid-template-columns: repeat(12, minmax(0, 1fr));
+          gap: 6px;
+        }
+        .dh-period-summaries button.dhps-mcol {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: space-between;
+          gap: 3px;
+          min-height: 68px;
+          height: auto;
+          margin: 0;
+          padding: 6px 4px;
+          border-radius: 7px;
+          border: 1px solid var(--background-modifier-border);
+          background: var(--background-secondary);
+          color: var(--text-normal);
+          font-family: inherit;
+          cursor: pointer;
+          box-shadow: none;
+          transition: border-color 0.14s ease, transform 0.14s ease, background-color 0.14s ease;
+        }
+        .dh-period-summaries button.dhps-mcol:hover:not(:disabled) {
+          border-color: var(--interactive-accent);
+          transform: translateY(-1px);
+        }
+        .dh-period-summaries button.dhps-mcol:disabled {
+          opacity: 0.35;
+          cursor: default;
+        }
+        .dh-period-summaries button.dhps-mcol.is-selected {
+          outline: 2px solid var(--interactive-accent);
+          outline-offset: 1px;
+        }
+        .dh-period-summaries button.dhps-mcol.is-best {
+          border-color: #4aab80;
+          background: #4aab8014;
+        }
+        .dh-period-summaries button.dhps-mcol.is-worst {
+          border-color: #d85b57;
+          background: #d85b5714;
+        }
+        .dh-period-summaries .dhps-mcol-name {
+          font-size: 0.69rem;
+          font-weight: 650;
+          color: var(--text-muted);
+          text-transform: capitalize;
+        }
+        .dh-period-summaries .dhps-mcol-score {
+          font-size: 0.84rem;
+          font-weight: 700;
+          line-height: 1.1;
+        }
+        .dh-period-summaries .dhps-mcol-energy {
+          font-size: 0.66rem;
+          color: var(--text-muted);
+        }
+        .dh-period-summaries .dhps-mcol-tag {
+          font-size: 0.58rem;
+          font-weight: 700;
+          padding: 0 4px;
+          border-radius: 3px;
+          line-height: 1.3;
+        }
+        .dh-period-summaries .dhps-mcol-tag.is-best {
+          color: #4aab80;
+          background: #4aab8022;
+        }
+        .dh-period-summaries .dhps-mcol-tag.is-worst {
+          color: #d85b57;
+          background: #d85b5722;
+        }
+        .dh-period-summaries .dhps-year-heatmap {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          overflow-x: auto;
+          padding-bottom: 2px;
+        }
+        .dh-period-summaries .dhps-yh-row {
+          display: grid;
+          grid-template-columns: 28px repeat(31, minmax(8px, 1fr));
+          gap: 2px;
+          align-items: center;
+          min-width: 390px;
+        }
+        .dh-period-summaries .dhps-yh-label {
+          font-size: 0.66rem;
+          color: var(--text-muted);
+          text-transform: capitalize;
+        }
+        .dh-period-summaries .dhps-yh-cell {
+          width: 100%;
+          height: 12px;
+          border-radius: 2px;
+          background: var(--background-secondary);
+          border: 1px solid transparent;
+          box-sizing: border-box;
+        }
+        .dh-period-summaries .dhps-yh-cell.is-invalid {
+          background: transparent;
+        }
+        .dh-period-summaries .dhps-yh-cell.is-future {
+          opacity: 0.25;
+        }
+        .dh-period-summaries .dhps-yh-cell.has-entry {
+          cursor: pointer;
+          border-style: dashed;
+          border-color: var(--text-faint);
+          background: var(--background-primary);
+        }
+        .dh-period-summaries .dhps-yh-cell.has-score {
+          cursor: pointer;
+          border-style: solid;
+          border-color: var(--cell-color);
+          background: var(--cell-bg);
+        }
+        .dh-period-summaries .dhps-yh-cell.is-today {
+          outline: 1.5px solid var(--interactive-accent);
+        }
+        @media (max-width: 820px) {
+          .dh-period-summaries .dhps-months-strip {
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 520px) {
+          .dh-period-summaries .dhps-months-strip {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+          }
+          .dh-period-summaries .dhps-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `;
+
+      // Доступные месяцы и годы по фактическим записям
+      const currentMonthKey = todayISO.slice(0, 7);
+      const minEntryISO = entries.length ? entries[entries.length - 1][0] : todayISO;
+      const minMonthStart = dv.date(minEntryISO).startOf("month");
+      const maxMonthStart = today.startOf("month");
+
+      const availableMonths = [];
+      let mCursor = minMonthStart;
+      while (mCursor <= maxMonthStart) {
+        availableMonths.push(mCursor.toFormat("yyyy-MM"));
+        mCursor = mCursor.plus({ months: 1 });
+      }
+      if (!availableMonths.includes(currentMonthKey)) {
+        availableMonths.push(currentMonthKey);
+      }
+
+      const yearSet = new Set(entries.map(([iso]) => Number(iso.slice(0, 4))));
+      if (yearSet.size === 0) yearSet.add(today.year);
+      const availableYears = [...yearSet].sort((a, b) => a - b);
+
+      if (!win.__dhDiarySummaryState || typeof win.__dhDiarySummaryState !== "object") {
+        win.__dhDiarySummaryState = {
+          monthKey: currentMonthKey,
+          year: availableYears.includes(today.year) ? today.year : availableYears[availableYears.length - 1],
+          monthOpen: true,
+          yearOpen: false
+        };
+      }
+      const sumState = win.__dhDiarySummaryState;
+      if (!availableMonths.includes(sumState.monthKey)) {
+        sumState.monthKey = currentMonthKey;
+      }
+      if (!availableYears.includes(sumState.year)) {
+        sumState.year = availableYears.includes(today.year) ? today.year : availableYears[availableYears.length - 1];
+      }
+
+      const monthCache = new Map();
+      const yearCache = new Map();
+
+      function computeRangeMetrics(startDate, endDate) {
+        const startISO = startDate.toISODate();
+        const endISO = endDate.toISODate();
+        const totalCalendarDays = Math.round(endDate.diff(startDate, "days").days) + 1;
+        const effectiveEnd = endDate > today ? today : endDate;
+        const elapsedDays = effectiveEnd >= startDate
+          ? Math.round(effectiveEnd.diff(startDate, "days").days) + 1
+          : 0;
+
+        const daySlots = [];
+        const scoreItems = [];
+        const energyItems = [];
+        const weightItems = [];
+        const calorieItems = [];
+        const proteinItems = [];
+        const fatItems = [];
+        const carbItems = [];
+        const sleepItems = [];
+        const pagesItems = [];
+        const socialItems = [];
+        const stepsItems = [];
+        const goalsItems = [];
+        let eventsCount = 0;
+        let recordsCount = 0;
+        const dist = Array(10).fill(0);
+
+        for (let i = 0; i < totalCalendarDays; i++) {
+          const d = startDate.plus({ days: i });
+          const iso = d.toISODate();
+          const isFuture = iso > todayISO;
+          const p = (!isFuture && iso >= startISO && iso <= endISO) ? (byDate.get(iso) || null) : null;
+          const s = p ? score(p.оценка_дня) : null;
+          const e = p ? score(p.энергия) : null;
+
+          daySlots.push({ day: d.day, month: d.month, date: d, iso, isFuture, page: p, score: s, energy: e });
+
+          if (!p) continue;
+          recordsCount++;
+
+          if (s !== null) {
+            scoreItems.push({ date: d, iso, page: p, val: s });
+            dist[Math.min(9, Math.max(0, Math.round(s) - 1))]++;
+          }
+          if (e !== null) energyItems.push({ date: d, iso, page: p, val: e });
+
+          const w = getWeight(p);
+          if (w !== null) weightItems.push({ date: d, iso, page: p, val: w });
+
+          const cal = getCalories(p);
+          if (cal !== null) calorieItems.push(cal);
+
+          const pr = getProtein(p);
+          if (pr !== null) proteinItems.push(pr);
+          const ft = getFat(p);
+          if (ft !== null) fatItems.push(ft);
+          const cb = getCarbs(p);
+          if (cb !== null) carbItems.push(cb);
+
+          const sl = getSleepHours(p);
+          if (sl !== null) sleepItems.push(sl);
+
+          const pg = getPagesRead(p);
+          if (pg !== null && pg > 0) pagesItems.push(pg);
+
+          const soc = getSocialMin(p);
+          if (soc !== null) socialItems.push(soc);
+
+          const st = getSteps(p);
+          if (st !== null && st > 0) stepsItems.push(st);
+
+          const gl = getDayGoalsInfo(p);
+          if (gl !== null) goalsItems.push(gl);
+
+          if (typeof p.главное_событие === "string" && p.главное_событие.trim() !== "") {
+            eventsCount++;
+          }
+        }
+
+        const scoreVals = scoreItems.map(x => x.val);
+        const meanScore = average(scoreVals);
+        let bestDay = null;
+        let worstDay = null;
+        for (const item of scoreItems) {
+          if (!bestDay || item.val > bestDay.val) bestDay = item;
+          if (!worstDay || item.val < worstDay.val) worstDay = item;
+        }
+
+        const energyVals = energyItems.map(x => x.val);
+        const meanEnergy = average(energyVals);
+        let energyHalfDelta = null;
+        if (energyItems.length >= 4) {
+          const half = Math.floor(energyItems.length / 2);
+          const firstHalf = average(energyItems.slice(0, half).map(x => x.val));
+          const secondHalf = average(energyItems.slice(half).map(x => x.val));
+          if (firstHalf !== null && secondHalf !== null) {
+            energyHalfDelta = secondHalf - firstHalf;
+          }
+        }
+
+        const firstWeight = weightItems.length ? weightItems[0] : null;
+        const lastWeight = weightItems.length ? weightItems[weightItems.length - 1] : null;
+        const weightChange = (firstWeight && lastWeight && weightItems.length >= 2)
+          ? lastWeight.val - firstWeight.val
+          : null;
+        const meanWeight = average(weightItems.map(x => x.val));
+
+        const meanCalories = average(calorieItems);
+        const meanProtein = average(proteinItems);
+        const meanFat = average(fatItems);
+        const meanCarbs = average(carbItems);
+        const meanSleep = average(sleepItems);
+        const minSleep = sleepItems.length ? Math.min(...sleepItems) : null;
+        const maxSleep = sleepItems.length ? Math.max(...sleepItems) : null;
+
+        const sumPages = pagesItems.reduce((a, b) => a + b, 0);
+        const meanPagesReadDay = average(pagesItems);
+
+        const meanSocial = average(socialItems);
+        const socialInLimitDays = socialItems.filter(v => v <= SOCIAL_LIMIT_MIN).length;
+
+        const sumSteps = stepsItems.reduce((a, b) => a + b, 0);
+        const meanSteps = average(stepsItems);
+
+        const sumGoals = goalsItems.reduce((a, b) => a + b, 0);
+
+        const habitsStats = {};
+        for (const h of HABITS) {
+          let doneCount = 0;
+          let markedCount = 0;
+          let bestStreak = 0;
+          let curRun = 0;
+          let endStreak = 0;
+
+          for (const slot of daySlots) {
+            if (slot.isFuture) continue;
+            const stVal = state(slot.page, h.key);
+            if (stVal !== null) markedCount++;
+            if (stVal === true) {
+              doneCount++;
+              curRun++;
+              if (curRun > bestStreak) bestStreak = curRun;
+            } else {
+              curRun = 0;
+            }
+          }
+
+          for (let i = daySlots.length - 1; i >= 0; i--) {
+            if (daySlots[i].isFuture) continue;
+            if (state(daySlots[i].page, h.key) === true) {
+              endStreak++;
+            } else {
+              if (daySlots[i].iso === todayISO && state(daySlots[i].page, h.key) === null) continue;
+              break;
+            }
+          }
+
+          const pctCalendar = totalCalendarDays > 0 ? Math.round((doneCount / totalCalendarDays) * 100) : 0;
+          const pctElapsed = elapsedDays > 0 ? Math.round((doneCount / elapsedDays) * 100) : 0;
+
+          habitsStats[h.key] = {
+            key: h.key,
+            name: h.name,
+            color: h.color,
+            doneCount,
+            markedCount,
+            bestStreak,
+            currentStreak: endStreak,
+            pctCalendar,
+            pctElapsed
+          };
+        }
+
+        return {
+          startDate,
+          endDate,
+          totalCalendarDays,
+          elapsedDays,
+          recordsCount,
+          daySlots,
+          scoreCount: scoreItems.length,
+          withoutScoreCount: Math.max(0, elapsedDays - scoreItems.length),
+          meanScore,
+          bestDay,
+          worstDay,
+          dist,
+          energyCount: energyItems.length,
+          meanEnergy,
+          minEnergy: energyVals.length ? Math.min(...energyVals) : null,
+          maxEnergy: energyVals.length ? Math.max(...energyVals) : null,
+          energyHalfDelta,
+          weightCount: weightItems.length,
+          firstWeight,
+          lastWeight,
+          weightChange,
+          meanWeight,
+          calorieCount: calorieItems.length,
+          meanCalories,
+          meanProtein,
+          meanFat,
+          meanCarbs,
+          hasMacros: proteinItems.length > 0 || fatItems.length > 0 || carbItems.length > 0,
+          sleepCount: sleepItems.length,
+          meanSleep,
+          minSleep,
+          maxSleep,
+          pagesDaysCount: pagesItems.length,
+          sumPages,
+          meanPagesReadDay,
+          socialCount: socialItems.length,
+          meanSocial,
+          socialInLimitDays,
+          stepsCount: stepsItems.length,
+          sumSteps,
+          meanSteps,
+          goalsCount: goalsItems.length,
+          sumGoals,
+          eventsCount,
+          habitsStats
+        };
+      }
+
+      function getMonthStats(monthKey) {
+        if (monthCache.has(monthKey)) return monthCache.get(monthKey);
+        const start = dv.date(`${monthKey}-01`).startOf("month");
+        const end = start.endOf("month").startOf("day");
+        const res = computeRangeMetrics(start, end);
+        monthCache.set(monthKey, res);
+        return res;
+      }
+
+      function getYearStats(yearNum) {
+        if (yearCache.has(yearNum)) return yearCache.get(yearNum);
+        const start = dv.date(`${yearNum}-01-01`).startOf("day");
+        const end = dv.date(`${yearNum}-12-31`).startOf("day");
+        const base = computeRangeMetrics(start, end);
+        const monthsBreakdown = [];
+        for (let m = 1; m <= 12; m++) {
+          const mk = `${yearNum}-${String(m).padStart(2, "0")}`;
+          const ms = getMonthStats(mk);
+          monthsBreakdown.push({
+            monthIndex: m - 1,
+            monthKey: mk,
+            label: MONTHS[m - 1],
+            fullLabel: MONTHS_FULL[m - 1],
+            stats: ms,
+            isFutureMonth: `${yearNum}-${String(m).padStart(2, "0")}-01` > todayISO
+          });
+        }
+        const scoredMonths = monthsBreakdown.filter(m => m.stats.meanScore !== null && m.stats.scoreCount >= 1);
+        let bestMonth = null;
+        let worstMonth = null;
+        for (const m of scoredMonths) {
+          if (!bestMonth || m.stats.meanScore > bestMonth.stats.meanScore) bestMonth = m;
+          if (!worstMonth || m.stats.meanScore < worstMonth.stats.meanScore) worstMonth = m;
+        }
+        if (bestMonth && worstMonth && bestMonth.monthKey === worstMonth.monthKey) {
+          worstMonth = null;
+        }
+        const full = { ...base, year: yearNum, monthsBreakdown, bestMonth, worstMonth };
+        yearCache.set(yearNum, full);
+        return full;
+      }
+
+      function renderDeltaBadge(parent, curVal, prevVal, { minD = 0, maxD = 1, unit = "", invertGood = false, neutral = false } = {}) {
+        if (curVal == null || prevVal == null || !Number.isFinite(curVal) || !Number.isFinite(prevVal)) return;
+        const raw = curVal - prevVal;
+        const threshold = maxD > 0 ? 0.05 : 0.5;
+        const text = formatSigned(raw, minD, maxD, unit);
+        let cls = "dhps-delta";
+        if (!neutral && Math.abs(raw) >= threshold) {
+          const isPositiveGood = invertGood ? raw < 0 : raw > 0;
+          cls += isPositiveGood ? " is-good" : " is-bad";
+        }
+        parent.createSpan({
+          cls,
+          text,
+          attr: { title: `К предыдущему периоду (${fmt(prevVal, minD, maxD)}${unit ? " " + unit : ""})` }
+        });
+      }
+
+      function renderNoteLink(parent, item, prefix = "") {
+        if (!item || !item.page) {
+          parent.createSpan({ cls: "dhps-row-v", text: "—" });
+          return;
+        }
+        const wrap = parent.createSpan({ cls: "dhps-row-v" });
+        if (prefix) wrap.createSpan({ text: `${prefix} ` });
+        const a = wrap.createEl("a", {
+          cls: "dhps-note-link",
+          text: item.date.toFormat("dd.MM"),
+          attr: { href: "#", title: `Открыть заметку за ${item.date.toFormat("dd.MM.yyyy")}` }
+        });
+        a.onclick = e => {
+          e.preventDefault();
+          e.stopPropagation();
+          open(item.page);
+        };
+      }
+
+      function renderSummaryCards(container, cur, prev, periodDaysLabel) {
+        const grid = container.createDiv({ cls: "dhps-grid" });
+        const hasPrev = prev && prev.recordsCount > 0;
+
+        // 1. Оценка дня
+        {
+          const card = grid.createDiv({ cls: "dhps-card" });
+          card.style.setProperty("--dhps-accent", "#e5a158");
+          const head = card.createDiv({ cls: "dhps-card-head" });
+          head.createSpan({ cls: "dhps-card-label", text: "Оценка дня" });
+          if (hasPrev && prev.scoreCount > 0) {
+            renderDeltaBadge(head, cur.meanScore, prev.meanScore, { minD: 1, maxD: 1 });
+          }
+
+          const main = card.createDiv({ cls: "dhps-card-main" });
+          main.createSpan({ cls: "dhps-card-val", text: cur.meanScore !== null ? fmt(cur.meanScore, 1, 1) : "—" });
+          main.createSpan({ cls: "dhps-card-unit", text: `ср. из 10 · ${cur.scoreCount} дн.` });
+
+          const rows = card.createDiv({ cls: "dhps-card-rows" });
+          const rBest = rows.createDiv({ cls: "dhps-row" });
+          rBest.createSpan({ cls: "dhps-row-k", text: "Лучший день" });
+          renderNoteLink(rBest, cur.bestDay, cur.bestDay ? `${fmt(cur.bestDay.val)}/10 ·` : "");
+
+          const rWorst = rows.createDiv({ cls: "dhps-row" });
+          rWorst.createSpan({ cls: "dhps-row-k", text: "Худший день" });
+          renderNoteLink(rWorst, cur.worstDay, cur.worstDay ? `${fmt(cur.worstDay.val)}/10 ·` : "");
+
+          const rCount = rows.createDiv({ cls: "dhps-row" });
+          rCount.createSpan({ cls: "dhps-row-k", text: "С оценкой / без" });
+          rCount.createSpan({
+            cls: "dhps-row-v",
+            text: `${cur.scoreCount} / ${cur.withoutScoreCount} дн.`
+          });
+
+          const distBar = card.createDiv({ cls: "dhps-dist-bar" });
+          for (let i = 0; i < 10; i++) {
+            const count = cur.dist[i];
+            const step = distBar.createDiv({
+              cls: `dhps-dist-step${count > 0 ? " has-count" : ""}`,
+              attr: { title: `Оценка ${i + 1}: ${count} дн.` }
+            });
+            step.style.setProperty("--step-color", COLORS[i]);
+            step.createDiv({ cls: "dhps-dist-swatch" });
+            step.createSpan({ cls: "dhps-dist-num", text: count > 0 ? String(count) : "·" });
+          }
+        }
+
+        // 2. Энергия
+        {
+          const card = grid.createDiv({ cls: "dhps-card" });
+          card.style.setProperty("--dhps-accent", "#69b5aa");
+          const head = card.createDiv({ cls: "dhps-card-head" });
+          head.createSpan({ cls: "dhps-card-label", text: "Энергия" });
+          if (hasPrev && prev.energyCount > 0) {
+            renderDeltaBadge(head, cur.meanEnergy, prev.meanEnergy, { minD: 1, maxD: 1 });
+          }
+
+          const main = card.createDiv({ cls: "dhps-card-main" });
+          main.createSpan({ cls: "dhps-card-val", text: cur.meanEnergy !== null ? fmt(cur.meanEnergy, 1, 1) : "—" });
+          main.createSpan({ cls: "dhps-card-unit", text: `ср. из 10 · ${cur.energyCount} дн.` });
+
+          const rows = card.createDiv({ cls: "dhps-card-rows" });
+          const rDyn = rows.createDiv({ cls: "dhps-row" });
+          rDyn.createSpan({ cls: "dhps-row-k", text: "Динамика внутри периода" });
+          rDyn.createSpan({
+            cls: "dhps-row-v",
+            text: cur.energyHalfDelta !== null ? `${formatSigned(cur.energyHalfDelta, 1, 1)} (2-я пол.)` : "—"
+          });
+
+          const rMinMax = rows.createDiv({ cls: "dhps-row" });
+          rMinMax.createSpan({ cls: "dhps-row-k", text: "Разброс" });
+          rMinMax.createSpan({
+            cls: "dhps-row-v",
+            text: cur.minEnergy !== null ? `${fmt(cur.minEnergy)}–${fmt(cur.maxEnergy)}` : "—"
+          });
+
+          const rEvents = rows.createDiv({ cls: "dhps-row" });
+          rEvents.createSpan({ cls: "dhps-row-k", text: "Главных событий" });
+          rEvents.createSpan({ cls: "dhps-row-v", text: `${cur.eventsCount} дн.` });
+        }
+
+        // 3. Вес и Калории (Питание)
+        {
+          const card = grid.createDiv({ cls: "dhps-card" });
+          card.style.setProperty("--dhps-accent", "#8bac5e");
+          const head = card.createDiv({ cls: "dhps-card-head" });
+          head.createSpan({ cls: "dhps-card-label", text: "Вес и калории" });
+          if (hasPrev && prev.calorieCount > 0 && cur.meanCalories !== null) {
+            renderDeltaBadge(head, Math.round(cur.meanCalories), Math.round(prev.meanCalories), {
+              minD: 0,
+              maxD: 0,
+              unit: "ккал",
+              neutral: true
+            });
+          }
+
+          const main = card.createDiv({ cls: "dhps-card-main" });
+          main.createSpan({
+            cls: "dhps-card-val",
+            text: cur.weightChange !== null
+              ? formatSigned(cur.weightChange, 1, 1, "кг")
+              : cur.lastWeight
+                ? `${fmt(cur.lastWeight.val, 1, 1)} кг`
+                : "—"
+          });
+          main.createSpan({
+            cls: "dhps-card-unit",
+            text: cur.meanCalories !== null ? `ср. ${fmt(Math.round(cur.meanCalories), 0, 0)} ккал` : "калории: —"
+          });
+
+          const rows = card.createDiv({ cls: "dhps-card-rows" });
+          const rW = rows.createDiv({ cls: "dhps-row" });
+          rW.createSpan({ cls: "dhps-row-k", text: "Первое → последнее" });
+          rW.createSpan({
+            cls: "dhps-row-v",
+            text: cur.firstWeight && cur.lastWeight
+              ? `${fmt(cur.firstWeight.val, 1, 1)} → ${fmt(cur.lastWeight.val, 1, 1)} кг`
+              : "—"
+          });
+
+          const rCal = rows.createDiv({ cls: "dhps-row" });
+          rCal.createSpan({ cls: "dhps-row-k", text: "Дней с калориями / весом" });
+          rCal.createSpan({
+            cls: "dhps-row-v",
+            text: `${cur.calorieCount} / ${cur.weightCount} дн.`
+          });
+
+          if (cur.hasMacros) {
+            const rMacros = rows.createDiv({ cls: "dhps-row" });
+            rMacros.createSpan({ cls: "dhps-row-k", text: "Ср. Б / Ж / У" });
+            rMacros.createSpan({
+              cls: "dhps-row-v",
+              text: `${fmt(cur.meanProtein, 0, 0)} / ${fmt(cur.meanFat, 0, 0)} / ${fmt(cur.meanCarbs, 0, 0)} г`
+            });
+          } else if (cur.meanWeight !== null) {
+            const rMeanW = rows.createDiv({ cls: "dhps-row" });
+            rMeanW.createSpan({ cls: "dhps-row-k", text: "Средний вес" });
+            rMeanW.createSpan({ cls: "dhps-row-v", text: `${fmt(cur.meanWeight, 1, 1)} кг` });
+          }
+        }
+
+        // 4. Сон и Тренировки
+        {
+          const trStats = cur.habitsStats["тренировка"];
+          const prevTrStats = hasPrev ? prev.habitsStats["тренировка"] : null;
+          const card = grid.createDiv({ cls: "dhps-card" });
+          card.style.setProperty("--dhps-accent", "#d69852");
+          const head = card.createDiv({ cls: "dhps-card-head" });
+          head.createSpan({ cls: "dhps-card-label", text: "Сон и тренировки" });
+          if (hasPrev && prev.sleepCount > 0 && cur.meanSleep !== null) {
+            renderDeltaBadge(head, cur.meanSleep, prev.meanSleep, { minD: 1, maxD: 1, unit: "ч" });
+          }
+
+          const main = card.createDiv({ cls: "dhps-card-main" });
+          main.createSpan({
+            cls: "dhps-card-val",
+            text: cur.meanSleep !== null ? `${fmt(cur.meanSleep, 1, 1)} ч` : "—"
+          });
+          main.createSpan({
+            cls: "dhps-card-unit",
+            text: `🏋️ ${trStats.doneCount} дн. (${trStats.pctCalendar}%)`
+          });
+
+          const rows = card.createDiv({ cls: "dhps-card-rows" });
+          const rSl = rows.createDiv({ cls: "dhps-row" });
+          rSl.createSpan({ cls: "dhps-row-k", text: "Сон (мин–макс · дн.)" });
+          rSl.createSpan({
+            cls: "dhps-row-v",
+            text: cur.sleepCount > 0
+              ? `${fmt(cur.minSleep, 0, 1)}–${fmt(cur.maxSleep, 0, 1)} ч · ${cur.sleepCount} дн.`
+              : "—"
+          });
+
+          const rTr = rows.createDiv({ cls: "dhps-row" });
+          rTr.createSpan({ cls: "dhps-row-k", text: `Тренировки (% от ${periodDaysLabel})` });
+          const trDeltaStr = (prevTrStats && hasPrev)
+            ? ` (${formatSigned(trStats.doneCount - prevTrStats.doneCount, 0, 0, "дн.")})`
+            : "";
+          rTr.createSpan({
+            cls: "dhps-row-v",
+            text: `${trStats.doneCount} из ${cur.totalCalendarDays} дн.${trDeltaStr}`
+          });
+
+          if (cur.stepsCount > 0) {
+            const rSt = rows.createDiv({ cls: "dhps-row" });
+            rSt.createSpan({ cls: "dhps-row-k", text: "Шаги (ср. / день)" });
+            rSt.createSpan({
+              cls: "dhps-row-v",
+              text: `${fmt(Math.round(cur.meanSteps), 0, 0)} (${cur.stepsCount} дн.)`
+            });
+          }
+        }
+
+        // 5. Чтение, Соцсети и Цели
+        {
+          const card = grid.createDiv({ cls: "dhps-card" });
+          card.style.setProperty("--dhps-accent", "#599ed6");
+          const head = card.createDiv({ cls: "dhps-card-head" });
+          head.createSpan({ cls: "dhps-card-label", text: "Чтение и соцсети" });
+          if (hasPrev && prev.pagesDaysCount > 0 && cur.pagesDaysCount > 0) {
+            renderDeltaBadge(head, cur.sumPages, prev.sumPages, { minD: 0, maxD: 0, unit: "стр." });
+          }
+
+          const main = card.createDiv({ cls: "dhps-card-main" });
+          main.createSpan({
+            cls: "dhps-card-val",
+            text: cur.pagesDaysCount > 0 ? `${fmt(cur.sumPages, 0, 0)} стр.` : "0 стр."
+          });
+          main.createSpan({
+            cls: "dhps-card-unit",
+            text: cur.meanPagesReadDay !== null
+              ? `ср. ${fmt(cur.meanPagesReadDay, 0, 1)} стр./день чтения`
+              : "чтение: —"
+          });
+
+          const rows = card.createDiv({ cls: "dhps-card-rows" });
+          const rRead = rows.createDiv({ cls: "dhps-row" });
+          rRead.createSpan({ cls: "dhps-row-k", text: "Дней с чтением (флажок / стр.)" });
+          rRead.createSpan({
+            cls: "dhps-row-v",
+            text: `${cur.habitsStats["чтение"].doneCount} / ${cur.pagesDaysCount} дн.`
+          });
+
+          const rSoc = rows.createDiv({ cls: "dhps-row" });
+          rSoc.createSpan({ cls: "dhps-row-k", text: "Соцсети (ср. · в лимите)" });
+          const socDelta = (hasPrev && prev.meanSocial !== null && cur.meanSocial !== null)
+            ? ` (${formatSigned(Math.round(cur.meanSocial - prev.meanSocial), 0, 0, "мин")})`
+            : "";
+          rSoc.createSpan({
+            cls: "dhps-row-v",
+            text: cur.meanSocial !== null
+              ? `${Math.round(cur.meanSocial)} мин${socDelta} · ${cur.socialInLimitDays}/${cur.socialCount} дн.`
+              : "—"
+          });
+
+          if (cur.goalsCount > 0) {
+            const rGoals = rows.createDiv({ cls: "dhps-row" });
+            rGoals.createSpan({ cls: "dhps-row-k", text: "Цели дня" });
+            rGoals.createSpan({
+              cls: "dhps-row-v",
+              text: `${fmt(cur.sumGoals, 0, 0)} (${cur.goalsCount} дн.)`
+            });
+          }
+        }
+      }
+
+      function renderHabitsSummaryGrid(container, cur, prev, isYearMode = false) {
+        const box = container.createDiv({ cls: "dhps-subbox" });
+        const head = box.createDiv({ cls: "dhps-subbox-head" });
+        head.createSpan({
+          cls: "dhps-subbox-title",
+          text: isYearMode ? "Привычки за год (выполнение и серии)" : "Привычки за месяц (выполнение и лучшая серия)"
+        });
+        head.createSpan({
+          cls: "dhps-subbox-hint",
+          text: `% от всех дней ${isYearMode ? "года" : "месяца"} (${cur.totalCalendarDays} дн.)`
+        });
+
+        const hGrid = box.createDiv({ cls: "dhps-habits-grid" });
+        const hasPrev = prev && prev.recordsCount > 0;
+
+        for (const h of HABITS) {
+          const hsItem = cur.habitsStats[h.key];
+          const prevItem = hasPrev ? prev.habitsStats[h.key] : null;
+          const chip = hGrid.createDiv({ cls: "dhps-habit-chip" });
+          chip.style.setProperty("--h-color", h.color);
+
+          const top = chip.createDiv({ cls: "dhps-habit-top" });
+          top.createSpan({ cls: "dhps-habit-name", text: h.name });
+
+          const rateWrap = top.createSpan({ attr: { style: "display: inline-flex; align-items: center; gap: 5px;" } });
+          rateWrap.createSpan({ cls: "dhps-habit-rate", text: `${hsItem.pctCalendar}%` });
+          if (prevItem && prevItem.markedCount > 0) {
+            renderDeltaBadge(rateWrap, hsItem.pctCalendar, prevItem.pctCalendar, { minD: 0, maxD: 0, unit: "п.п." });
+          }
+
+          const meta = chip.createDiv({ cls: "dhps-habit-meta" });
+          meta.createSpan({ text: `${hsItem.doneCount} из ${cur.totalCalendarDays} дн.` });
+          meta.createSpan({
+            text: isYearMode
+              ? `лучшая: ${hsItem.bestStreak} дн. · тек: ${hsItem.currentStreak} дн.`
+              : `серия: макс ${hsItem.bestStreak} дн.`
+          });
+        }
+      }
+
+      function renderMonthScoreChart(container, cur) {
+        const box = container.createDiv({ cls: "dhps-subbox" });
+        const head = box.createDiv({ cls: "dhps-subbox-head" });
+        head.createSpan({ cls: "dhps-subbox-title", text: "Динамика оценки дня по дням месяца" });
+        head.createSpan({
+          cls: "dhps-subbox-hint",
+          text: "Пропуски без оценки показаны разрывом линии · клик по точке открывает заметку"
+        });
+
+        const svgNS = "http://www.w3.org/2000/svg";
+        const W = 620;
+        const H = 112;
+        const padL = 24;
+        const padR = 12;
+        const padT = 10;
+        const padB = 20;
+        const plotW = W - padL - padR;
+        const plotH = H - padT - padB;
+        const nDays = cur.totalCalendarDays;
+
+        const xForDay = d => padL + (nDays > 1 ? ((d - 1) / (nDays - 1)) * plotW : plotW / 2);
+        const yForScore = s => padT + ((10 - s) / 9) * plotH;
+
+        const svg = doc.createElementNS(svgNS, "svg");
+        svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+        svg.setAttribute("class", "dhps-chart-svg");
+        box.appendChild(svg);
+
+        for (const gVal of [2, 5, 8, 10]) {
+          const y = yForScore(gVal);
+          const line = doc.createElementNS(svgNS, "line");
+          line.setAttribute("x1", String(padL));
+          line.setAttribute("x2", String(W - padR));
+          line.setAttribute("y1", String(y));
+          line.setAttribute("y2", String(y));
+          line.setAttribute("stroke", "var(--background-modifier-border)");
+          line.setAttribute("stroke-dasharray", gVal === 5 ? "3 3" : "none");
+          line.setAttribute("stroke-width", "1");
+          svg.appendChild(line);
+
+          const lbl = doc.createElementNS(svgNS, "text");
+          lbl.setAttribute("x", String(padL - 6));
+          lbl.setAttribute("y", String(y + 3));
+          lbl.setAttribute("text-anchor", "end");
+          lbl.setAttribute("fill", "var(--text-faint)");
+          lbl.setAttribute("font-size", "9");
+          lbl.textContent = String(gVal);
+          svg.appendChild(lbl);
+        }
+
+        const tickDays = [1, 5, 10, 15, 20, 25, nDays];
+        for (const td of [...new Set(tickDays)]) {
+          if (td > nDays) continue;
+          const x = xForDay(td);
+          const t = doc.createElementNS(svgNS, "text");
+          t.setAttribute("x", String(x));
+          t.setAttribute("y", String(H - 4));
+          t.setAttribute("text-anchor", "middle");
+          t.setAttribute("fill", "var(--text-faint)");
+          t.setAttribute("font-size", "9");
+          t.textContent = String(td);
+          svg.appendChild(t);
+        }
+
+        const segments = [];
+        let curSeg = [];
+        for (const slot of cur.daySlots) {
+          if (slot.score !== null) {
+            curSeg.push(slot);
+          } else if (curSeg.length) {
+            segments.push(curSeg);
+            curSeg = [];
+          }
+        }
+        if (curSeg.length) segments.push(curSeg);
+
+        for (const seg of segments) {
+          if (seg.length < 2) continue;
+          const dAttr = seg
+            .map((pt, i) => `${i === 0 ? "M" : "L"}${xForDay(pt.day).toFixed(1)},${yForScore(pt.score).toFixed(1)}`)
+            .join(" ");
+          const path = doc.createElementNS(svgNS, "path");
+          path.setAttribute("d", dAttr);
+          path.setAttribute("fill", "none");
+          path.setAttribute("stroke", "#e5a158");
+          path.setAttribute("stroke-width", "2");
+          path.setAttribute("stroke-linecap", "round");
+          path.setAttribute("stroke-linejoin", "round");
+          svg.appendChild(path);
+        }
+
+        for (const slot of cur.daySlots) {
+          if (slot.score === null) continue;
+          const cx = xForDay(slot.day);
+          const cy = yForScore(slot.score);
+          const color = COLORS[Math.min(9, Math.max(0, Math.round(slot.score) - 1))];
+
+          const circle = doc.createElementNS(svgNS, "circle");
+          circle.setAttribute("cx", cx.toFixed(1));
+          circle.setAttribute("cy", cy.toFixed(1));
+          circle.setAttribute("r", "3.4");
+          circle.setAttribute("fill", color);
+          circle.setAttribute("stroke", "var(--background-primary)");
+          circle.setAttribute("stroke-width", "1.2");
+          circle.setAttribute("class", "dhps-chart-node");
+
+          const title = doc.createElementNS(svgNS, "title");
+          const ev = slot.page && typeof slot.page.главное_событие === "string" ? slot.page.главное_событие.trim() : "";
+          title.textContent = `${slot.date.toFormat("dd.MM.yyyy")}: оценка ${fmt(slot.score)}/10${ev ? " · " + ev : ""}`;
+          circle.appendChild(title);
+
+          if (slot.page) {
+            circle.addEventListener("click", e => {
+              e.stopPropagation();
+              open(slot.page);
+            });
+          }
+          svg.appendChild(circle);
+        }
+      }
+
+      // 1. Панель «Итог за месяц»
+      const monthPanel = summariesRoot.createDiv({ cls: `dhps-panel${sumState.monthOpen ? " is-open" : ""}` });
+      const monthHeader = monthPanel.createDiv({ cls: "dhps-header" });
+      const monthTitleWrap = monthHeader.createDiv({ cls: "dhps-title-wrap" });
+      monthTitleWrap.createSpan({ cls: "dhps-arrow", text: "▶" });
+      monthTitleWrap.createSpan({ cls: "dhps-title", text: "📅 Итог за месяц" });
+      const monthSubLabel = monthTitleWrap.createSpan({ cls: "dhps-sub" });
+
+      const monthControls = monthHeader.createDiv({ cls: "dhps-controls" });
+      monthControls.onclick = e => e.stopPropagation();
+
+      const prevMonthBtn = monthControls.createEl("button", {
+        cls: "dhps-nav-btn",
+        text: "‹",
+        attr: { type: "button", title: "Предыдущий месяц", "aria-label": "Предыдущий месяц" }
+      });
+      const monthSelect = monthControls.createEl("select", {
+        cls: "dhps-select",
+        attr: { "aria-label": "Выбор месяца" }
+      });
+      for (const mk of [...availableMonths].reverse()) {
+        const [yStr, mStr] = mk.split("-");
+        const label = `${MONTHS_FULL[Number(mStr) - 1]} ${yStr}`;
+        monthSelect.createEl("option", { value: mk, text: label });
+      }
+      const nextMonthBtn = monthControls.createEl("button", {
+        cls: "dhps-nav-btn",
+        text: "›",
+        attr: { type: "button", title: "Следующий месяц", "aria-label": "Следующий месяц" }
+      });
+
+      const monthBody = monthPanel.createDiv({ cls: "dhps-body" });
+
+      monthHeader.onclick = () => {
+        sumState.monthOpen = !sumState.monthOpen;
+        monthPanel.classList.toggle("is-open", sumState.monthOpen);
+      };
+
+      // 2. Панель «Итог за год»
+      const yearPanel = summariesRoot.createDiv({ cls: `dhps-panel${sumState.yearOpen ? " is-open" : ""}` });
+      const yearHeader = yearPanel.createDiv({ cls: "dhps-header" });
+      const yearTitleWrap = yearHeader.createDiv({ cls: "dhps-title-wrap" });
+      yearTitleWrap.createSpan({ cls: "dhps-arrow", text: "▶" });
+      yearTitleWrap.createSpan({ cls: "dhps-title", text: "📆 Итог за год" });
+      const yearSubLabel = yearTitleWrap.createSpan({ cls: "dhps-sub" });
+
+      const yearControls = yearHeader.createDiv({ cls: "dhps-controls" });
+      yearControls.onclick = e => e.stopPropagation();
+
+      const prevYearBtn = yearControls.createEl("button", {
+        cls: "dhps-nav-btn",
+        text: "‹",
+        attr: { type: "button", title: "Предыдущий год", "aria-label": "Предыдущий год" }
+      });
+      const yearLabelEl = yearControls.createSpan({ cls: "dhps-period-label" });
+      const nextYearBtn = yearControls.createEl("button", {
+        cls: "dhps-nav-btn",
+        text: "›",
+        attr: { type: "button", title: "Следующий год", "aria-label": "Следующий год" }
+      });
+
+      const yearBody = yearPanel.createDiv({ cls: "dhps-body" });
+
+      yearHeader.onclick = () => {
+        sumState.yearOpen = !sumState.yearOpen;
+        yearPanel.classList.toggle("is-open", sumState.yearOpen);
+      };
+
+      function renderMonthSummary() {
+        const mk = sumState.monthKey;
+        const idx = availableMonths.indexOf(mk);
+        monthSelect.value = mk;
+        prevMonthBtn.disabled = idx <= 0;
+        nextMonthBtn.disabled = idx === -1 || idx >= availableMonths.length - 1;
+
+        const cur = getMonthStats(mk);
+        const prevMonthKey = dv.date(`${mk}-01`).minus({ months: 1 }).toFormat("yyyy-MM");
+        const prev = getMonthStats(prevMonthKey);
+
+        const [yStr, mStr] = mk.split("-");
+        monthSubLabel.textContent = `${MONTHS_FULL[Number(mStr) - 1]} ${yStr} · записей: ${cur.recordsCount}/${cur.totalCalendarDays}`;
+
+        monthBody.replaceChildren();
+        renderSummaryCards(monthBody, cur, prev, "мес.");
+        renderMonthScoreChart(monthBody, cur);
+        renderHabitsSummaryGrid(monthBody, cur, prev, false);
+      }
+
+      function renderYearSummary() {
+        const yNum = sumState.year;
+        const yIdx = availableYears.indexOf(yNum);
+        yearLabelEl.textContent = String(yNum);
+        prevYearBtn.disabled = yIdx <= 0;
+        nextYearBtn.disabled = yIdx === -1 || yIdx >= availableYears.length - 1;
+
+        const cur = getYearStats(yNum);
+        const prev = availableYears.includes(yNum - 1) ? getYearStats(yNum - 1) : null;
+
+        yearSubLabel.textContent = `${yNum} · записей: ${cur.recordsCount}/${cur.totalCalendarDays} дн.`;
+        yearBody.replaceChildren();
+
+        renderSummaryCards(yearBody, cur, prev, "года");
+
+        // Разбивка по 12 месяцам
+        {
+          const mBox = yearBody.createDiv({ cls: "dhps-subbox" });
+          const mHead = mBox.createDiv({ cls: "dhps-subbox-head" });
+          mHead.createSpan({ cls: "dhps-subbox-title", text: "Разбивка по 12 месяцам (оценка и энергия)" });
+          mHead.createSpan({
+            cls: "dhps-subbox-hint",
+            text: "Клик по месяцу открывает его в блоке «Итог за месяц»"
+          });
+
+          const strip = mBox.createDiv({ cls: "dhps-months-strip" });
+          for (const mItem of cur.monthsBreakdown) {
+            const isBest = cur.bestMonth && cur.bestMonth.monthKey === mItem.monthKey;
+            const isWorst = cur.worstMonth && cur.worstMonth.monthKey === mItem.monthKey;
+            const isSelected = sumState.monthKey === mItem.monthKey;
+            const ms = mItem.stats;
+
+            const btn = strip.createEl("button", {
+              cls: [
+                "dhps-mcol",
+                isBest ? "is-best" : "",
+                isWorst ? "is-worst" : "",
+                isSelected ? "is-selected" : ""
+              ].filter(Boolean).join(" "),
+              attr: {
+                type: "button",
+                title: `${mItem.fullLabel} ${yNum}: ср. оценка ${fmt(ms.meanScore, 1, 1)}, ср. энергия ${fmt(ms.meanEnergy, 1, 1)} (${ms.recordsCount} дн.)`
+              }
+            });
+
+            btn.disabled = mItem.isFutureMonth && !availableMonths.includes(mItem.monthKey);
+            btn.createSpan({ cls: "dhps-mcol-name", text: mItem.label });
+
+            const scoreSpan = btn.createSpan({
+              cls: "dhps-mcol-score",
+              text: ms.meanScore !== null ? fmt(ms.meanScore, 1, 1) : "—"
+            });
+            if (ms.meanScore !== null) {
+              scoreSpan.style.color = COLORS[Math.min(9, Math.max(0, Math.round(ms.meanScore) - 1))];
+            }
+
+            btn.createSpan({
+              cls: "dhps-mcol-energy",
+              text: ms.meanEnergy !== null ? `⚡ ${fmt(ms.meanEnergy, 1, 1)}` : `дн: ${ms.recordsCount}`
+            });
+
+            if (isBest || isWorst) {
+              btn.createSpan({
+                cls: `dhps-mcol-tag ${isBest ? "is-best" : "is-worst"}`,
+                text: isBest ? "лучший" : "худший"
+              });
+            }
+
+            btn.onclick = () => {
+              if (!availableMonths.includes(mItem.monthKey)) return;
+              sumState.monthKey = mItem.monthKey;
+              sumState.monthOpen = true;
+              monthPanel.classList.add("is-open");
+              renderMonthSummary();
+              renderYearSummary();
+            };
+          }
+        }
+
+        // Годовая тепловая карта оценок (12 месяцев × 31 день)
+        {
+          const hmBox = yearBody.createDiv({ cls: "dhps-subbox" });
+          const hmHead = hmBox.createDiv({ cls: "dhps-subbox-head" });
+          hmHead.createSpan({ cls: "dhps-subbox-title", text: `Годовая тепловая карта оценок · ${yNum}` });
+          hmHead.createSpan({
+            cls: "dhps-subbox-hint",
+            text: "12 месяцев × 31 день · наведение — дата и оценка, клик — открыть заметку"
+          });
+
+          const hmWrap = hmBox.createDiv({ cls: "dhps-year-heatmap" });
+          for (const mItem of cur.monthsBreakdown) {
+            const row = hmWrap.createDiv({ cls: "dhps-yh-row" });
+            row.createSpan({ cls: "dhps-yh-label", text: mItem.label });
+
+            const slotsByDay = new Map(mItem.stats.daySlots.map(s => [s.day, s]));
+            for (let d = 1; d <= 31; d++) {
+              const slot = slotsByDay.get(d);
+              if (!slot) {
+                row.createDiv({ cls: "dhps-yh-cell is-invalid" });
+                continue;
+              }
+              const cell = row.createDiv({
+                cls: [
+                  "dhps-yh-cell",
+                  slot.isFuture ? "is-future" : "",
+                  slot.page ? "has-entry" : "",
+                  slot.score !== null ? "has-score" : "",
+                  slot.iso === todayISO ? "is-today" : ""
+                ].filter(Boolean).join(" ")
+              });
+
+              if (slot.score !== null) {
+                const c = COLORS[Math.min(9, Math.max(0, Math.round(slot.score) - 1))];
+                cell.style.setProperty("--cell-color", c);
+                cell.style.setProperty("--cell-bg", `${c}44`);
+              }
+
+              const statusText = slot.isFuture
+                ? "Будущий день"
+                : !slot.page
+                  ? "Нет записи"
+                  : slot.score === null
+                    ? "Запись без оценки"
+                    : `Оценка: ${fmt(slot.score)}/10`;
+
+              cell.setAttribute("title", `${slot.date.toFormat("dd.MM.yyyy")} · ${statusText}`);
+              if (slot.page) {
+                cell.onclick = () => open(slot.page);
+              }
+            }
+          }
+        }
+
+        renderHabitsSummaryGrid(yearBody, cur, prev, true);
+      }
+
+      prevMonthBtn.onclick = () => {
+        const idx = availableMonths.indexOf(sumState.monthKey);
+        if (idx > 0) {
+          sumState.monthKey = availableMonths[idx - 1];
+          renderMonthSummary();
+          if (sumState.yearOpen) renderYearSummary();
+        }
+      };
+
+      nextMonthBtn.onclick = () => {
+        const idx = availableMonths.indexOf(sumState.monthKey);
+        if (idx !== -1 && idx < availableMonths.length - 1) {
+          sumState.monthKey = availableMonths[idx + 1];
+          renderMonthSummary();
+          if (sumState.yearOpen) renderYearSummary();
+        }
+      };
+
+      monthSelect.onchange = () => {
+        if (availableMonths.includes(monthSelect.value)) {
+          sumState.monthKey = monthSelect.value;
+          renderMonthSummary();
+          if (sumState.yearOpen) renderYearSummary();
+        }
+      };
+
+      prevYearBtn.onclick = () => {
+        const idx = availableYears.indexOf(sumState.year);
+        if (idx > 0) {
+          sumState.year = availableYears[idx - 1];
+          renderYearSummary();
+        }
+      };
+
+      nextYearBtn.onclick = () => {
+        const idx = availableYears.indexOf(sumState.year);
+        if (idx !== -1 && idx < availableYears.length - 1) {
+          sumState.year = availableYears[idx + 1];
+          renderYearSummary();
+        }
+      };
+
+      renderMonthSummary();
+      renderYearSummary();
+    }
+
     const hs = section("", "");
     hs.classList.add("dh-habits-v2");
 
     const cards = hs.createDiv({ cls: "dh-grid dh-grid-wide" });
-    const state = (p, key) => p && typeof p[key] === "boolean" ? p[key] : null;
-
-    const parseValidNum = (v, minVal, maxVal, allowZero = false) => {
-      if (empty(v) || typeof v === "boolean") return null;
-      const n = typeof v === "number" ? v : Number(String(v).trim().replace(",", "."));
-      if (!Number.isFinite(n)) return null;
-      if (!allowZero && n <= 0) return null;
-      if (n < minVal || n > maxVal) return null;
-      return n;
-    };
-
-    const getPagesRead = p => p ? parseValidNum(p.страниц_прочитано, 0, 1500, true) : null;
-    const getSleepHours = p => p ? parseValidNum(p.сон_часов, 0.5, 24, false) : null;
-    const getCalories = p => p ? parseValidNum(p.калории_ккал, 1, 10000, false) : null;
-    const getWeight = p => p ? parseValidNum(p.вес_кг, 20, 300, false) : null;
-    const getSocialMin = p => p ? parseValidNum(p.соцсети_мин, 0, 1440, true) : null;
-    const getSteps = p => p ? parseValidNum(p.шаги, 0, 100000, true) : null;
-
-    const isNoteActivelyFilled = p => {
-      if (!p) return false;
-      if (score(p.оценка_дня) !== null || score(p.энергия) !== null) return true;
-      if (getWeight(p) !== null || getCalories(p) !== null || getSleepHours(p) !== null) return true;
-      const pr = getPagesRead(p);
-      if (pr !== null && pr > 0) return true;
-      if (typeof p.главное_событие === "string" && p.главное_событие.trim() !== "") return true;
-      return HABITS.some(hb => p[hb.key] === true);
-    };
-
-    const formatSigned = (rawDiff, minD = 0, maxD = 1, unit = "") => {
-      if (rawDiff == null || !Number.isFinite(rawDiff)) return "—";
-      const factor = 10 ** maxD;
-      const rounded = Math.round(rawDiff * factor) / factor;
-      const suffix = unit ? ` ${unit}` : "";
-      if (Object.is(rounded, -0) || Math.abs(rounded) < (maxD > 0 ? 0.05 : 0.5)) {
-        return `0${minD > 0 ? "," + "0".repeat(minD) : ""}${suffix}`;
-      }
-      const sign = rounded > 0 ? "+" : "−";
-      return `${sign}${fmt(Math.abs(rounded), minD, maxD)}${suffix}`;
-    };
 
     const todayRecord = byDate.get(todayISO);
     const doc = hs.ownerDocument;
