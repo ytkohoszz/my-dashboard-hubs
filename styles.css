@@ -1034,12 +1034,12 @@
 
 /* --- Module: media --- */
 @keyframes lbCardReveal {
-  0% { opacity: 0; transform: translateY(6px); }
+  0% { opacity: 0; transform: translateY(4px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes lbSheetSlideUp {
-  0% { opacity: 0; transform: translateY(20px); }
+  0% { opacity: 0; transform: translateY(16px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
@@ -1055,8 +1055,8 @@
 
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 8px 0 32px 0;
+  gap: 10px;
+  padding: 4px 0 24px 0;
   color: var(--text-normal);
   font-family: var(--font-interface);
   box-sizing: border-box;
@@ -1066,11 +1066,11 @@
   box-sizing: border-box;
 }
 
-/* 1. НАВИГАЦИЯ БЕЗ ПЛАШЕК И РАМОК (ПОДЧЁРКИВАНИЕ КАК В LETTERBOXD) */
+/* 1. НАВИГАЦИЯ */
 .dashboard-home .lb-nav-stack {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .dashboard-home .lb-primary-bar {
@@ -1078,15 +1078,15 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   border-bottom: 1px solid var(--медиа-разделитель);
-  padding-bottom: 2px;
+  padding-bottom: 0;
 }
 
 .dashboard-home .lb-primary-tabs {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 22px;
+  gap: 18px;
   background: transparent;
   border: none;
   padding: 0;
@@ -1099,17 +1099,17 @@
   border-bottom: 2px solid transparent !important;
   box-shadow: none !important;
   border-radius: 0 !important;
-  padding: 8px 2px 10px 2px !important;
+  padding: 5px 2px 7px 2px !important;
   height: auto !important;
-  min-height: 36px !important;
-  font-size: 0.94rem !important;
+  min-height: 30px !important;
+  font-size: 0.9rem !important;
   font-weight: 650 !important;
   letter-spacing: 0.02em;
   cursor: pointer;
   color: var(--медиа-текст-приглушённый) !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 7px !important;
+  gap: 6px !important;
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
@@ -1125,7 +1125,7 @@
 }
 
 .dashboard-home .lb-primary-count {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--медиа-текст-приглушённый);
   opacity: 0.75;
@@ -1137,23 +1137,22 @@
   opacity: 1;
 }
 
-/* Единственная заливная зелёная кнопка на странице */
 .dashboard-home .lb-add-cta {
   background: var(--медиа-акцент) !important;
   border: none !important;
   color: #0d1115 !important;
   font-weight: 750 !important;
-  font-size: 0.82rem !important;
+  font-size: 0.8rem !important;
   letter-spacing: 0.02em;
-  padding: 0 15px !important;
-  height: 34px !important;
-  min-height: 34px !important;
-  border-radius: 5px !important;
+  padding: 0 13px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  border-radius: 4px !important;
   cursor: pointer;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 6px !important;
-  box-shadow: 0 2px 8px rgba(0, 224, 84, 0.22) !important;
+  gap: 5px !important;
+  box-shadow: 0 2px 6px rgba(0, 224, 84, 0.2) !important;
   transition: filter 0.15s ease, transform 0.12s ease;
 }
 
@@ -1162,14 +1161,13 @@
   transform: translateY(-1px);
 }
 
-/* Вторичный ряд: Постеры | Дневник + срезы В планах | Любимое */
 .dashboard-home .lb-secondary-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 2px 0;
+  gap: 10px;
+  padding: 0;
   background: transparent;
   border: none;
 }
@@ -1179,7 +1177,7 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 14px;
 }
 
 .dashboard-home .lb-sub-btn {
@@ -1188,10 +1186,10 @@
   border-bottom: 2px solid transparent !important;
   box-shadow: none !important;
   border-radius: 0 !important;
-  height: 28px !important;
-  min-height: 28px !important;
-  padding: 2px 0 4px 0 !important;
-  font-size: 0.79rem !important;
+  height: 25px !important;
+  min-height: 25px !important;
+  padding: 1px 0 3px 0 !important;
+  font-size: 0.77rem !important;
   font-weight: 550 !important;
   color: var(--медиа-текст-приглушённый) !important;
   cursor: pointer;
@@ -1214,7 +1212,7 @@
 }
 
 .dashboard-home .lb-sub-count {
-  font-size: 0.7rem;
+  font-size: 0.69rem;
   color: var(--медиа-текст-приглушённый);
   opacity: 0.75;
   font-variant-numeric: tabular-nums;
@@ -1225,7 +1223,8 @@
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--медиа-разделитель);
-  padding: 0 0 18px 0;
+  padding: 0 0 10px 0;
+  margin: 0;
 }
 
 .dashboard-home .lb-top4-section > summary {
@@ -1235,12 +1234,12 @@
   cursor: pointer;
   user-select: none;
   list-style: none;
-  font-size: 0.76rem;
+  font-size: 0.73rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--медиа-текст-приглушённый);
-  padding-bottom: 10px;
+  padding: 2px 0 6px 0;
 }
 
 .dashboard-home .lb-top4-section > summary::-webkit-details-marker {
@@ -1249,26 +1248,27 @@
 
 .dashboard-home .lb-top4-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(120px, 175px));
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(120px, 165px));
+  gap: 14px;
 }
 
-/* 3. ПАНЕЛЬ ФИЛЬТРОВ + АКЦЕНТНЫЙ БЛОК «ОЦЕНКИ» (LETTERBOXD RATINGS) */
+/* 3. ФИЛЬТРЫ (БЕЗ ОБРЕЗАНИЯ SELECT) + ГИСТОГРАММА «ОЦЕНКИ» */
 .dashboard-home .lb-toolbar-ratings-layout {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 20px;
-  padding-bottom: 14px;
+  gap: 16px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--медиа-разделитель);
 }
 
 .dashboard-home .lb-filters-column {
-  flex: 1 1 420px;
+  flex: 1 1 480px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
   min-width: 260px;
 }
 
@@ -1276,16 +1276,16 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .dashboard-home .lb-search-input {
-  flex: 1 1 180px;
-  min-width: 145px;
-  height: 32px !important;
-  padding: 0 10px !important;
+  flex: 1 1 190px;
+  min-width: 150px;
+  height: 30px !important;
+  padding: 0 9px !important;
   border-radius: 4px !important;
-  font-size: 0.8rem !important;
+  font-size: 0.78rem !important;
   background: var(--медиа-фон-карточки) !important;
   border: 1px solid var(--медиа-обводка-постера) !important;
   color: var(--text-normal) !important;
@@ -1296,69 +1296,39 @@
   outline: none !important;
 }
 
+/* Фикс обрезания текста в select: убран жёсткий max-width, добавлен width: auto */
 .dashboard-home .lb-filters-bar select {
-  height: 32px;
-  font-size: 0.78rem;
-  padding: 0 24px 0 9px;
-  border-radius: 4px;
-  background-color: var(--медиа-фон-карточки);
-  border: 1px solid var(--медиа-обводка-постера);
-  color: var(--медиа-текст-приглушённый);
-  cursor: pointer;
-}
-
-.dashboard-home .lb-filters-bar select:hover {
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.dashboard-home .lb-creators-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.dashboard-home .lb-creators-label {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--медиа-текст-приглушённый);
-}
-
-.dashboard-home .lb-creator-pill {
-  height: 22px !important;
-  min-height: 22px !important;
-  padding: 0 8px !important;
-  border-radius: 3px !important;
-  font-size: 0.72rem !important;
-  font-weight: 500 !important;
-  background: var(--медиа-фон-карточки) !important;
+  width: auto !important;
+  max-width: none !important;
+  min-width: max-content;
+  height: 30px !important;
+  font-size: 0.76rem !important;
+  padding: 0 26px 0 9px !important;
+  border-radius: 4px !important;
+  background-color: var(--медиа-фон-карточки) !important;
   border: 1px solid var(--медиа-обводка-постера) !important;
   color: var(--медиа-текст-приглушённый) !important;
   cursor: pointer;
-  box-shadow: none !important;
-  transition: color 0.14s ease, border-color 0.14s ease;
+  white-space: nowrap;
 }
 
-.dashboard-home .lb-creator-pill:hover,
-.dashboard-home .lb-creator-pill.is-active {
+.dashboard-home .lb-filters-bar select:hover {
   color: #ffffff !important;
-  border-color: var(--медиа-акцент) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
-/* Акцентный блок «Оценки» в стиле Letterboxd (минимум 40% ряда, высота ~125px) */
+/* Акцентный блок «Оценки» Letterboxd */
 .dashboard-home .lb-ratings-widget {
-  flex: 1 1 42%;
-  min-width: 300px;
-  min-height: 122px;
+  flex: 0 1 38%;
+  min-width: 280px;
+  min-height: 92px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 10px 14px 12px 14px;
+  padding: 8px 12px 9px 12px;
   background: rgba(28, 34, 40, 0.45);
   border: 1px solid var(--медиа-разделитель);
-  border-radius: 6px;
+  border-radius: 5px;
 }
 
 .dashboard-home .lb-ratings-header {
@@ -1366,12 +1336,12 @@
   justify-content: space-between;
   align-items: baseline;
   border-bottom: 1px solid var(--медиа-разделитель);
-  padding-bottom: 5px;
-  margin-bottom: 10px;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .dashboard-home .lb-ratings-title {
-  font-size: 0.73rem;
+  font-size: 0.7rem;
   font-weight: 650;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1385,13 +1355,13 @@
 }
 
 .dashboard-home .lb-ratings-count {
-  font-size: 0.74rem;
+  font-size: 0.71rem;
   color: var(--медиа-текст-приглушённый);
   font-variant-numeric: tabular-nums;
 }
 
 .dashboard-home .lb-ratings-avg {
-  font-size: 1.32rem;
+  font-size: 1.2rem;
   font-weight: 700;
   line-height: 1;
   color: #dbe4ee;
@@ -1401,12 +1371,12 @@
 .dashboard-home .lb-ratings-body {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  height: 66px;
+  gap: 6px;
+  height: 48px;
 }
 
 .dashboard-home .lb-ratings-edge-star {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--медиа-акцент);
   line-height: 1;
   user-select: none;
@@ -1447,7 +1417,7 @@
 
 .dashboard-home .lb-rating-tooltip {
   position: absolute;
-  bottom: calc(100% + 5px);
+  bottom: calc(100% + 4px);
   left: 50%;
   transform: translateX(-50%);
   background: #14181c;
@@ -1468,11 +1438,11 @@
   opacity: 1;
 }
 
-/* 4. СЕТКА ПОСТЕРОВ И КАРТОЧКА (ЗАДАЧИ 1, 2, 7) */
+/* 4. СЕТКА ПОСТЕРОВ И КАРТОЧКА */
 .dashboard-home .lb-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .dashboard-home .lb-card {
@@ -1481,7 +1451,7 @@
   flex-direction: column;
   background: transparent;
   min-width: 120px;
-  animation: lbCardReveal 0.22s ease both;
+  animation: lbCardReveal 0.2s ease both;
 }
 
 .dashboard-home .lb-poster-wrapper {
@@ -1515,21 +1485,21 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 12px;
+  padding: 10px;
   text-align: center;
   background: var(--медиа-фон-карточки);
-  gap: 6px;
+  gap: 5px;
 }
 
 .dashboard-home .lb-fallback-icon {
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   opacity: 0.55;
 }
 
 .dashboard-home .lb-fallback-title {
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   font-weight: 650;
-  line-height: 1.25;
+  line-height: 1.22;
   color: var(--text-normal);
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -1538,11 +1508,10 @@
 }
 
 .dashboard-home .lb-fallback-sub {
-  font-size: 0.7rem;
+  font-size: 0.69rem;
   color: var(--медиа-текст-приглушённый);
 }
 
-/* ЗАДАЧА 1: Круглые кнопки 28x28px по разным углам без наложений */
 .dashboard-home .lb-poster-corner-btn {
   position: absolute !important;
   width: 28px !important;
@@ -1581,7 +1550,6 @@
   pointer-events: auto;
 }
 
-/* Активное сердечко видно всегда, даже без наведения */
 .dashboard-home .lb-poster-corner-btn.is-left.is-fav {
   opacity: 1;
   pointer-events: auto;
@@ -1594,11 +1562,10 @@
   transform: scale(1.08);
 }
 
-/* ЗАДАЧА 2: Нижняя полоса 5 звёзд с половинками при наведении (120–200px безопасно) */
 .dashboard-home .lb-poster-bottom-bar {
   position: absolute;
   inset: auto 0 0 0;
-  height: 32px;
+  height: 30px;
   padding: 0 6px;
   background: linear-gradient(180deg, rgba(16, 20, 24, 0) 0%, rgba(16, 20, 24, 0.92) 45%, rgba(16, 20, 24, 0.98) 100%);
   display: flex;
@@ -1667,20 +1634,19 @@
   }
 }
 
-/* Подпись под постером: Название (одна строка, ellipsis), ниже звёзды и год */
 .dashboard-home .lb-card-caption {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 6px 1px 0 1px;
+  gap: 1px;
+  padding: 4px 1px 0 1px;
   min-width: 0;
 }
 
 .dashboard-home .lb-caption-title {
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   font-weight: 600;
   color: var(--text-normal);
-  line-height: 1.25;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1696,13 +1662,13 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  min-height: 15px;
-  font-size: 0.72rem;
+  min-height: 14px;
+  font-size: 0.71rem;
   color: var(--медиа-текст-приглушённый);
 }
 
 .dashboard-home .lb-stars {
-  font-size: 0.73rem;
+  font-size: 0.72rem;
   color: var(--медиа-акцент);
   letter-spacing: 0.5px;
   line-height: 1;
@@ -1710,62 +1676,444 @@
 }
 
 .dashboard-home .lb-caption-year {
-  font-size: 0.71rem;
+  font-size: 0.7rem;
   color: var(--медиа-текст-приглушённый);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-/* 5. ХРОНОЛОГИЧЕСКИЙ ДНЕВНИК */
-.dashboard-home .lb-diary-wrap {
+.dashboard-home .lb-caption-sub {
+  font-size: 0.68rem;
+  color: var(--медиа-текст-приглушённый);
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.15;
+}
+
+/* 5. АУТЕНТИЧНЫЙ ДНЕВНИК LETTERBOXD С КОЛОНКОЙ РЕЦЕНЗИИ */
+.dashboard-home .lb-diary-table {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  width: 100%;
 }
 
-.dashboard-home .lb-diary-month {
-  border-top: 1px solid var(--медиа-разделитель);
-}
-
-.dashboard-home .lb-diary-month-head {
-  padding: 10px 0 6px 0;
-  font-size: 0.76rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--медиа-текст-приглушённый);
-  display: flex;
-  justify-content: space-between;
-}
-
-.dashboard-home .lb-diary-row {
+.dashboard-home .lb-diary-thead {
   display: grid;
-  grid-template-columns: 42px 36px minmax(140px, 1.5fr) minmax(100px, 1fr) 110px 36px;
+  grid-template-columns: 62px 44px minmax(170px, 1.3fr) minmax(180px, 1.8fr) 54px 96px 56px 56px 58px;
   align-items: center;
   gap: 10px;
-  padding: 8px 4px;
+  padding: 6px 6px;
+  border-top: 1px solid var(--медиа-разделитель);
   border-bottom: 1px solid var(--медиа-разделитель);
-  font-size: 0.82rem;
+  font-size: 0.65rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--медиа-текст-приглушённый);
+  user-select: none;
 }
 
-.dashboard-home .lb-diary-day {
-  font-size: 1rem;
-  font-weight: 700;
+.dashboard-home .lb-diary-tr {
+  display: grid;
+  grid-template-columns: 62px 44px minmax(170px, 1.3fr) minmax(180px, 1.8fr) 54px 96px 56px 56px 58px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 6px;
+  border-bottom: 1px solid var(--медиа-разделитель);
+  transition: background-color 0.12s ease;
+}
+
+.dashboard-home .lb-diary-tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Иконка перекидного календаря месяца (только у первой записи месяца, как в Letterboxd) */
+.dashboard-home .lb-diary-cal-badge {
+  position: relative;
+  width: 52px;
+  height: 46px;
+  background: #2c3440;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 0 #181d23, 0 4px 0 #2c3440;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 4px;
+  user-select: none;
+}
+
+.dashboard-home .lb-diary-cal-badge::before,
+.dashboard-home .lb-diary-cal-badge::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  width: 4px;
+  height: 7px;
+  background: #678;
+  border-radius: 2px;
+}
+
+.dashboard-home .lb-diary-cal-badge::before {
+  left: 12px;
+}
+
+.dashboard-home .lb-diary-cal-badge::after {
+  right: 12px;
+}
+
+.dashboard-home .lb-diary-cal-month {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #dbe4ee;
+  line-height: 1.05;
+}
+
+.dashboard-home .lb-diary-cal-year {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--медиа-текст-приглушённый);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Крупное число дня месяца */
+.dashboard-home .lb-diary-day-num {
+  font-size: 1.45rem;
+  font-weight: 300;
+  color: #789;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  line-height: 1;
+}
+
+/* Колонка фильма: мини-постер + жирное название */
+.dashboard-home .lb-diary-film-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dashboard-home .lb-diary-poster-mini {
+  width: 34px;
+  height: 51px;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--медиа-фон-карточки);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.dashboard-home .lb-diary-film-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dashboard-home .lb-diary-film-title {
+  font-size: 0.96rem;
+  font-weight: 750;
+  color: #ffffff;
+  text-decoration: none;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.dashboard-home .lb-diary-film-title:hover {
+  color: var(--медиа-акцент);
+}
+
+.dashboard-home .lb-diary-film-sub {
+  font-size: 0.7rem;
+  color: var(--медиа-текст-приглушённый);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Колонка рецензии (3 строки с разворотом по клику) */
+.dashboard-home .lb-diary-review-col {
+  min-width: 0;
+  font-size: 0.78rem;
+  line-height: 1.38;
+  color: #c8d4e0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.dashboard-home .lb-diary-review-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
+  white-space: pre-wrap;
+}
+
+.dashboard-home .lb-diary-review-text.is-expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+.dashboard-home .lb-diary-review-empty {
+  color: var(--медиа-текст-приглушённый);
+  opacity: 0.25;
+  user-select: none;
+}
+
+.dashboard-home .lb-diary-year-col {
+  font-size: 0.79rem;
   color: var(--медиа-текст-приглушённый);
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
-.dashboard-home .lb-diary-thumb {
-  width: 32px;
-  height: 48px;
-  border-radius: 3px;
-  object-fit: cover;
-  background: var(--медиа-фон-карточки);
-  border: 1px solid var(--медиа-обводка-постера);
+/* 5 звёзд в дневнике (активные зелёные + пустые тёмные) */
+.dashboard-home .lb-diary-stars-row {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.88rem;
+  letter-spacing: 1px;
+  line-height: 1;
+  user-select: none;
 }
 
-/* 6. МОДАЛЬНЫЕ ОКНА И ТАЧ-ПАНЕЛЬ */
+.dashboard-home .lb-diary-stars-row .is-lit {
+  color: var(--медиа-акцент);
+}
+
+.dashboard-home .lb-diary-stars-row .is-dim {
+  color: #34404d;
+}
+
+/* Иконка лайка в дневнике */
+.dashboard-home .lb-diary-like-cell,
+.dashboard-home .lb-diary-rewatch-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard-home .lb-diary-heart-btn {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 2px !important;
+  font-size: 0.95rem !important;
+  line-height: 1 !important;
+  color: #3c4856 !important;
+  cursor: pointer;
+  transition: transform 0.12s ease, color 0.12s ease;
+}
+
+.dashboard-home .lb-diary-heart-btn.is-liked {
+  color: var(--медиа-сердце) !important;
+}
+
+.dashboard-home .lb-diary-heart-btn:hover {
+  transform: scale(1.16);
+}
+
+.dashboard-home .lb-diary-rewatch-icon {
+  font-size: 0.88rem;
+  color: var(--медиа-текст-приглушённый);
+  user-select: none;
+}
+
+.dashboard-home .lb-diary-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.dashboard-home .lb-diary-icon-btn {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  padding: 0 !important;
+  border-radius: 4px !important;
+  color: #678 !important;
+  font-size: 0.84rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer;
+}
+
+.dashboard-home .lb-diary-icon-btn:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* 6. ШИРОКОЕ МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ / РЕДАКТИРОВАНИЯ */
+.modal.lb-media-log-modal {
+  width: min(960px, 94vw) !important;
+  max-width: min(960px, 94vw) !important;
+  overflow-x: hidden !important;
+}
+
+.modal.lb-media-log-modal .modal-content {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+}
+
+.lb-log-form-layout {
+  display: grid;
+  grid-template-columns: 155px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.lb-modal-poster-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lb-modal-poster-preview {
+  width: 155px;
+  aspect-ratio: 2 / 3;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--медиа-текст-приглушённый);
+}
+
+.lb-modal-poster-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lb-form-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.lb-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lb-form-field.is-full {
+  grid-column: 1 / -1;
+}
+
+.lb-form-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.lb-form-hint {
+  font-size: 0.69rem;
+  font-weight: 400;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-form-field input[type="text"],
+.lb-form-field input[type="number"],
+.lb-form-field select,
+.lb-form-field textarea {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  background: var(--background-secondary) !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  border-radius: 5px !important;
+  color: var(--text-normal) !important;
+  font-size: 0.82rem !important;
+  padding: 6px 9px !important;
+}
+
+.lb-form-field input[type="text"],
+.lb-form-field input[type="number"],
+.lb-form-field select {
+  height: 34px !important;
+}
+
+.lb-form-field textarea {
+  resize: vertical;
+  min-height: 78px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.lb-form-inline-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.lb-form-toggles-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 6px 10px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 5px;
+  min-height: 34px;
+}
+
+.lb-form-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lb-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+/* ТАЧ-ПАНЕЛЬ И ГАЛЕРЕЯ ПОСТЕРОВ */
 .lb-action-sheet-modal {
   width: min(440px, 94vw) !important;
   border-radius: 12px !important;
@@ -1822,6 +2170,7 @@
   border-radius: 6px;
   border-left: 3px solid var(--медиа-акцент);
   margin-bottom: 12px;
+  overflow-wrap: anywhere;
 }
 
 .lb-sheet-actions {
@@ -1832,11 +2181,11 @@
 
 .lb-sheet-btn {
   width: 100% !important;
-  min-height: 42px !important;
-  height: 42px !important;
+  min-height: 40px !important;
+  height: 40px !important;
   padding: 0 12px !important;
   border-radius: 6px !important;
-  font-size: 0.84rem !important;
+  font-size: 0.83rem !important;
   font-weight: 600 !important;
   background: var(--медиа-фон-карточки) !important;
   border: 1px solid var(--медиа-обводка-постера) !important;
@@ -1850,34 +2199,6 @@
 
 .lb-sheet-btn:hover {
   border-color: var(--медиа-акцент) !important;
-}
-
-.lb-modal-grid {
-  display: grid;
-  grid-template-columns: 145px 1fr;
-  gap: 16px;
-  align-items: start;
-}
-
-.lb-modal-poster-preview {
-  width: 145px;
-  aspect-ratio: 2 / 3;
-  border-radius: 4px;
-  overflow: hidden;
-  background: var(--медиа-фон-карточки);
-  border: 1px solid var(--медиа-обводка-постера);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-size: 0.78rem;
-  color: var(--медиа-текст-приглушённый);
-}
-
-.lb-modal-poster-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .lb-poster-gallery {
@@ -1911,16 +2232,16 @@
 .dashboard-home .lb-pagination-section {
   display: flex;
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .dashboard-home .lb-more-btn {
   background: var(--медиа-фон-карточки);
   border: 1px solid var(--медиа-обводка-постера);
-  padding: 7px 20px;
-  min-height: 36px;
+  padding: 6px 18px;
+  min-height: 34px;
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   font-weight: 600;
   cursor: pointer;
   color: var(--медиа-текст-приглушённый);
@@ -1932,16 +2253,16 @@
 }
 
 .dashboard-home .lb-empty-msg {
-  padding: 32px 18px;
+  padding: 26px 16px;
   text-align: center;
   color: var(--медиа-текст-приглушённый);
   background: rgba(28, 34, 40, 0.35);
   border: 1px dashed var(--медиа-разделитель);
   border-radius: 6px;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 820px) {
   .dashboard-home .lb-toolbar-ratings-layout {
     flex-direction: column;
     align-items: stretch;
@@ -1950,20 +2271,29 @@
     width: 100%;
     min-width: 0;
   }
-  .lb-modal-grid {
+  .lb-log-form-layout {
     grid-template-columns: 1fr;
   }
   .lb-modal-poster-preview {
     margin: 0 auto;
+    width: 130px;
+  }
+  .lb-form-grid-2col {
+    grid-template-columns: 1fr;
   }
   .dashboard-home .lb-top4-grid {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
   }
-  .dashboard-home .lb-diary-row {
-    grid-template-columns: 36px 1fr 84px 34px;
+  .dashboard-home .lb-diary-thead {
+    display: none;
   }
-  .dashboard-home .lb-diary-thumb,
-  .dashboard-home .lb-diary-creator-col {
+  .dashboard-home .lb-diary-tr {
+    grid-template-columns: 52px 34px minmax(120px, 1fr) minmax(120px, 1.3fr) 86px 52px;
+    gap: 8px;
+  }
+  .dashboard-home .lb-diary-year-col,
+  .dashboard-home .lb-diary-like-cell,
+  .dashboard-home .lb-diary-rewatch-cell {
     display: none;
   }
 }

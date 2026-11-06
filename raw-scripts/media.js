@@ -1,14 +1,13 @@
 /* ==========================================================================
-   MEDIA DASHBOARD HUB v4.0 (Letterboxd Dark Redesign)
-   Чистая вёрстка без рамок · Интерактивная шкала 5★ с половинками на постере
-   Акцентная гистограмма оценок Letterboxd · Полная русификация · Без Списков
+   MEDIA DASHBOARD HUB v4.2 (Letterboxd Dark & Authentic Diary Redesign)
+   Чистая панель фильтров без обрезания select · Постоянный фильтр «Актёры»
+   Аутентичная таблица Дневника Letterboxd (Календарь месяца, День, Фильм, Рецензия, Год, Оценка 5★, Любимое, Повтор, Действия)
    ========================================================================== */
 
 const MEDIA_ROOT_FOLDER = "Знания/Медиа";
 const MIN_VALID_DATE_ISO = "1970-01-01";
 const root = dv.container.createDiv({ cls: "dashboard-home dh-media-hub" });
 
-// Единый словарь локализации интерфейса
 const I18N = {
   addEntry: "＋ Добавить запись",
   postersView: "▦ Постеры",
@@ -18,17 +17,18 @@ const I18N = {
   watchlistHint: "Показать записи со статусом «В планах»",
   favHint: "Показать только любимые записи",
   allYears: "Все годы",
-  allDecades: "Все десятилетия",
+  allDecades: "Десятилетия",
   allStatuses: "Статус",
   allGenres: "Жанры",
+  allActors: "Актёры",
   allPlatforms: "Платформы",
   directorsAll: "Режиссёры",
-  showrunnersAll: "Шоураннеры и студии",
-  devsAll: "Разработчики и студии",
-  sortDateDesc: "По дате просмотра: сначала новые",
-  sortRatingDesc: "По оценке: сначала высокая",
-  sortYearDesc: "По году выхода: сначала свежие",
-  sortTitleAsc: "По названию: А–Я",
+  showrunnersAll: "Шоураннеры",
+  devsAll: "Разработчики",
+  sortDateDesc: "По дате просмотра",
+  sortRatingDesc: "По оценке",
+  sortYearDesc: "По году выхода",
+  sortTitleAsc: "По названию (А–Я)",
   ratingsHeader: "ОЦЕНКИ",
   rateAction: "Оценить",
   menuAction: "Меню действий",
@@ -38,8 +38,22 @@ const I18N = {
   modalAddTitle: "Отметить в Медиатеке",
   modalEditTitle: "Редактировать",
   saveChanges: "Сохранить изменения",
-  saveNew: "Добавить запись"
+  saveNew: "Добавить запись",
+  diaryColMonth: "МЕСЯЦ",
+  diaryColDay: "ДЕНЬ",
+  diaryColFilm: "НАЗВАНИЕ",
+  diaryColReview: "РЕЦЕНЗИЯ",
+  diaryColReleased: "ГОД",
+  diaryColRating: "ОЦЕНКА",
+  diaryColLike: "ЛЮБИМОЕ",
+  diaryColRewatch: "ПОВТОР",
+  diaryColEdit: "ПРАВКА"
 };
+
+const RU_MONTHS_SHORT = [
+  "ЯНВ", "ФЕВ", "МАР", "АПР", "МАЙ", "ИЮН",
+  "ИЮЛ", "АВГ", "СЕН", "ОКТ", "НОЯ", "ДЕК"
+];
 
 const notify = msg => {
   try { new Notice(msg); } catch { console.log(msg); }
@@ -184,6 +198,27 @@ function getItemCreators(item) {
   return flatArray(item["режиссёр"] ?? item["разработчик"] ?? item["шоураннер"] ?? item["студия"] ?? item["автор"]);
 }
 
+function getItemActors(item) {
+  return flatArray(item["актёры"] ?? item["актеры"] ?? item["в_ролях"]).flatMap(entry =>
+    String(entry)
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean)
+  );
+}
+
+function formatShortList(arr, maxShow = 2) {
+  if (!arr || arr.length === 0) return "";
+  if (arr.length <= maxShow) return arr.join(", ");
+  return `${arr.slice(0, maxShow).join(", ")} +${arr.length - maxShow}`;
+}
+
+function getItemReviewText(item) {
+  const raw = item["отзыв"] ?? item["рецензия"] ?? item["комментарий"] ?? "";
+  if (Array.isArray(raw)) return raw.map(x => String(x).trim()).filter(Boolean).join("\n");
+  return String(raw || "").trim();
+}
+
 function getItemDateISO(item) {
   return (
     toISODateStr(item["дата_прохождения"]) ||
@@ -214,7 +249,6 @@ function isItemWatchlist(item) {
   return String(item["статус"] || "").trim() === "В планах";
 }
 
-// Форматирование оценки (хранится по 10-балльной шкале, отображается в 5★ с половинками)
 function formatStars(score10) {
   const num = parseOptionalNum(score10);
   if (num === null || num <= 0) return "";
@@ -232,16 +266,31 @@ function formatStars5Label(bucket1to10) {
   return `${stars5.toFixed(1).replace(".0", "")} ★ (${"★".repeat(full)}${half ? "½" : ""})`;
 }
 
-// Встроенные стили (Letterboxd Dark Aesthetic + CSS-переменные на русском)
+// Отрисовка 5-звёздочного блока оценки в стиле дневника Letterboxd (зелёные активные + тусклые пустые)
+function renderDiaryStars5(container, score10) {
+  const num = parseOptionalNum(score10);
+  if (num === null || num <= 0) return;
+  const clamped = Math.min(10, Math.max(1, Math.round(num)));
+  const stars5 = clamped / 2;
+  const full = Math.floor(stars5);
+  const half = stars5 % 1 !== 0;
+  const empty = 5 - full - (half ? 1 : 0);
+
+  const wrap = container.createSpan({ cls: "lb-diary-stars-row" });
+  if (full > 0) wrap.createSpan({ cls: "is-lit", text: "★".repeat(full) });
+  if (half) wrap.createSpan({ cls: "is-lit is-half", text: "½" });
+  if (empty > 0) wrap.createSpan({ cls: "is-dim", text: "★".repeat(empty) });
+}
+
 const styleEl = root.createEl("style");
 styleEl.textContent = `
 @keyframes lbCardReveal {
-  0% { opacity: 0; transform: translateY(6px); }
+  0% { opacity: 0; transform: translateY(4px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes lbSheetSlideUp {
-  0% { opacity: 0; transform: translateY(20px); }
+  0% { opacity: 0; transform: translateY(16px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
@@ -257,8 +306,8 @@ styleEl.textContent = `
 
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 8px 0 32px 0;
+  gap: 10px;
+  padding: 4px 0 24px 0;
   color: var(--text-normal);
   font-family: var(--font-interface);
   box-sizing: border-box;
@@ -268,11 +317,11 @@ styleEl.textContent = `
   box-sizing: border-box;
 }
 
-/* 1. НАВИГАЦИЯ БЕЗ ПЛАШЕК И РАМОК (ПОДЧЁРКИВАНИЕ КАК В LETTERBOXD) */
+/* 1. НАВИГАЦИЯ */
 .dashboard-home .lb-nav-stack {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .dashboard-home .lb-primary-bar {
@@ -280,15 +329,15 @@ styleEl.textContent = `
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
   border-bottom: 1px solid var(--медиа-разделитель);
-  padding-bottom: 2px;
+  padding-bottom: 0;
 }
 
 .dashboard-home .lb-primary-tabs {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 22px;
+  gap: 18px;
   background: transparent;
   border: none;
   padding: 0;
@@ -301,17 +350,17 @@ styleEl.textContent = `
   border-bottom: 2px solid transparent !important;
   box-shadow: none !important;
   border-radius: 0 !important;
-  padding: 8px 2px 10px 2px !important;
+  padding: 5px 2px 7px 2px !important;
   height: auto !important;
-  min-height: 36px !important;
-  font-size: 0.94rem !important;
+  min-height: 30px !important;
+  font-size: 0.9rem !important;
   font-weight: 650 !important;
   letter-spacing: 0.02em;
   cursor: pointer;
   color: var(--медиа-текст-приглушённый) !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 7px !important;
+  gap: 6px !important;
   transition: color 0.15s ease, border-color 0.15s ease;
 }
 
@@ -327,7 +376,7 @@ styleEl.textContent = `
 }
 
 .dashboard-home .lb-primary-count {
-  font-size: 0.74rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--медиа-текст-приглушённый);
   opacity: 0.75;
@@ -339,23 +388,22 @@ styleEl.textContent = `
   opacity: 1;
 }
 
-/* Единственная заливная зелёная кнопка на странице */
 .dashboard-home .lb-add-cta {
   background: var(--медиа-акцент) !important;
   border: none !important;
   color: #0d1115 !important;
   font-weight: 750 !important;
-  font-size: 0.82rem !important;
+  font-size: 0.8rem !important;
   letter-spacing: 0.02em;
-  padding: 0 15px !important;
-  height: 34px !important;
-  min-height: 34px !important;
-  border-radius: 5px !important;
+  padding: 0 13px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  border-radius: 4px !important;
   cursor: pointer;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 6px !important;
-  box-shadow: 0 2px 8px rgba(0, 224, 84, 0.22) !important;
+  gap: 5px !important;
+  box-shadow: 0 2px 6px rgba(0, 224, 84, 0.2) !important;
   transition: filter 0.15s ease, transform 0.12s ease;
 }
 
@@ -364,14 +412,13 @@ styleEl.textContent = `
   transform: translateY(-1px);
 }
 
-/* Вторичный ряд: Постеры | Дневник + срезы В планах | Любимое */
 .dashboard-home .lb-secondary-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
-  padding: 2px 0;
+  gap: 10px;
+  padding: 0;
   background: transparent;
   border: none;
 }
@@ -381,7 +428,7 @@ styleEl.textContent = `
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 14px;
 }
 
 .dashboard-home .lb-sub-btn {
@@ -390,10 +437,10 @@ styleEl.textContent = `
   border-bottom: 2px solid transparent !important;
   box-shadow: none !important;
   border-radius: 0 !important;
-  height: 28px !important;
-  min-height: 28px !important;
-  padding: 2px 0 4px 0 !important;
-  font-size: 0.79rem !important;
+  height: 25px !important;
+  min-height: 25px !important;
+  padding: 1px 0 3px 0 !important;
+  font-size: 0.77rem !important;
   font-weight: 550 !important;
   color: var(--медиа-текст-приглушённый) !important;
   cursor: pointer;
@@ -416,7 +463,7 @@ styleEl.textContent = `
 }
 
 .dashboard-home .lb-sub-count {
-  font-size: 0.7rem;
+  font-size: 0.69rem;
   color: var(--медиа-текст-приглушённый);
   opacity: 0.75;
   font-variant-numeric: tabular-nums;
@@ -427,7 +474,8 @@ styleEl.textContent = `
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--медиа-разделитель);
-  padding: 0 0 18px 0;
+  padding: 0 0 10px 0;
+  margin: 0;
 }
 
 .dashboard-home .lb-top4-section > summary {
@@ -437,12 +485,12 @@ styleEl.textContent = `
   cursor: pointer;
   user-select: none;
   list-style: none;
-  font-size: 0.76rem;
+  font-size: 0.73rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--медиа-текст-приглушённый);
-  padding-bottom: 10px;
+  padding: 2px 0 6px 0;
 }
 
 .dashboard-home .lb-top4-section > summary::-webkit-details-marker {
@@ -451,26 +499,27 @@ styleEl.textContent = `
 
 .dashboard-home .lb-top4-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(120px, 175px));
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(120px, 165px));
+  gap: 14px;
 }
 
-/* 3. ПАНЕЛЬ ФИЛЬТРОВ + АКЦЕНТНЫЙ БЛОК «ОЦЕНКИ» (LETTERBOXD RATINGS) */
+/* 3. ФИЛЬТРЫ (БЕЗ ОБРЕЗАНИЯ SELECT) + ГИСТОГРАММА «ОЦЕНКИ» */
 .dashboard-home .lb-toolbar-ratings-layout {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 20px;
-  padding-bottom: 14px;
+  gap: 16px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--медиа-разделитель);
 }
 
 .dashboard-home .lb-filters-column {
-  flex: 1 1 420px;
+  flex: 1 1 480px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
   min-width: 260px;
 }
 
@@ -478,16 +527,16 @@ styleEl.textContent = `
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .dashboard-home .lb-search-input {
-  flex: 1 1 180px;
-  min-width: 145px;
-  height: 32px !important;
-  padding: 0 10px !important;
+  flex: 1 1 190px;
+  min-width: 150px;
+  height: 30px !important;
+  padding: 0 9px !important;
   border-radius: 4px !important;
-  font-size: 0.8rem !important;
+  font-size: 0.78rem !important;
   background: var(--медиа-фон-карточки) !important;
   border: 1px solid var(--медиа-обводка-постера) !important;
   color: var(--text-normal) !important;
@@ -498,69 +547,39 @@ styleEl.textContent = `
   outline: none !important;
 }
 
+/* Фикс обрезания текста в select: убран жёсткий max-width, добавлен width: auto */
 .dashboard-home .lb-filters-bar select {
-  height: 32px;
-  font-size: 0.78rem;
-  padding: 0 24px 0 9px;
-  border-radius: 4px;
-  background-color: var(--медиа-фон-карточки);
-  border: 1px solid var(--медиа-обводка-постера);
-  color: var(--медиа-текст-приглушённый);
-  cursor: pointer;
-}
-
-.dashboard-home .lb-filters-bar select:hover {
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.dashboard-home .lb-creators-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.dashboard-home .lb-creators-label {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--медиа-текст-приглушённый);
-}
-
-.dashboard-home .lb-creator-pill {
-  height: 22px !important;
-  min-height: 22px !important;
-  padding: 0 8px !important;
-  border-radius: 3px !important;
-  font-size: 0.72rem !important;
-  font-weight: 500 !important;
-  background: var(--медиа-фон-карточки) !important;
+  width: auto !important;
+  max-width: none !important;
+  min-width: max-content;
+  height: 30px !important;
+  font-size: 0.76rem !important;
+  padding: 0 26px 0 9px !important;
+  border-radius: 4px !important;
+  background-color: var(--медиа-фон-карточки) !important;
   border: 1px solid var(--медиа-обводка-постера) !important;
   color: var(--медиа-текст-приглушённый) !important;
   cursor: pointer;
-  box-shadow: none !important;
-  transition: color 0.14s ease, border-color 0.14s ease;
+  white-space: nowrap;
 }
 
-.dashboard-home .lb-creator-pill:hover,
-.dashboard-home .lb-creator-pill.is-active {
+.dashboard-home .lb-filters-bar select:hover {
   color: #ffffff !important;
-  border-color: var(--медиа-акцент) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
-/* Акцентный блок «Оценки» в стиле Letterboxd (минимум 40% ряда, высота ~125px) */
+/* Акцентный блок «Оценки» Letterboxd */
 .dashboard-home .lb-ratings-widget {
-  flex: 1 1 42%;
-  min-width: 300px;
-  min-height: 122px;
+  flex: 0 1 38%;
+  min-width: 280px;
+  min-height: 92px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 10px 14px 12px 14px;
+  padding: 8px 12px 9px 12px;
   background: rgba(28, 34, 40, 0.45);
   border: 1px solid var(--медиа-разделитель);
-  border-radius: 6px;
+  border-radius: 5px;
 }
 
 .dashboard-home .lb-ratings-header {
@@ -568,12 +587,12 @@ styleEl.textContent = `
   justify-content: space-between;
   align-items: baseline;
   border-bottom: 1px solid var(--медиа-разделитель);
-  padding-bottom: 5px;
-  margin-bottom: 10px;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .dashboard-home .lb-ratings-title {
-  font-size: 0.73rem;
+  font-size: 0.7rem;
   font-weight: 650;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -587,13 +606,13 @@ styleEl.textContent = `
 }
 
 .dashboard-home .lb-ratings-count {
-  font-size: 0.74rem;
+  font-size: 0.71rem;
   color: var(--медиа-текст-приглушённый);
   font-variant-numeric: tabular-nums;
 }
 
 .dashboard-home .lb-ratings-avg {
-  font-size: 1.32rem;
+  font-size: 1.2rem;
   font-weight: 700;
   line-height: 1;
   color: #dbe4ee;
@@ -603,12 +622,12 @@ styleEl.textContent = `
 .dashboard-home .lb-ratings-body {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  height: 66px;
+  gap: 6px;
+  height: 48px;
 }
 
 .dashboard-home .lb-ratings-edge-star {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--медиа-акцент);
   line-height: 1;
   user-select: none;
@@ -649,7 +668,7 @@ styleEl.textContent = `
 
 .dashboard-home .lb-rating-tooltip {
   position: absolute;
-  bottom: calc(100% + 5px);
+  bottom: calc(100% + 4px);
   left: 50%;
   transform: translateX(-50%);
   background: #14181c;
@@ -670,11 +689,11 @@ styleEl.textContent = `
   opacity: 1;
 }
 
-/* 4. СЕТКА ПОСТЕРОВ И КАРТОЧКА (ЗАДАЧИ 1, 2, 7) */
+/* 4. СЕТКА ПОСТЕРОВ И КАРТОЧКА */
 .dashboard-home .lb-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 16px;
+  gap: 14px;
 }
 
 .dashboard-home .lb-card {
@@ -683,7 +702,7 @@ styleEl.textContent = `
   flex-direction: column;
   background: transparent;
   min-width: 120px;
-  animation: lbCardReveal 0.22s ease both;
+  animation: lbCardReveal 0.2s ease both;
 }
 
 .dashboard-home .lb-poster-wrapper {
@@ -717,21 +736,21 @@ styleEl.textContent = `
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 12px;
+  padding: 10px;
   text-align: center;
   background: var(--медиа-фон-карточки);
-  gap: 6px;
+  gap: 5px;
 }
 
 .dashboard-home .lb-fallback-icon {
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   opacity: 0.55;
 }
 
 .dashboard-home .lb-fallback-title {
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   font-weight: 650;
-  line-height: 1.25;
+  line-height: 1.22;
   color: var(--text-normal);
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -740,11 +759,10 @@ styleEl.textContent = `
 }
 
 .dashboard-home .lb-fallback-sub {
-  font-size: 0.7rem;
+  font-size: 0.69rem;
   color: var(--медиа-текст-приглушённый);
 }
 
-/* ЗАДАЧА 1: Круглые кнопки 28x28px по разным углам без наложений */
 .dashboard-home .lb-poster-corner-btn {
   position: absolute !important;
   width: 28px !important;
@@ -783,7 +801,6 @@ styleEl.textContent = `
   pointer-events: auto;
 }
 
-/* Активное сердечко видно всегда, даже без наведения */
 .dashboard-home .lb-poster-corner-btn.is-left.is-fav {
   opacity: 1;
   pointer-events: auto;
@@ -796,11 +813,10 @@ styleEl.textContent = `
   transform: scale(1.08);
 }
 
-/* ЗАДАЧА 2: Нижняя полоса 5 звёзд с половинками при наведении (120–200px безопасно) */
 .dashboard-home .lb-poster-bottom-bar {
   position: absolute;
   inset: auto 0 0 0;
-  height: 32px;
+  height: 30px;
   padding: 0 6px;
   background: linear-gradient(180deg, rgba(16, 20, 24, 0) 0%, rgba(16, 20, 24, 0.92) 45%, rgba(16, 20, 24, 0.98) 100%);
   display: flex;
@@ -869,20 +885,19 @@ styleEl.textContent = `
   }
 }
 
-/* Подпись под постером: Название (одна строка, ellipsis), ниже звёзды и год */
 .dashboard-home .lb-card-caption {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 6px 1px 0 1px;
+  gap: 1px;
+  padding: 4px 1px 0 1px;
   min-width: 0;
 }
 
 .dashboard-home .lb-caption-title {
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   font-weight: 600;
   color: var(--text-normal);
-  line-height: 1.25;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -898,13 +913,13 @@ styleEl.textContent = `
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  min-height: 15px;
-  font-size: 0.72rem;
+  min-height: 14px;
+  font-size: 0.71rem;
   color: var(--медиа-текст-приглушённый);
 }
 
 .dashboard-home .lb-stars {
-  font-size: 0.73rem;
+  font-size: 0.72rem;
   color: var(--медиа-акцент);
   letter-spacing: 0.5px;
   line-height: 1;
@@ -912,62 +927,444 @@ styleEl.textContent = `
 }
 
 .dashboard-home .lb-caption-year {
-  font-size: 0.71rem;
+  font-size: 0.7rem;
   color: var(--медиа-текст-приглушённый);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-/* 5. ХРОНОЛОГИЧЕСКИЙ ДНЕВНИК */
-.dashboard-home .lb-diary-wrap {
+.dashboard-home .lb-caption-sub {
+  font-size: 0.68rem;
+  color: var(--медиа-текст-приглушённый);
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.15;
+}
+
+/* 5. АУТЕНТИЧНЫЙ ДНЕВНИК LETTERBOXD С КОЛОНКОЙ РЕЦЕНЗИИ */
+.dashboard-home .lb-diary-table {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  width: 100%;
 }
 
-.dashboard-home .lb-diary-month {
-  border-top: 1px solid var(--медиа-разделитель);
-}
-
-.dashboard-home .lb-diary-month-head {
-  padding: 10px 0 6px 0;
-  font-size: 0.76rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--медиа-текст-приглушённый);
-  display: flex;
-  justify-content: space-between;
-}
-
-.dashboard-home .lb-diary-row {
+.dashboard-home .lb-diary-thead {
   display: grid;
-  grid-template-columns: 42px 36px minmax(140px, 1.5fr) minmax(100px, 1fr) 110px 36px;
+  grid-template-columns: 62px 44px minmax(170px, 1.3fr) minmax(180px, 1.8fr) 54px 96px 56px 56px 58px;
   align-items: center;
   gap: 10px;
-  padding: 8px 4px;
+  padding: 6px 6px;
+  border-top: 1px solid var(--медиа-разделитель);
   border-bottom: 1px solid var(--медиа-разделитель);
-  font-size: 0.82rem;
+  font-size: 0.65rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--медиа-текст-приглушённый);
+  user-select: none;
 }
 
-.dashboard-home .lb-diary-day {
-  font-size: 1rem;
-  font-weight: 700;
+.dashboard-home .lb-diary-tr {
+  display: grid;
+  grid-template-columns: 62px 44px minmax(170px, 1.3fr) minmax(180px, 1.8fr) 54px 96px 56px 56px 58px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 6px;
+  border-bottom: 1px solid var(--медиа-разделитель);
+  transition: background-color 0.12s ease;
+}
+
+.dashboard-home .lb-diary-tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+/* Иконка перекидного календаря месяца (только у первой записи месяца, как в Letterboxd) */
+.dashboard-home .lb-diary-cal-badge {
+  position: relative;
+  width: 52px;
+  height: 46px;
+  background: #2c3440;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 0 #181d23, 0 4px 0 #2c3440;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 4px;
+  user-select: none;
+}
+
+.dashboard-home .lb-diary-cal-badge::before,
+.dashboard-home .lb-diary-cal-badge::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  width: 4px;
+  height: 7px;
+  background: #678;
+  border-radius: 2px;
+}
+
+.dashboard-home .lb-diary-cal-badge::before {
+  left: 12px;
+}
+
+.dashboard-home .lb-diary-cal-badge::after {
+  right: 12px;
+}
+
+.dashboard-home .lb-diary-cal-month {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #dbe4ee;
+  line-height: 1.05;
+}
+
+.dashboard-home .lb-diary-cal-year {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--медиа-текст-приглушённый);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Крупное число дня месяца */
+.dashboard-home .lb-diary-day-num {
+  font-size: 1.45rem;
+  font-weight: 300;
+  color: #789;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  line-height: 1;
+}
+
+/* Колонка фильма: мини-постер + жирное название */
+.dashboard-home .lb-diary-film-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dashboard-home .lb-diary-poster-mini {
+  width: 34px;
+  height: 51px;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--медиа-фон-карточки);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.dashboard-home .lb-diary-film-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dashboard-home .lb-diary-film-title {
+  font-size: 0.96rem;
+  font-weight: 750;
+  color: #ffffff;
+  text-decoration: none;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.dashboard-home .lb-diary-film-title:hover {
+  color: var(--медиа-акцент);
+}
+
+.dashboard-home .lb-diary-film-sub {
+  font-size: 0.7rem;
+  color: var(--медиа-текст-приглушённый);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Колонка рецензии (3 строки с разворотом по клику) */
+.dashboard-home .lb-diary-review-col {
+  min-width: 0;
+  font-size: 0.78rem;
+  line-height: 1.38;
+  color: #c8d4e0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.dashboard-home .lb-diary-review-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
+  white-space: pre-wrap;
+}
+
+.dashboard-home .lb-diary-review-text.is-expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+.dashboard-home .lb-diary-review-empty {
+  color: var(--медиа-текст-приглушённый);
+  opacity: 0.25;
+  user-select: none;
+}
+
+.dashboard-home .lb-diary-year-col {
+  font-size: 0.79rem;
   color: var(--медиа-текст-приглушённый);
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
-.dashboard-home .lb-diary-thumb {
-  width: 32px;
-  height: 48px;
-  border-radius: 3px;
-  object-fit: cover;
-  background: var(--медиа-фон-карточки);
-  border: 1px solid var(--медиа-обводка-постера);
+/* 5 звёзд в дневнике (активные зелёные + пустые тёмные) */
+.dashboard-home .lb-diary-stars-row {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.88rem;
+  letter-spacing: 1px;
+  line-height: 1;
+  user-select: none;
 }
 
-/* 6. МОДАЛЬНЫЕ ОКНА И ТАЧ-ПАНЕЛЬ */
+.dashboard-home .lb-diary-stars-row .is-lit {
+  color: var(--медиа-акцент);
+}
+
+.dashboard-home .lb-diary-stars-row .is-dim {
+  color: #34404d;
+}
+
+/* Иконка лайка в дневнике */
+.dashboard-home .lb-diary-like-cell,
+.dashboard-home .lb-diary-rewatch-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard-home .lb-diary-heart-btn {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 2px !important;
+  font-size: 0.95rem !important;
+  line-height: 1 !important;
+  color: #3c4856 !important;
+  cursor: pointer;
+  transition: transform 0.12s ease, color 0.12s ease;
+}
+
+.dashboard-home .lb-diary-heart-btn.is-liked {
+  color: var(--медиа-сердце) !important;
+}
+
+.dashboard-home .lb-diary-heart-btn:hover {
+  transform: scale(1.16);
+}
+
+.dashboard-home .lb-diary-rewatch-icon {
+  font-size: 0.88rem;
+  color: var(--медиа-текст-приглушённый);
+  user-select: none;
+}
+
+.dashboard-home .lb-diary-actions-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.dashboard-home .lb-diary-icon-btn {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  padding: 0 !important;
+  border-radius: 4px !important;
+  color: #678 !important;
+  font-size: 0.84rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer;
+}
+
+.dashboard-home .lb-diary-icon-btn:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* 6. ШИРОКОЕ МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ / РЕДАКТИРОВАНИЯ */
+.modal.lb-media-log-modal {
+  width: min(960px, 94vw) !important;
+  max-width: min(960px, 94vw) !important;
+  overflow-x: hidden !important;
+}
+
+.modal.lb-media-log-modal .modal-content {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+}
+
+.lb-log-form-layout {
+  display: grid;
+  grid-template-columns: 155px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.lb-modal-poster-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lb-modal-poster-preview {
+  width: 155px;
+  aspect-ratio: 2 / 3;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--медиа-текст-приглушённый);
+}
+
+.lb-modal-poster-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lb-form-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  width: 100%;
+  min-width: 0;
+}
+
+.lb-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lb-form-field.is-full {
+  grid-column: 1 / -1;
+}
+
+.lb-form-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.lb-form-hint {
+  font-size: 0.69rem;
+  font-weight: 400;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lb-form-field input[type="text"],
+.lb-form-field input[type="number"],
+.lb-form-field select,
+.lb-form-field textarea {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  background: var(--background-secondary) !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  border-radius: 5px !important;
+  color: var(--text-normal) !important;
+  font-size: 0.82rem !important;
+  padding: 6px 9px !important;
+}
+
+.lb-form-field input[type="text"],
+.lb-form-field input[type="number"],
+.lb-form-field select {
+  height: 34px !important;
+}
+
+.lb-form-field textarea {
+  resize: vertical;
+  min-height: 78px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.lb-form-inline-group {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.lb-form-toggles-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 6px 10px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 5px;
+  min-height: 34px;
+}
+
+.lb-form-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lb-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+/* ТАЧ-ПАНЕЛЬ И ГАЛЕРЕЯ ПОСТЕРОВ */
 .lb-action-sheet-modal {
   width: min(440px, 94vw) !important;
   border-radius: 12px !important;
@@ -1024,6 +1421,7 @@ styleEl.textContent = `
   border-radius: 6px;
   border-left: 3px solid var(--медиа-акцент);
   margin-bottom: 12px;
+  overflow-wrap: anywhere;
 }
 
 .lb-sheet-actions {
@@ -1034,11 +1432,11 @@ styleEl.textContent = `
 
 .lb-sheet-btn {
   width: 100% !important;
-  min-height: 42px !important;
-  height: 42px !important;
+  min-height: 40px !important;
+  height: 40px !important;
   padding: 0 12px !important;
   border-radius: 6px !important;
-  font-size: 0.84rem !important;
+  font-size: 0.83rem !important;
   font-weight: 600 !important;
   background: var(--медиа-фон-карточки) !important;
   border: 1px solid var(--медиа-обводка-постера) !important;
@@ -1052,34 +1450,6 @@ styleEl.textContent = `
 
 .lb-sheet-btn:hover {
   border-color: var(--медиа-акцент) !important;
-}
-
-.lb-modal-grid {
-  display: grid;
-  grid-template-columns: 145px 1fr;
-  gap: 16px;
-  align-items: start;
-}
-
-.lb-modal-poster-preview {
-  width: 145px;
-  aspect-ratio: 2 / 3;
-  border-radius: 4px;
-  overflow: hidden;
-  background: var(--медиа-фон-карточки);
-  border: 1px solid var(--медиа-обводка-постера);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  font-size: 0.78rem;
-  color: var(--медиа-текст-приглушённый);
-}
-
-.lb-modal-poster-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .lb-poster-gallery {
@@ -1113,16 +1483,16 @@ styleEl.textContent = `
 .dashboard-home .lb-pagination-section {
   display: flex;
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .dashboard-home .lb-more-btn {
   background: var(--медиа-фон-карточки);
   border: 1px solid var(--медиа-обводка-постера);
-  padding: 7px 20px;
-  min-height: 36px;
+  padding: 6px 18px;
+  min-height: 34px;
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.79rem;
   font-weight: 600;
   cursor: pointer;
   color: var(--медиа-текст-приглушённый);
@@ -1134,16 +1504,16 @@ styleEl.textContent = `
 }
 
 .dashboard-home .lb-empty-msg {
-  padding: 32px 18px;
+  padding: 26px 16px;
   text-align: center;
   color: var(--медиа-текст-приглушённый);
   background: rgba(28, 34, 40, 0.35);
   border: 1px dashed var(--медиа-разделитель);
   border-radius: 6px;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 820px) {
   .dashboard-home .lb-toolbar-ratings-layout {
     flex-direction: column;
     align-items: stretch;
@@ -1152,29 +1522,37 @@ styleEl.textContent = `
     width: 100%;
     min-width: 0;
   }
-  .lb-modal-grid {
+  .lb-log-form-layout {
     grid-template-columns: 1fr;
   }
   .lb-modal-poster-preview {
     margin: 0 auto;
+    width: 130px;
+  }
+  .lb-form-grid-2col {
+    grid-template-columns: 1fr;
   }
   .dashboard-home .lb-top4-grid {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
   }
-  .dashboard-home .lb-diary-row {
-    grid-template-columns: 36px 1fr 84px 34px;
+  .dashboard-home .lb-diary-thead {
+    display: none;
   }
-  .dashboard-home .lb-diary-thumb,
-  .dashboard-home .lb-diary-creator-col {
+  .dashboard-home .lb-diary-tr {
+    grid-template-columns: 52px 34px minmax(120px, 1fr) minmax(120px, 1.3fr) 86px 52px;
+    gap: 8px;
+  }
+  .dashboard-home .lb-diary-year-col,
+  .dashboard-home .lb-diary-like-cell,
+  .dashboard-home .lb-diary-rewatch-cell {
     display: none;
   }
 }
 `;
 
-// Состояние сессии UI (функционал «Списки» полностью удалён)
 const defaultState = {
-  activeCategory: "Фильм", // "Фильм" | "Сериал" | "Игра"
-  viewMode: "grid",        // "grid" | "diary"
+  activeCategory: "Фильм",
+  viewMode: "grid",
   quickWatchlist: false,
   onlyFavorites: false,
   yearFilter: "Все",
@@ -1182,6 +1560,7 @@ const defaultState = {
   statusFilter: "Все",
   genreFilter: "Все",
   creatorFilter: "Все",
+  actorFilter: "Все",
   platformFilter: "Все",
   ratingFilter: null,
   searchQuery: "",
@@ -1356,8 +1735,10 @@ class PosterActionSheetModal extends obsidian.Modal {
     const schema = getSchemaForType(item["тип"]);
     const title = item["название"] || item.file.name;
     const creators = getItemCreators(item);
+    const actors = getItemActors(item);
     const posterSrc = resolvePosterSrc(item["постер"], item.file.path);
     const rewatchCount = getRewatchCount(item);
+    const reviewText = getItemReviewText(item);
 
     const head = contentEl.createDiv({ cls: "lb-sheet-head" });
     if (posterSrc) {
@@ -1374,8 +1755,15 @@ class PosterActionSheetModal extends obsidian.Modal {
     ].filter(Boolean);
     info.createDiv({ cls: "lb-sheet-sub", text: subParts.join(" · ") });
 
-    if (item["отзыв"]) {
-      contentEl.createDiv({ cls: "lb-sheet-review", text: `«${item["отзыв"]}»` });
+    if (actors.length > 0) {
+      info.createDiv({
+        cls: "lb-sheet-sub",
+        text: `Актёры: ${formatShortList(actors, 3)}`
+      });
+    }
+
+    if (reviewText) {
+      contentEl.createDiv({ cls: "lb-sheet-review", text: `«${reviewText}»` });
     }
 
     const actions = contentEl.createDiv({ cls: "lb-sheet-actions" });
@@ -1395,7 +1783,7 @@ class PosterActionSheetModal extends obsidian.Modal {
       cls: "lb-sheet-btn",
       attr: { type: "button" }
     });
-    editBtn.createSpan({ text: "✎ Оценить" });
+    editBtn.createSpan({ text: "✎ Оценить / Редактировать" });
     editBtn.createSpan({ text: formatStars(item["оценка"]) || "—" });
     editBtn.onclick = () => {
       this.close();
@@ -1411,7 +1799,8 @@ class PosterActionSheetModal extends obsidian.Modal {
     favBtn.onclick = async () => {
       const nextFav = !item["любимое"];
       await updateMediaFrontmatter(item.file.path, fm => {
-        fm["любимое"] = nextFav;
+        if (nextFav) fm["любимое"] = true;
+        else delete fm["любимое"];
       });
       this.close();
       if (this.onUpdated) this.onUpdated();
@@ -1468,7 +1857,7 @@ class PosterActionSheetModal extends obsidian.Modal {
 }
 
 // ==========================================================================
-// МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ И РЕДАКТИРОВАНИЯ ЗАПИСИ
+// ШИРОКОЕ МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ И РЕДАКТИРОВАНИЯ
 // ==========================================================================
 class MediaLogModal extends obsidian.Modal {
   constructor(app, initialType, existingItem, onSaved) {
@@ -1497,6 +1886,7 @@ class MediaLogModal extends obsidian.Modal {
       rewatch: ex ? Boolean(ex["пересмотр"]) : false,
       rewatchCount: ex ? getRewatchCount(ex) : 0,
       creator: ex ? getItemCreators(ex).join(", ") : "",
+      actors: ex ? getItemActors(ex).join(", ") : "",
       runtimeMin: ex && parseOptionalNum(ex["длительность_мин"]) !== null ? Number(ex["длительность_мин"]) : "",
       seasons: ex && parseOptionalNum(ex["сезонов"]) !== null ? Number(ex["сезонов"]) : "",
       episodes: ex && parseOptionalNum(ex["серий"]) !== null ? Number(ex["серий"]) : "",
@@ -1504,11 +1894,12 @@ class MediaLogModal extends obsidian.Modal {
       hoursPlayed: ex && parseOptionalNum(ex["часов_наиграно"]) !== null ? Number(ex["часов_наиграно"]) : "",
       genres: ex ? flatArray(ex["жанр"]).join(", ") : "",
       mediaTags: ex ? flatArray(ex["теги_медиа"]).join(", ") : "",
-      review: ex ? String(ex["отзыв"] || "") : ""
+      review: ex ? getItemReviewText(ex) : ""
     };
   }
 
   onOpen() {
+    this.modalEl.addClass("lb-media-log-modal");
     this.renderForm();
   }
 
@@ -1520,11 +1911,12 @@ class MediaLogModal extends obsidian.Modal {
     contentEl.createEl("h2", {
       text: this.existingItem
         ? `${schema.icon} ${I18N.modalEditTitle}: ${this.data.title}`
-        : `${schema.icon} ${I18N.modalAddTitle}`
+        : `${schema.icon} ${I18N.modalAddTitle}`,
+      attr: { style: "margin: 0 0 12px 0; font-size: 1.15rem;" }
     });
 
-    const layout = contentEl.createDiv({ cls: "lb-modal-grid" });
-    const leftCol = layout.createDiv();
+    const layout = contentEl.createDiv({ cls: "lb-log-form-layout" });
+    const leftCol = layout.createDiv({ cls: "lb-modal-poster-col" });
     const previewBox = leftCol.createDiv({ cls: "lb-modal-poster-preview" });
 
     const updatePreview = () => {
@@ -1538,173 +1930,224 @@ class MediaLogModal extends obsidian.Modal {
     };
     updatePreview();
 
-    const rightCol = layout.createDiv();
+    const rightGrid = layout.createDiv({ cls: "lb-form-grid-2col" });
+
+    const makeField = (label, hint = "", isFull = false) => {
+      const f = rightGrid.createDiv({ cls: `lb-form-field ${isFull ? "is-full" : ""}` });
+      const lbl = f.createDiv({ cls: "lb-form-label" });
+      lbl.createSpan({ text: label });
+      if (hint) lbl.createSpan({ cls: "lb-form-hint", text: hint });
+      return f;
+    };
+
+    const titleField = makeField("Название", "", Boolean(this.existingItem));
+    const titleInp = titleField.createEl("input", {
+      attr: {
+        type: "text",
+        placeholder: this.data.type === "Игра" ? "Death Stranding" : "Дюна: Часть вторая",
+        value: this.data.title
+      }
+    });
+    titleInp.oninput = () => { this.data.title = titleInp.value; };
 
     if (!this.existingItem) {
-      new obsidian.Setting(rightCol)
-        .setName("Категория")
-        .addDropdown(d => d
-          .addOption("Фильм", "🎬 Фильм")
-          .addOption("Сериал", "📺 Сериал")
-          .addOption("Игра", "🎮 Игра")
-          .setValue(this.data.type)
-          .onChange(v => {
-            this.data.type = v;
-            const nextSchema = getSchemaForType(v);
-            if (!nextSchema.statuses.includes(this.data.status)) {
-              this.data.status = nextSchema.defaultDoneStatus;
-            }
-            this.renderForm();
-          }));
+      const catField = makeField("Категория");
+      const catSel = catField.createEl("select");
+      [
+        { v: "Фильм", l: "🎬 Фильм" },
+        { v: "Сериал", l: "📺 Сериал" },
+        { v: "Игра", l: "🎮 Игра" }
+      ].forEach(o => {
+        const opt = catSel.createEl("option", { text: o.l, value: o.v });
+        if (this.data.type === o.v) opt.selected = true;
+      });
+      catSel.onchange = () => {
+        this.data.type = catSel.value;
+        const nextSchema = getSchemaForType(this.data.type);
+        if (!nextSchema.statuses.includes(this.data.status)) {
+          this.data.status = nextSchema.defaultDoneStatus;
+        }
+        this.renderForm();
+      };
     }
 
-    new obsidian.Setting(rightCol)
-      .setName("Название")
-      .addText(t => t
-        .setPlaceholder(this.data.type === "Игра" ? "Death Stranding" : "Дюна: Часть вторая")
-        .setValue(this.data.title)
-        .onChange(v => { this.data.title = v; }));
+    const creatorField = makeField(schema.creatorLabel, "через запятую");
+    const creatorInp = creatorField.createEl("input", {
+      attr: {
+        type: "text",
+        placeholder: schema.creatorPlaceholder,
+        value: this.data.creator
+      }
+    });
+    creatorInp.oninput = () => { this.data.creator = creatorInp.value; };
 
-    new obsidian.Setting(rightCol)
-      .setName(schema.creatorLabel)
-      .setDesc("Через запятую для фильтрации")
-      .addText(t => t
-        .setPlaceholder(schema.creatorPlaceholder)
-        .setValue(this.data.creator)
-        .onChange(v => { this.data.creator = v; }));
+    const actorsPreviewText = () => {
+      const list = String(this.data.actors || "").split(",").map(s => s.trim()).filter(Boolean);
+      return list.length > 3 ? formatShortList(list, 3) : "через запятую";
+    };
+    const actorsField = makeField("Актёры", actorsPreviewText());
+    const actorsHintEl = actorsField.querySelector(".lb-form-hint");
+    const actorsInp = actorsField.createEl("input", {
+      attr: {
+        type: "text",
+        placeholder: "Тимоти Шаламе, Зендея, Ребекка Фергюсон",
+        value: this.data.actors
+      }
+    });
+    actorsInp.oninput = () => {
+      this.data.actors = actorsInp.value;
+      if (actorsHintEl) actorsHintEl.textContent = actorsPreviewText();
+    };
+
+    const statusDateField = makeField("Статус и дата", schema.dateLabel);
+    const statusDateRow = statusDateField.createDiv({ cls: "lb-form-inline-group" });
+    const statusSel = statusDateRow.createEl("select");
+    schema.statuses.forEach(st => {
+      const opt = statusSel.createEl("option", { text: st, value: st });
+      if (this.data.status === st) opt.selected = true;
+    });
+    statusSel.onchange = () => { this.data.status = statusSel.value; };
+
+    const dateInp = statusDateRow.createEl("input", {
+      attr: { type: "text", placeholder: "ГГГГ-ММ-ДД", value: this.data.date }
+    });
+    dateInp.oninput = () => { this.data.date = dateInp.value.trim(); };
 
     if (this.data.type === "Фильм") {
-      new obsidian.Setting(rightCol)
-        .setName("Год выхода и хронометраж (мин)")
-        .addText(t => t
-          .setPlaceholder("Год (2024)")
-          .setValue(String(this.data.year ?? ""))
-          .onChange(v => { this.data.year = parseOptionalNum(v); }))
-        .addText(t => t
-          .setPlaceholder("Мин (166)")
-          .setValue(String(this.data.runtimeMin ?? ""))
-          .onChange(v => { this.data.runtimeMin = parseOptionalNum(v) ?? ""; }));
+      const specField = makeField("Год выхода и хронометраж", "мин");
+      const row = specField.createDiv({ cls: "lb-form-inline-group" });
+      const yInp = row.createEl("input", {
+        attr: { type: "text", placeholder: "Год (2024)", value: String(this.data.year ?? "") }
+      });
+      yInp.oninput = () => { this.data.year = parseOptionalNum(yInp.value); };
+      const rInp = row.createEl("input", {
+        attr: { type: "text", placeholder: "Мин (166)", value: String(this.data.runtimeMin ?? "") }
+      });
+      rInp.oninput = () => { this.data.runtimeMin = parseOptionalNum(rInp.value) ?? ""; };
     } else if (this.data.type === "Сериал") {
-      new obsidian.Setting(rightCol)
-        .setName("Год, сезоны и серии")
-        .addText(t => t
-          .setPlaceholder("Год")
-          .setValue(String(this.data.year ?? ""))
-          .onChange(v => { this.data.year = parseOptionalNum(v); }))
-        .addText(t => t
-          .setPlaceholder("Сезонов")
-          .setValue(String(this.data.seasons ?? ""))
-          .onChange(v => { this.data.seasons = parseOptionalNum(v) ?? ""; }))
-        .addText(t => t
-          .setPlaceholder("Серий")
-          .setValue(String(this.data.episodes ?? ""))
-          .onChange(v => { this.data.episodes = parseOptionalNum(v) ?? ""; }));
-    } else if (this.data.type === "Игра") {
-      new obsidian.Setting(rightCol)
-        .setName("Год, платформа и наиграно часов")
-        .addText(t => t
-          .setPlaceholder("Год")
-          .setValue(String(this.data.year ?? ""))
-          .onChange(v => { this.data.year = parseOptionalNum(v); }))
-        .addText(t => t
-          .setPlaceholder("ПК, PS5")
-          .setValue(this.data.platform)
-          .onChange(v => { this.data.platform = v; }))
-        .addText(t => t
-          .setPlaceholder("Часов (85)")
-          .setValue(String(this.data.hoursPlayed ?? ""))
-          .onChange(v => { this.data.hoursPlayed = parseOptionalNum(v) ?? ""; }));
+      const specField = makeField("Год, сезоны и серии");
+      const row = specField.createDiv({ cls: "lb-form-inline-group" });
+      const yInp = row.createEl("input", {
+        attr: { type: "text", placeholder: "Год", value: String(this.data.year ?? "") }
+      });
+      yInp.oninput = () => { this.data.year = parseOptionalNum(yInp.value); };
+      const sInp = row.createEl("input", {
+        attr: { type: "text", placeholder: "Сезонов", value: String(this.data.seasons ?? "") }
+      });
+      sInp.oninput = () => { this.data.seasons = parseOptionalNum(sInp.value) ?? ""; };
+      const eInp = row.createEl("input", {
+        attr: { type: "text", placeholder: "Серий", value: String(this.data.episodes ?? "") }
+      });
+      eInp.oninput = () => { this.data.episodes = parseOptionalNum(eInp.value) ?? ""; };
+    } else {
+      const specField = makeField("Год, платформа и часы");
+      const row = specField.createDiv({ cls: "lb-form-inline-group" });
+      const yInp = row.createEl("input", {
+        attr: { type: "text", placeholder: "Год", value: String(this.data.year ?? "") }
+      });
+      yInp.oninput = () => { this.data.year = parseOptionalNum(yInp.value); };
+      const pInp = row.createEl("input", {
+        attr: { type: "text", placeholder: "ПК, PS5", value: this.data.platform }
+      });
+      pInp.oninput = () => { this.data.platform = pInp.value; };
+      const hInp = row.createEl("input", {
+        attr: { type: "text", placeholder: "Часов (85)", value: String(this.data.hoursPlayed ?? "") }
+      });
+      hInp.oninput = () => { this.data.hoursPlayed = parseOptionalNum(hInp.value) ?? ""; };
     }
 
-    new obsidian.Setting(rightCol)
-      .setName(`Статус и ${schema.dateLabel.toLowerCase()}`)
-      .addDropdown(d => {
-        schema.statuses.forEach(st => d.addOption(st, st));
-        d.setValue(this.data.status);
-        d.onChange(v => { this.data.status = v; });
-      })
-      .addText(t => t
-        .setPlaceholder("ГГГГ-ММ-ДД")
-        .setValue(this.data.date)
-        .onChange(v => { this.data.date = v.trim(); }));
+    const ratingText = val => val > 0
+      ? `${(val / 2).toFixed(1).replace(".0", "")} из 5 (${formatStars(val)})`
+      : "не записано";
+    const ratingField = makeField("Оценка", ratingText(this.data.rating));
+    const ratingHintEl = ratingField.querySelector(".lb-form-hint");
+    const sliderInp = ratingField.createEl("input", {
+      attr: {
+        type: "range",
+        min: "0",
+        max: "10",
+        step: "1",
+        value: String(this.data.rating),
+        style: "width: 100%; accent-color: var(--медиа-акцент); height: 34px; cursor: pointer;"
+      }
+    });
+    sliderInp.oninput = () => {
+      this.data.rating = Number(sliderInp.value);
+      if (ratingHintEl) ratingHintEl.textContent = ratingText(this.data.rating);
+    };
 
-    const ratingLabel = val => val > 0
-      ? `Оценка: ${(val / 2).toFixed(1).replace(".0", "")} из 5 (${formatStars(val)})`
-      : "Оценка: не записано";
+    const flagsField = makeField("Флаги и повторы");
+    const flagsRow = flagsField.createDiv({ cls: "lb-form-toggles-row" });
 
-    const ratingSetting = new obsidian.Setting(rightCol)
-      .setName(ratingLabel(this.data.rating))
-      .addSlider(s => s
-        .setLimits(0, 10, 1)
-        .setValue(this.data.rating)
-        .setDynamicTooltip()
-        .onChange(v => {
-          this.data.rating = v;
-          ratingSetting.setName(ratingLabel(v));
-        }));
+    const favLabel = flagsRow.createEl("label", { cls: "lb-form-check" });
+    const favCb = favLabel.createEl("input", { attr: { type: "checkbox" } });
+    favCb.checked = this.data.favorite;
+    favCb.onchange = () => { this.data.favorite = favCb.checked; };
+    favLabel.createSpan({ text: "♥ Любимое" });
 
-    new obsidian.Setting(rightCol)
-      .setName("♥ Любимое / 📌 В Топ-4 / 🔄 Число повторов")
-      .addToggle(tg => tg
-        .setTooltip("♥ Любимое")
-        .setValue(this.data.favorite)
-        .onChange(v => { this.data.favorite = v; }))
-      .addToggle(tg => tg
-        .setTooltip("📌 Закрепить в витрине Топ-4")
-        .setValue(this.data.top4)
-        .onChange(v => { this.data.top4 = v; }))
-      .addText(t => t
-        .setPlaceholder("Повторов (0)")
-        .setValue(this.data.rewatchCount > 0 ? String(this.data.rewatchCount) : "")
-        .onChange(v => {
-          const n = parseOptionalNum(v);
-          this.data.rewatchCount = n !== null && n > 0 ? Math.round(n) : 0;
-          this.data.rewatch = this.data.rewatchCount > 0;
-        }));
+    const topLabel = flagsRow.createEl("label", { cls: "lb-form-check" });
+    const topCb = topLabel.createEl("input", { attr: { type: "checkbox" } });
+    topCb.checked = this.data.top4;
+    topCb.onchange = () => { this.data.top4 = topCb.checked; };
+    topLabel.createSpan({ text: "📌 Топ-4" });
 
-    new obsidian.Setting(rightCol)
-      .setName("Постер (ссылка или [[файл.jpg]])")
-      .addText(t => t
-        .setPlaceholder("https://image.tmdb.org/...")
-        .setValue(this.data.poster)
-        .onChange(v => {
-          this.data.poster = v.trim();
-          updatePreview();
-        }));
+    const rwInp = flagsRow.createEl("input", {
+      attr: {
+        type: "text",
+        placeholder: "Повторов (0)",
+        value: this.data.rewatchCount > 0 ? String(this.data.rewatchCount) : "",
+        style: "width: 95px !important; height: 26px !important; padding: 2px 6px !important; font-size: 0.76rem !important;"
+      }
+    });
+    rwInp.oninput = () => {
+      const n = parseOptionalNum(rwInp.value);
+      this.data.rewatchCount = n !== null && n > 0 ? Math.round(n) : 0;
+      this.data.rewatch = this.data.rewatchCount > 0;
+    };
 
-    new obsidian.Setting(rightCol)
-      .setName("Жанры и ключевые слова")
-      .addText(t => t
-        .setPlaceholder("Жанры: фантастика, триллер")
-        .setValue(this.data.genres)
-        .onChange(v => { this.data.genres = v; }))
-      .addText(t => t
-        .setPlaceholder("Ключевые слова: космос, атмосфера")
-        .setValue(this.data.mediaTags)
-        .onChange(v => { this.data.mediaTags = v; }));
+    const genresField = makeField("Жанры", "через запятую");
+    const genresInp = genresField.createEl("input", {
+      attr: { type: "text", placeholder: "фантастика, триллер, драма", value: this.data.genres }
+    });
+    genresInp.oninput = () => { this.data.genres = genresInp.value; };
 
-    new obsidian.Setting(contentEl)
-      .setName("Рецензия / короткая заметка о просмотре")
-      .addTextArea(t => {
-        t.setValue(this.data.review);
-        t.inputEl.rows = 3;
-        t.inputEl.style.width = "100%";
-        t.onChange(v => { this.data.review = v; });
-      });
+    const tagsField = makeField("Ключевые слова", "через запятую");
+    const tagsInp = tagsField.createEl("input", {
+      attr: { type: "text", placeholder: "космос, атмосфера, IMAX", value: this.data.mediaTags }
+    });
+    tagsInp.oninput = () => { this.data.mediaTags = tagsInp.value; };
 
-    new obsidian.Setting(contentEl)
-      .addButton(btn => btn
-        .setButtonText(this.existingItem ? I18N.saveChanges : I18N.saveNew)
-        .setCta()
-        .onClick(async () => {
-          if (!this.data.title.trim()) {
-            notify("Укажи название!");
-            return;
-          }
-          await this.saveEntry();
-          this.close();
-          if (this.onSaved) this.onSaved();
-        }));
+    const posterField = makeField("Постер", "URL или [[файл.jpg]]", true);
+    const posterInp = posterField.createEl("input", {
+      attr: { type: "text", placeholder: "https://image.tmdb.org/...", value: this.data.poster }
+    });
+    posterInp.oninput = () => {
+      this.data.poster = posterInp.value.trim();
+      updatePreview();
+    };
+
+    const reviewField = makeField("Рецензия / заметка о просмотре", "отображается в Дневнике", true);
+    const reviewArea = reviewField.createEl("textarea", {
+      attr: { placeholder: "Краткие впечатления, мысли, цитаты…" }
+    });
+    reviewArea.value = this.data.review;
+    reviewArea.oninput = () => { this.data.review = reviewArea.value; };
+
+    const footer = contentEl.createDiv({ cls: "lb-form-footer" });
+    const saveBtn = footer.createEl("button", {
+      cls: "mod-cta",
+      text: this.existingItem ? I18N.saveChanges : I18N.saveNew,
+      attr: { type: "button", style: "height: 36px; padding: 0 18px; border-radius: 5px; cursor: pointer;" }
+    });
+    saveBtn.onclick = async () => {
+      if (!this.data.title.trim()) {
+        notify("Укажи название!");
+        return;
+      }
+      await this.saveEntry();
+      this.close();
+      if (this.onSaved) this.onSaved();
+    };
   }
 
   async saveEntry() {
@@ -1715,60 +2158,78 @@ class MediaLogModal extends obsidian.Modal {
       .filter(Boolean);
 
     const creatorsList = splitClean(this.data.creator);
+    const actorsList = splitClean(this.data.actors);
     const genresList = splitClean(this.data.genres);
     const tagsArray = splitClean(this.data.mediaTags);
     const platformsList = splitClean(this.data.platform);
     const cleanDate = toISODateStr(this.data.date);
 
+    const applyCommonFrontmatter = fm => {
+      fm["тип"] = this.data.type;
+      fm["название"] = this.data.title.trim();
+
+      if (this.data.year !== null) fm["год"] = Number(this.data.year);
+      else delete fm["год"];
+
+      if (this.data.poster) fm["постер"] = this.data.poster;
+      else delete fm["постер"];
+
+      if (this.data.rating > 0) fm["оценка"] = Number(this.data.rating);
+      else delete fm["оценка"];
+
+      if (this.data.status) fm["статус"] = this.data.status;
+      else delete fm["статус"];
+
+      if (cleanDate) fm[schema.dateKey] = cleanDate;
+      else delete fm[schema.dateKey];
+
+      if (this.data.favorite) fm["любимое"] = true;
+      else delete fm["любимое"];
+
+      if (this.data.top4) fm["топ_4"] = true;
+      else delete fm["топ_4"];
+
+      const hasRewatch = Boolean(this.data.rewatchCount > 0 || this.data.rewatch);
+      if (hasRewatch) fm["пересмотр"] = true;
+      else delete fm["пересмотр"];
+
+      if (this.data.rewatchCount > 0) fm["количество_повторов"] = Number(this.data.rewatchCount);
+      else delete fm["количество_повторов"];
+
+      if (creatorsList.length > 1) fm[schema.creatorKey] = creatorsList;
+      else if (creatorsList.length === 1) fm[schema.creatorKey] = creatorsList[0];
+      else delete fm[schema.creatorKey];
+
+      if (actorsList.length > 0) fm["актёры"] = actorsList;
+      else delete fm["актёры"];
+
+      if (genresList.length > 0) fm["жанр"] = genresList;
+      else delete fm["жанр"];
+
+      if (tagsArray.length > 0) fm["теги_медиа"] = tagsArray;
+      else delete fm["теги_медиа"];
+
+      if (this.data.review.trim()) fm["отзыв"] = this.data.review.trim();
+      else delete fm["отзыв"];
+
+      if (this.data.type === "Фильм") {
+        if (this.data.runtimeMin !== "") fm["длительность_мин"] = Number(this.data.runtimeMin);
+        else delete fm["длительность_мин"];
+      } else if (this.data.type === "Сериал") {
+        if (this.data.seasons !== "") fm["сезонов"] = Number(this.data.seasons);
+        else delete fm["сезонов"];
+        if (this.data.episodes !== "") fm["серий"] = Number(this.data.episodes);
+        else delete fm["серий"];
+      } else if (this.data.type === "Игра") {
+        if (platformsList.length > 0) fm["платформа"] = platformsList;
+        else delete fm["платформа"];
+        if (this.data.hoursPlayed !== "") fm["часов_наиграно"] = Number(this.data.hoursPlayed);
+        else delete fm["часов_наиграно"];
+      }
+    };
+
     if (this.existingItem) {
-      await updateMediaFrontmatter(this.existingItem.file.path, fm => {
-        fm["тип"] = this.data.type;
-        fm["название"] = this.data.title.trim();
-        if (this.data.year !== null) fm["год"] = Number(this.data.year);
-        else delete fm["год"];
-
-        if (this.data.poster) fm["постер"] = this.data.poster;
-        else delete fm["постер"];
-
-        // Пустое значение — это «не записано», а не 0
-        if (this.data.rating > 0) fm["оценка"] = Number(this.data.rating);
-        else delete fm["оценка"];
-
-        fm["статус"] = this.data.status;
-        if (cleanDate) fm[schema.dateKey] = cleanDate;
-        else delete fm[schema.dateKey];
-
-        fm["любимое"] = Boolean(this.data.favorite);
-        if (this.data.top4) fm["топ_4"] = true;
-        else delete fm["топ_4"];
-
-        fm["пересмотр"] = Boolean(this.data.rewatchCount > 0 || this.data.rewatch);
-        if (this.data.rewatchCount > 0) fm["количество_повторов"] = Number(this.data.rewatchCount);
-        else delete fm["количество_повторов"];
-
-        fm[schema.creatorKey] = creatorsList.length <= 1 ? (creatorsList[0] || "") : creatorsList;
-        fm["жанр"] = genresList;
-
-        if (tagsArray.length > 0) fm["теги_медиа"] = tagsArray;
-        else delete fm["теги_медиа"];
-
-        if (this.data.review.trim()) fm["отзыв"] = this.data.review.trim();
-        else delete fm["отзыв"];
-
-        if (this.data.type === "Фильм") {
-          if (this.data.runtimeMin !== "") fm["длительность_мин"] = Number(this.data.runtimeMin);
-          else delete fm["длительность_мин"];
-        } else if (this.data.type === "Сериал") {
-          if (this.data.seasons !== "") fm["сезонов"] = Number(this.data.seasons);
-          else delete fm["сезонов"];
-          if (this.data.episodes !== "") fm["серий"] = Number(this.data.episodes);
-          else delete fm["серий"];
-        } else if (this.data.type === "Игра") {
-          if (platformsList.length > 0) fm["платформа"] = platformsList;
-          if (this.data.hoursPlayed !== "") fm["часов_наиграно"] = Number(this.data.hoursPlayed);
-          else delete fm["часов_наиграно"];
-        }
-      });
+      await updateMediaFrontmatter(this.existingItem.file.path, applyCommonFrontmatter);
       notify(`Сохранено: «${this.data.title}»`);
       return;
     }
@@ -1794,32 +2255,7 @@ class MediaLogModal extends obsidian.Modal {
     const createdFile = await app.vault.create(filePath, `# ${this.data.title.trim()}\n`);
     await app.fileManager.processFrontMatter(createdFile, fm => {
       fm["направление"] = "Медиа";
-      fm["тип"] = this.data.type;
-      fm["название"] = this.data.title.trim();
-      if (this.data.year !== null) fm["год"] = Number(this.data.year);
-      fm[schema.creatorKey] = creatorsList.length > 1 ? creatorsList : (creatorsList[0] || "");
-
-      if (this.data.type === "Фильм" && this.data.runtimeMin !== "") {
-        fm["длительность_мин"] = Number(this.data.runtimeMin);
-      } else if (this.data.type === "Сериал") {
-        if (this.data.seasons !== "") fm["сезонов"] = Number(this.data.seasons);
-        if (this.data.episodes !== "") fm["серий"] = Number(this.data.episodes);
-      } else if (this.data.type === "Игра") {
-        fm["платформа"] = platformsList.length ? platformsList : ["ПК"];
-        if (this.data.hoursPlayed !== "") fm["часов_наиграно"] = Number(this.data.hoursPlayed);
-      }
-
-      if (this.data.poster) fm["постер"] = this.data.poster;
-      if (this.data.rating > 0) fm["оценка"] = Number(this.data.rating);
-      fm["статус"] = this.data.status;
-      if (cleanDate) fm[schema.dateKey] = cleanDate;
-      fm["любимое"] = Boolean(this.data.favorite);
-      if (this.data.top4) fm["топ_4"] = true;
-      fm["пересмотр"] = Boolean(this.data.rewatchCount > 0 || this.data.rewatch);
-      if (this.data.rewatchCount > 0) fm["количество_повторов"] = Number(this.data.rewatchCount);
-      if (genresList.length > 0) fm["жанр"] = genresList;
-      if (tagsArray.length > 0) fm["теги_медиа"] = tagsArray;
-      if (this.data.review.trim()) fm["отзыв"] = this.data.review.trim();
+      applyCommonFrontmatter(fm);
     });
 
     notify(`Добавлено в медиатеку: «${this.data.title}»`);
@@ -1851,7 +2287,7 @@ function getCategoryPages(allMedia) {
   return allMedia.filter(p => String(p["тип"] || "").trim().toLowerCase() === cat);
 }
 
-// 1. Отрисовка двухуровневой навигации (без «Списков» и лишних рамок)
+// 1. Отрисовка двухуровневой навигации
 function renderNavigation(allMedia, categoryItems) {
   navContainer.empty();
 
@@ -1881,6 +2317,7 @@ function renderNavigation(allMedia, categoryItems) {
       if (state.activeCategory === tab.id) return;
       state.activeCategory = tab.id;
       state.creatorFilter = "Все";
+      state.actorFilter = "Все";
       state.genreFilter = "Все";
       state.platformFilter = "Все";
       state.decadeFilter = "Все";
@@ -1988,7 +2425,7 @@ function renderTop4Showcase(categoryItems) {
   });
 }
 
-// 3. Фильтры (включая компактный выбор года) + Акцентная гистограмма оценок Letterboxd (Задачи 4, 5, 6)
+// 3. Чистая панель фильтров (Год, Десятилетие, Статус, Режиссёр, Актёры, Жанры, Сортировка) + Гистограмма «Оценки»
 function renderToolbarAndRatings(categoryItems) {
   toolbarAndRatingsContainer.empty();
   const schema = getSchemaForType(state.activeCategory);
@@ -2007,13 +2444,11 @@ function renderToolbarAndRatings(categoryItems) {
     ? categoryItems
     : categoryItems.filter(i => getItemDateISO(i).startsWith(state.yearFilter));
 
-  // Пустые значения («не записано») в график не попадают
   const ratedItems = yearScoped.filter(i => {
     const val = parseOptionalNum(i["оценка"]);
     return val !== null && val > 0;
   });
 
-  // Левая колонка: фильтры + компактный год + топ авторов
   const filtersCol = toolbarAndRatingsContainer.createDiv({ cls: "lb-filters-column" });
   const bar = filtersCol.createDiv({ cls: "lb-filters-bar" });
 
@@ -2021,7 +2456,7 @@ function renderToolbarAndRatings(categoryItems) {
     cls: "lb-search-input",
     attr: {
       type: "search",
-      placeholder: `Поиск по названию, ${schema.creatorLabel.toLowerCase()}…`,
+      placeholder: `Поиск: название, ${schema.creatorLabel.toLowerCase()}, актёры…`,
       value: state.searchQuery
     }
   });
@@ -2031,7 +2466,6 @@ function renderToolbarAndRatings(categoryItems) {
     renderContent(categoryItems);
   };
 
-  // Компактный выпадающий фильтр по году просмотра (вместо старых плашек)
   const yearSelect = bar.createEl("select", { cls: "dropdown", attr: { title: "Год просмотра" } });
   yearSelect.createEl("option", { text: I18N.allYears, value: "Все" });
   sortedYears.forEach(yr => {
@@ -2042,6 +2476,23 @@ function renderToolbarAndRatings(categoryItems) {
     state.yearFilter = e.target.value;
     state.page = 1;
     renderDashboard();
+  };
+
+  const decades = new Set();
+  categoryItems.forEach(i => {
+    const dec = getItemDecade(i);
+    if (dec) decades.add(dec);
+  });
+  const decSelect = bar.createEl("select", { cls: "dropdown", attr: { title: "Десятилетие выхода" } });
+  decSelect.createEl("option", { text: I18N.allDecades, value: "Все" });
+  [...decades].sort((a, b) => b.localeCompare(a)).forEach(dec => {
+    const opt = decSelect.createEl("option", { text: dec, value: dec });
+    if (state.decadeFilter === dec) opt.selected = true;
+  });
+  decSelect.onchange = e => {
+    state.decadeFilter = e.target.value;
+    state.page = 1;
+    renderContent(categoryItems);
   };
 
   const statusSelect = bar.createEl("select", { cls: "dropdown" });
@@ -2071,6 +2522,21 @@ function renderToolbarAndRatings(categoryItems) {
     renderDashboard();
   };
 
+  // Фильтр по актёрам всегда отображается в панели
+  const actors = new Set();
+  categoryItems.forEach(i => getItemActors(i).forEach(a => actors.add(a)));
+  const actorSelect = bar.createEl("select", { cls: "dropdown" });
+  actorSelect.createEl("option", { text: I18N.allActors, value: "Все" });
+  [...actors].sort((a, b) => a.localeCompare(b, "ru")).forEach(act => {
+    const opt = actorSelect.createEl("option", { text: act, value: act });
+    if (state.actorFilter === act) opt.selected = true;
+  });
+  actorSelect.onchange = e => {
+    state.actorFilter = e.target.value;
+    state.page = 1;
+    renderDashboard();
+  };
+
   const genres = new Set();
   categoryItems.forEach(i => flatArray(i["жанр"]).forEach(g => genres.add(g)));
 
@@ -2085,25 +2551,6 @@ function renderToolbarAndRatings(categoryItems) {
     state.page = 1;
     renderDashboard();
   };
-
-  const decades = new Set();
-  categoryItems.forEach(i => {
-    const dec = getItemDecade(i);
-    if (dec) decades.add(dec);
-  });
-  if (decades.size > 0) {
-    const decSelect = bar.createEl("select", { cls: "dropdown" });
-    decSelect.createEl("option", { text: I18N.allDecades, value: "Все" });
-    [...decades].sort((a, b) => b.localeCompare(a)).forEach(dec => {
-      const opt = decSelect.createEl("option", { text: dec, value: dec });
-      if (state.decadeFilter === dec) opt.selected = true;
-    });
-    decSelect.onchange = e => {
-      state.decadeFilter = e.target.value;
-      state.page = 1;
-      renderContent(categoryItems);
-    };
-  }
 
   if (state.activeCategory === "Игра") {
     const platforms = new Set();
@@ -2123,7 +2570,7 @@ function renderToolbarAndRatings(categoryItems) {
     }
   }
 
-  const sortSelect = bar.createEl("select", { cls: "dropdown" });
+  const sortSelect = bar.createEl("select", { cls: "dropdown", attr: { title: "Сортировка" } });
   [
     { id: "date_desc", label: I18N.sortDateDesc },
     { id: "rating_desc", label: I18N.sortRatingDesc },
@@ -2138,43 +2585,11 @@ function renderToolbarAndRatings(categoryItems) {
     renderContent(categoryItems);
   };
 
-  // Быстрые кнопки авторов периода
-  const creatorCounter = new Map();
-  yearScoped.forEach(item => {
-    getItemCreators(item).forEach(cr => {
-      creatorCounter.set(cr, (creatorCounter.get(cr) || 0) + 1);
-    });
-  });
-
-  const topCreators = [...creatorCounter.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"))
-    .slice(0, 6);
-
-  if (topCreators.length > 0) {
-    const creatorsRow = filtersCol.createDiv({ cls: "lb-creators-row" });
-    creatorsRow.createSpan({ cls: "lb-creators-label", text: `${schema.creatorFilterAll}:` });
-
-    topCreators.forEach(([name, count]) => {
-      const isAct = state.creatorFilter === name;
-      const pill = creatorsRow.createEl("button", {
-        cls: `lb-creator-pill ${isAct ? "is-active" : ""}`,
-        text: `${name} (${count})`,
-        attr: { type: "button", title: `Отфильтровать: ${name}` }
-      });
-      pill.onclick = () => {
-        state.creatorFilter = isAct ? "Все" : name;
-        state.page = 1;
-        renderDashboard();
-      };
-    });
-  }
-
-  // Правая колонка: Акцентный блок «Оценки» в стиле Letterboxd (Задача 5)
+  // Правая колонка: Акцентный блок «Оценки»
   const ratingsWidget = toolbarAndRatingsContainer.createDiv({ cls: "lb-ratings-widget" });
   const rHeader = ratingsWidget.createDiv({ cls: "lb-ratings-header" });
   rHeader.createSpan({ cls: "lb-ratings-title", text: I18N.ratingsHeader });
 
-  // Средняя оценка в масштабе 5.0 (как на Letterboxd)
   const avg5 = ratedItems.length
     ? (ratedItems.reduce((acc, curr) => acc + parseNum(curr["оценка"], 0) / 2, 0) / ratedItems.length).toFixed(1)
     : "—";
@@ -2196,7 +2611,7 @@ function renderToolbarAndRatings(categoryItems) {
   const maxVal = Math.max(...counts, 0);
 
   counts.forEach((c, idx) => {
-    const bucketScore10 = idx + 1; // 1..10 соответствует 0.5★..5.0★
+    const bucketScore10 = idx + 1;
     const isMax = maxVal > 0 && c === maxVal;
     const isAct = state.ratingFilter === bucketScore10;
 
@@ -2239,6 +2654,9 @@ function applyFiltersAndSort(items) {
     if (state.creatorFilter !== "Все") {
       if (!getItemCreators(p).includes(state.creatorFilter)) return false;
     }
+    if (state.actorFilter !== "Все") {
+      if (!getItemActors(p).includes(state.actorFilter)) return false;
+    }
     if (state.genreFilter !== "Все") {
       if (!flatArray(p["жанр"]).includes(state.genreFilter)) return false;
     }
@@ -2260,9 +2678,10 @@ function applyFiltersAndSort(items) {
       const hay = [
         p["название"] || p.file.name,
         ...getItemCreators(p),
+        ...getItemActors(p),
         ...flatArray(p["жанр"]),
         ...flatArray(p["теги_медиа"]),
-        p["отзыв"] || ""
+        getItemReviewText(p)
       ].join(" ").toLowerCase();
       if (!hay.includes(q)) return false;
     }
@@ -2283,18 +2702,19 @@ function applyFiltersAndSort(items) {
   return filtered;
 }
 
-// 4. Отрисовка карточки постера (Задачи 1, 2, 7)
+// 4. Отрисовка карточки постера
 function renderPosterCard(parentGrid, item, index) {
   const schema = getSchemaForType(item["тип"]);
   const title = item["название"] || item.file.name;
   const creators = getItemCreators(item);
+  const actors = getItemActors(item);
   const primaryCreator = creators[0] || "";
   const posterSrc = resolvePosterSrc(item["постер"], item.file.path);
   const currentScore10 = parseOptionalNum(item["оценка"]);
 
   const card = parentGrid.createDiv({
     cls: "lb-card",
-    attr: { style: `animation-delay: ${Math.min(index * 14, 200)}ms;` }
+    attr: { style: `animation-delay: ${Math.min(index * 12, 180)}ms;` }
   });
 
   const posterWrapper = card.createDiv({ cls: "lb-poster-wrapper" });
@@ -2316,7 +2736,6 @@ function renderPosterCard(parentGrid, item, index) {
     }
   }
 
-  // ЗАДАЧА 1: Сердечко в левом верхнем углу (28x28px), остаётся видимым если активно
   const favBtn = posterWrapper.createEl("button", {
     cls: `lb-poster-corner-btn is-left ${item["любимое"] ? "is-fav" : ""}`,
     text: "♥",
@@ -2329,12 +2748,14 @@ function renderPosterCard(parentGrid, item, index) {
   favBtn.onclick = async e => {
     e.stopPropagation();
     const nextFav = !item["любимое"];
-    await updateMediaFrontmatter(item.file.path, fm => { fm["любимое"] = nextFav; });
+    await updateMediaFrontmatter(item.file.path, fm => {
+      if (nextFav) fm["любимое"] = true;
+      else delete fm["любимое"];
+    });
     item["любимое"] = nextFav;
     renderDashboard();
   };
 
-  // ЗАДАЧА 1: Кнопка «⋯» в правом верхнем углу (28x28px)
   const menuBtn = posterWrapper.createEl("button", {
     cls: "lb-poster-corner-btn is-right",
     text: "⋯",
@@ -2349,7 +2770,6 @@ function renderPosterCard(parentGrid, item, index) {
     new PosterActionSheetModal(app, item, () => renderDashboard()).open();
   };
 
-  // ЗАДАЧА 2: Минималистичная полоса снизу при наведении (5★ с половинками + иконка ✎ с title="Оценить")
   const bottomBar = posterWrapper.createDiv({ cls: "lb-poster-bottom-bar" });
   const starsBox = bottomBar.createDiv({ cls: "lb-quick-stars" });
 
@@ -2421,7 +2841,6 @@ function renderPosterCard(parentGrid, item, index) {
     new MediaLogModal(app, item["тип"], item, () => renderDashboard()).open();
   };
 
-  // Клик по самому постеру
   posterWrapper.onclick = e => {
     if (e.target.closest("button") || e.target.closest(".lb-quick-stars")) return;
     if (isTouchDevice()) {
@@ -2431,7 +2850,6 @@ function renderPosterCard(parentGrid, item, index) {
     }
   };
 
-  // ЗАДАЧА 7: Чистая подпись под постером (название в одну строку + ниже звёзды и год)
   const caption = card.createDiv({ cls: "lb-card-caption" });
 
   const capTitle = caption.createDiv({
@@ -2454,87 +2872,185 @@ function renderPosterCard(parentGrid, item, index) {
   if (item["год"]) {
     capMeta.createSpan({ cls: "lb-caption-year", text: String(item["год"]) });
   }
-}
 
-// 5. Хронологический Дневник
-function renderDiaryView(filtered) {
-  const diaryWrap = gridContainer.createDiv({ cls: "lb-diary-wrap" });
-  const byMonth = new Map();
-
-  filtered.forEach(item => {
-    const iso = getItemDateISO(item) || "Без даты";
-    const monthKey = /^\d{4}-\d{2}/.test(iso) ? iso.slice(0, 7) : "Без даты";
-    if (!byMonth.has(monthKey)) byMonth.set(monthKey, []);
-    byMonth.get(monthKey).push(item);
-  });
-
-  for (const [monthKey, list] of byMonth.entries()) {
-    const monthBox = diaryWrap.createDiv({ cls: "lb-diary-month" });
-    let monthTitle = monthKey;
-    if (/^\d{4}-\d{2}$/.test(monthKey)) {
-      const d = dv.date(`${monthKey}-01`);
-      if (d && d.isValid) monthTitle = d.setLocale("ru").toFormat("LLLL yyyy");
-    }
-    const head = monthBox.createDiv({ cls: "lb-diary-month-head" });
-    head.createSpan({ text: monthTitle });
-    head.createSpan({ text: `${list.length}` });
-
-    list.forEach(item => {
-      const schema = getSchemaForType(item["тип"]);
-      const iso = getItemDateISO(item);
-      const dayNum = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso.slice(8, 10) : "—";
-      const rewatchCount = getRewatchCount(item);
-      const row = monthBox.createDiv({ cls: "lb-diary-row" });
-
-      row.createDiv({ cls: "lb-diary-day", text: dayNum });
-
-      const src = resolvePosterSrc(item["постер"], item.file.path);
-      if (src) {
-        row.createEl("img", { cls: "lb-diary-thumb", attr: { src } });
-      } else {
-        row.createDiv({
-          cls: "lb-diary-thumb",
-          text: schema.icon,
-          attr: { style: "display:flex;align-items:center;justify-content:center;" }
-        });
-      }
-
-      const titleCol = row.createDiv({ attr: { style: "min-width:0;" } });
-      const titleLink = titleCol.createEl("a", {
-        cls: "internal-link",
-        text: item["название"] || item.file.name,
-        attr: { href: item.file.path, style: "font-weight: 650; color: var(--text-normal); text-decoration: none;" }
-      });
-      titleLink.onclick = e => {
-        e.preventDefault();
-        app.workspace.openLinkText(item.file.path, "", e.ctrlKey || e.metaKey);
-      };
-      if (item["год"]) {
-        titleCol.createSpan({ text: ` (${item["год"]})`, attr: { style: "font-size: 0.74rem; color: var(--медиа-текст-приглушённый);" } });
-      }
-
-      const creators = getItemCreators(item);
-      row.createDiv({
-        cls: "lb-diary-creator-col",
-        text: creators.join(", ") || "—",
-        attr: { style: "font-size: 0.76rem; color: var(--медиа-текст-приглушённый); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" }
-      });
-
-      const ratingCol = row.createDiv({ attr: { style: "display:flex;align-items:center;gap:6px;" } });
-      ratingCol.createSpan({ cls: "lb-stars", text: formatStars(item["оценка"]) });
-      if (item["любимое"]) ratingCol.createSpan({ text: "♥", attr: { style: "color: var(--медиа-сердце);" } });
-      if (rewatchCount > 0) ratingCol.createSpan({ text: rewatchCount > 1 ? `🔄×${rewatchCount}` : "🔄", attr: { style: "font-size: 0.74rem;" } });
-
-      const editBtn = row.createEl("button", {
-        cls: "lb-sub-btn",
-        text: "⋯",
-        attr: { type: "button", title: I18N.menuAction, style: "width:34px !important;justify-content:center !important;" }
-      });
-      editBtn.onclick = () => {
-        new PosterActionSheetModal(app, item, () => renderDashboard()).open();
-      };
+  if (actors.length > 0) {
+    caption.createDiv({
+      cls: "lb-caption-sub",
+      text: formatShortList(actors, 2),
+      attr: { title: `Актёры: ${actors.join(", ")}` }
     });
   }
+}
+
+// 5. Табличный Дневник в стиле Letterboxd (Календарь месяца, День, Постер + Название, Рецензия, Год, 5★, Любимое, Повтор, Правка)
+function renderDiaryView(filtered) {
+  const table = gridContainer.createDiv({ cls: "lb-diary-table" });
+
+  // Верхняя шапка колонок как в Letterboxd
+  const thead = table.createDiv({ cls: "lb-diary-thead" });
+  thead.createDiv({ text: I18N.diaryColMonth });
+  thead.createDiv({ text: I18N.diaryColDay, attr: { style: "text-align:center;" } });
+  thead.createDiv({ text: I18N.diaryColFilm });
+  thead.createDiv({ text: I18N.diaryColReview });
+  thead.createDiv({ text: I18N.diaryColReleased, attr: { style: "text-align:center;" } });
+  thead.createDiv({ text: I18N.diaryColRating });
+  thead.createDiv({ text: I18N.diaryColLike, attr: { style: "text-align:center;" } });
+  thead.createDiv({ text: I18N.diaryColRewatch, attr: { style: "text-align:center;" } });
+  thead.createDiv({ text: I18N.diaryColEdit, attr: { style: "text-align:right;" } });
+
+  let prevMonthKey = null;
+
+  filtered.forEach(item => {
+    const schema = getSchemaForType(item["тип"]);
+    const iso = getItemDateISO(item);
+    const hasValidISO = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+    const monthKey = hasValidISO ? iso.slice(0, 7) : "Без даты";
+    const dayStr = hasValidISO ? iso.slice(8, 10) : "—";
+    const isFirstOfMonth = monthKey !== prevMonthKey;
+    prevMonthKey = monthKey;
+
+    const rewatchCount = getRewatchCount(item);
+    const creators = getItemCreators(item);
+    const actors = getItemActors(item);
+    const reviewText = getItemReviewText(item);
+    const title = item["название"] || item.file.name;
+
+    const tr = table.createDiv({ cls: "lb-diary-tr" });
+
+    // 1. Ячейка МЕСЯЦ (иконка календаря только на первой строке нового месяца)
+    const monthCell = tr.createDiv();
+    if (isFirstOfMonth) {
+      const badge = monthCell.createDiv({ cls: "lb-diary-cal-badge" });
+      if (hasValidISO) {
+        const yr = iso.slice(0, 4);
+        const mIdx = Math.max(0, Math.min(11, parseInt(iso.slice(5, 7), 10) - 1));
+        badge.createDiv({ cls: "lb-diary-cal-month", text: RU_MONTHS_SHORT[mIdx] });
+        badge.createDiv({ cls: "lb-diary-cal-year", text: yr });
+      } else {
+        badge.createDiv({ cls: "lb-diary-cal-month", text: "—" });
+      }
+    }
+
+    // 2. Ячейка ДЕНЬ
+    tr.createDiv({ cls: "lb-diary-day-num", text: dayStr });
+
+    // 3. Ячейка ФИЛЬМ (мини-постер + жирное название + авторы/актёры)
+    const filmCell = tr.createDiv({ cls: "lb-diary-film-cell" });
+    const src = resolvePosterSrc(item["постер"], item.file.path);
+    if (src) {
+      const img = filmCell.createEl("img", { cls: "lb-diary-poster-mini", attr: { src, alt: title } });
+      img.onclick = e => {
+        app.workspace.openLinkText(item.file.path, "", e.ctrlKey || e.metaKey);
+      };
+    } else {
+      const fb = filmCell.createDiv({
+        cls: "lb-diary-poster-mini",
+        text: schema.icon,
+        attr: { style: "display:flex;align-items:center;justify-content:center;font-size:0.95rem;" }
+      });
+      fb.onclick = e => {
+        app.workspace.openLinkText(item.file.path, "", e.ctrlKey || e.metaKey);
+      };
+    }
+
+    const filmInfo = filmCell.createDiv({ cls: "lb-diary-film-info" });
+    const titleLink = filmInfo.createEl("a", {
+      cls: "lb-diary-film-title",
+      text: title,
+      attr: { href: item.file.path }
+    });
+    titleLink.onclick = e => {
+      e.preventDefault();
+      app.workspace.openLinkText(item.file.path, "", e.ctrlKey || e.metaKey);
+    };
+
+    const subParts = [
+      creators.join(", "),
+      actors.length > 0 ? formatShortList(actors, 2) : ""
+    ].filter(Boolean);
+    if (subParts.length > 0) {
+      filmInfo.createDiv({
+        cls: "lb-diary-film-sub",
+        text: subParts.join(" · "),
+        attr: { title: [creators.join(", "), actors.join(", ")].filter(Boolean).join(" | ") }
+      });
+    }
+
+    // 4. Ячейка РЕЦЕНЗИЯ (видна сразу, до 3 строк с разворотом по клику)
+    const reviewCol = tr.createDiv({ cls: "lb-diary-review-col" });
+    if (reviewText) {
+      const revEl = reviewCol.createDiv({
+        cls: "lb-diary-review-text",
+        text: reviewText,
+        attr: { title: "Нажми, чтобы развернуть или свернуть рецензию" }
+      });
+      revEl.onclick = () => {
+        revEl.classList.toggle("is-expanded");
+      };
+    } else {
+      reviewCol.createSpan({ cls: "lb-diary-review-empty", text: "—" });
+    }
+
+    // 5. Ячейка ГОД ВЫХОДА (RELEASED)
+    tr.createDiv({
+      cls: "lb-diary-year-col",
+      text: item["год"] ? String(item["год"]) : "—"
+    });
+
+    // 6. Ячейка ОЦЕНКА (5 звёзд Letterboxd: зелёные + тёмные пустые)
+    const ratingCol = tr.createDiv();
+    renderDiaryStars5(ratingCol, item["оценка"]);
+
+    // 7. Ячейка ЛЮБИМОЕ (интерактивное сердечко: оранжевое или тускло-серое)
+    const likeCell = tr.createDiv({ cls: "lb-diary-like-cell" });
+    const heartBtn = likeCell.createEl("button", {
+      cls: `lb-diary-heart-btn ${item["любимое"] ? "is-liked" : ""}`,
+      text: "♥",
+      attr: {
+        type: "button",
+        title: item["любимое"] ? I18N.favRemove : I18N.favAdd
+      }
+    });
+    heartBtn.onclick = async () => {
+      const nextFav = !item["любимое"];
+      await updateMediaFrontmatter(item.file.path, fm => {
+        if (nextFav) fm["любимое"] = true;
+        else delete fm["любимое"];
+      });
+      item["любимое"] = nextFav;
+      renderDashboard();
+    };
+
+    // 8. Ячейка ПОВТОР (REWATCH)
+    const rewatchCell = tr.createDiv({ cls: "lb-diary-rewatch-cell" });
+    if (rewatchCount > 0) {
+      rewatchCell.createSpan({
+        cls: "lb-diary-rewatch-icon",
+        text: rewatchCount > 1 ? `↻${rewatchCount}` : "↻",
+        attr: { title: `${schema.rewatchLabel}: ${rewatchCount}` }
+      });
+    }
+
+    // 9. Ячейка ПРАВКА (✎ и ⋯ как в Letterboxd)
+    const actionsCell = tr.createDiv({ cls: "lb-diary-actions-cell" });
+    const editBtn = actionsCell.createEl("button", {
+      cls: "lb-diary-icon-btn",
+      text: "✎",
+      attr: { type: "button", title: I18N.rateAction }
+    });
+    editBtn.onclick = () => {
+      new MediaLogModal(app, item["тип"], item, () => renderDashboard()).open();
+    };
+
+    const moreBtn = actionsCell.createEl("button", {
+      cls: "lb-diary-icon-btn",
+      text: "⋯",
+      attr: { type: "button", title: I18N.menuAction }
+    });
+    moreBtn.onclick = () => {
+      new PosterActionSheetModal(app, item, () => renderDashboard()).open();
+    };
+  });
 }
 
 function renderContent(categoryItems) {
