@@ -1034,43 +1034,43 @@
 
 /* --- Module: media --- */
 @keyframes lbCardReveal {
-  0% { opacity: 0; transform: translateY(8px) scale(0.98); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes lbSheetSlideUp {
-  0% { opacity: 0; transform: translateY(24px); }
+  0% { opacity: 0; transform: translateY(20px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
 .dashboard-home.dh-media-hub {
-  --lb-green: #00c853;
-  --lb-orange: #ff8000;
-  --lb-blue: #29b6f6;
-  --lb-heart: #ff4757;
+  --медиа-акцент: #00e054;
+  --медиа-фон-карточки: #1c2228;
+  --медиа-текст-приглушённый: #9ab;
+  --медиа-бар-график: #2c3440;
+  --медиа-сердце: #ff8000;
+  --медиа-голубой: #40bcf4;
+  --медиа-обводка-постера: rgba(255, 255, 255, 0.08);
+  --медиа-разделитель: rgba(255, 255, 255, 0.07);
+
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 6px 0 28px 0;
+  gap: 20px;
+  padding: 8px 0 32px 0;
   color: var(--text-normal);
   font-family: var(--font-interface);
   box-sizing: border-box;
-}
-
-.theme-dark .dashboard-home.dh-media-hub {
-  --lb-green: #00e054;
-  --lb-blue: #40bcf4;
 }
 
 .dashboard-home.dh-media-hub * {
   box-sizing: border-box;
 }
 
-/* 1. ДВУХУРОВНЕВАЯ НАВИГАЦИЯ */
+/* 1. НАВИГАЦИЯ БЕЗ ПЛАШЕК И РАМОК (ПОДЧЁРКИВАНИЕ КАК В LETTERBOXD) */
 .dashboard-home .lb-nav-stack {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .dashboard-home .lb-primary-bar {
@@ -1078,97 +1078,100 @@
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
+  border-bottom: 1px solid var(--медиа-разделитель);
+  padding-bottom: 2px;
 }
 
 .dashboard-home .lb-primary-tabs {
   display: inline-flex;
   flex-wrap: wrap;
-  background: var(--background-secondary);
-  border-radius: 12px;
-  padding: 4px;
-  gap: 4px;
-  border: 1px solid var(--background-modifier-border);
+  gap: 22px;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .dashboard-home .lb-primary-tab {
+  position: relative;
   background: transparent !important;
-  border: 1px solid transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
   box-shadow: none !important;
-  border-radius: 9px !important;
-  padding: 0 16px !important;
-  height: 38px !important;
-  min-height: 38px !important;
-  font-size: 0.92rem !important;
-  font-weight: 600 !important;
+  border-radius: 0 !important;
+  padding: 8px 2px 10px 2px !important;
+  height: auto !important;
+  min-height: 36px !important;
+  font-size: 0.94rem !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  color: var(--text-muted) !important;
+  color: var(--медиа-текст-приглушённый) !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 8px !important;
-  transition: background-color 0.16s ease, color 0.16s ease, transform 0.12s ease;
+  gap: 7px !important;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .dashboard-home .lb-primary-tab:hover {
   color: var(--text-normal) !important;
-  background: var(--background-modifier-hover) !important;
+  background: transparent !important;
 }
 
 .dashboard-home .lb-primary-tab.is-active {
-  background: var(--background-primary) !important;
-  color: var(--text-normal) !important;
-  border-color: color-mix(in srgb, var(--lb-green) 42%, var(--background-modifier-border)) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14) !important;
+  color: #ffffff !important;
+  border-bottom-color: var(--медиа-акцент) !important;
+  background: transparent !important;
 }
 
 .dashboard-home .lb-primary-count {
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: var(--background-secondary-alt);
-  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--медиа-текст-приглушённый);
+  opacity: 0.75;
   font-variant-numeric: tabular-nums;
 }
 
 .dashboard-home .lb-primary-tab.is-active .lb-primary-count {
-  color: var(--lb-green);
-  background: color-mix(in srgb, var(--lb-green) 16%, transparent);
+  color: var(--медиа-акцент);
+  opacity: 1;
 }
 
+/* Единственная заливная зелёная кнопка на странице */
 .dashboard-home .lb-add-cta {
-  background: color-mix(in srgb, var(--lb-green) 16%, var(--background-secondary)) !important;
-  border: 1px solid color-mix(in srgb, var(--lb-green) 48%, var(--background-modifier-border)) !important;
-  color: var(--lb-green) !important;
-  font-weight: 700 !important;
-  font-size: 0.86rem !important;
-  padding: 0 16px !important;
-  height: 38px !important;
-  min-height: 38px !important;
-  border-radius: 10px !important;
+  background: var(--медиа-акцент) !important;
+  border: none !important;
+  color: #0d1115 !important;
+  font-weight: 750 !important;
+  font-size: 0.82rem !important;
+  letter-spacing: 0.02em;
+  padding: 0 15px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  border-radius: 5px !important;
   cursor: pointer;
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
-  transition: all 0.16s ease;
+  box-shadow: 0 2px 8px rgba(0, 224, 84, 0.22) !important;
+  transition: filter 0.15s ease, transform 0.12s ease;
 }
 
 .dashboard-home .lb-add-cta:hover {
-  background: color-mix(in srgb, var(--lb-green) 26%, var(--background-secondary)) !important;
+  filter: brightness(1.08);
   transform: translateY(-1px);
 }
 
-/* Вторичный ряд: режимы вида (Постеры | Дневник | Списки) + быстрые срезы (В планах | Любимое) */
+/* Вторичный ряд: Постеры | Дневник + срезы В планах | Любимое */
 .dashboard-home .lb-secondary-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
+  gap: 12px;
+  padding: 2px 0;
+  background: transparent;
+  border: none;
 }
 
 .dashboard-home .lb-view-modes,
@@ -1176,63 +1179,53 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 16px;
 }
 
 .dashboard-home .lb-sub-btn {
   background: transparent !important;
-  border: 1px solid transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
   box-shadow: none !important;
-  height: 30px !important;
-  min-height: 30px !important;
-  padding: 0 11px !important;
-  border-radius: 7px !important;
-  font-size: 0.78rem !important;
+  border-radius: 0 !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 2px 0 4px 0 !important;
+  font-size: 0.79rem !important;
   font-weight: 550 !important;
-  color: var(--text-muted) !important;
+  color: var(--медиа-текст-приглушённый) !important;
   cursor: pointer;
   display: inline-flex !important;
   align-items: center !important;
   gap: 5px !important;
-  transition: all 0.14s ease;
+  transition: color 0.14s ease, border-color 0.14s ease;
 }
 
 .dashboard-home .lb-sub-btn:hover {
-  color: var(--text-normal) !important;
-  background: var(--background-modifier-hover) !important;
+  color: #ffffff !important;
+  background: transparent !important;
 }
 
 .dashboard-home .lb-sub-btn.is-active {
-  background: var(--background-primary) !important;
-  color: var(--text-normal) !important;
-  border-color: var(--background-modifier-border) !important;
+  color: #ffffff !important;
+  border-bottom-color: var(--медиа-акцент) !important;
   font-weight: 650 !important;
-}
-
-.dashboard-home .lb-sub-btn.is-watchlist.is-active {
-  color: var(--lb-blue) !important;
-  border-color: color-mix(in srgb, var(--lb-blue) 45%, var(--background-modifier-border)) !important;
-  background: color-mix(in srgb, var(--lb-blue) 12%, var(--background-primary)) !important;
-}
-
-.dashboard-home .lb-sub-btn.is-fav.is-active {
-  color: var(--lb-heart) !important;
-  border-color: color-mix(in srgb, var(--lb-heart) 45%, var(--background-modifier-border)) !important;
-  background: color-mix(in srgb, var(--lb-heart) 12%, var(--background-primary)) !important;
+  background: transparent !important;
 }
 
 .dashboard-home .lb-sub-count {
-  font-size: 0.69rem;
-  opacity: 0.8;
+  font-size: 0.7rem;
+  color: var(--медиа-текст-приглушённый);
+  opacity: 0.75;
   font-variant-numeric: tabular-nums;
 }
 
-/* 2. ВИТРИНА «ТОП-4 ЛЮБИМЫХ» (LETTERBOXD FOUR FAVORITES) */
+/* 2. ВИТРИНА «ТОП-4 ЛЮБИМЫХ» */
 .dashboard-home .lb-top4-section {
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 12px;
-  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--медиа-разделитель);
+  padding: 0 0 18px 0;
 }
 
 .dashboard-home .lb-top4-section > summary {
@@ -1242,11 +1235,12 @@
   cursor: pointer;
   user-select: none;
   list-style: none;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--медиа-текст-приглушённый);
+  padding-bottom: 10px;
 }
 
 .dashboard-home .lb-top4-section > summary::-webkit-details-marker {
@@ -1255,189 +1249,29 @@
 
 .dashboard-home .lb-top4-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 145px));
-  gap: 12px;
-  margin-top: 10px;
+  grid-template-columns: repeat(4, minmax(120px, 175px));
+  gap: 16px;
 }
 
-/* 3. ГОДОВАЯ СТАТИСТИКА, ЛИДЕР ПЕРИОДА И ГИСТОГРАММА */
-.dashboard-home .lb-stats-section {
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 12px;
-  padding: 12px 16px;
+/* 3. ПАНЕЛЬ ФИЛЬТРОВ + АКЦЕНТНЫЙ БЛОК «ОЦЕНКИ» (LETTERBOXD RATINGS) */
+.dashboard-home .lb-toolbar-ratings-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--медиа-разделитель);
+}
+
+.dashboard-home .lb-filters-column {
+  flex: 1 1 420px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 260px;
 }
 
-.dashboard-home .lb-stats-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.dashboard-home .lb-summary {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.dashboard-home .lb-year-pills {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  background: var(--background-primary);
-  padding: 2px;
-  border-radius: 8px;
-  border: 1px solid var(--background-modifier-border);
-}
-
-.dashboard-home .lb-year-btn {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  height: 24px !important;
-  min-height: 24px !important;
-  padding: 0 8px !important;
-  border-radius: 6px !important;
-  font-size: 0.74rem !important;
-  font-weight: 600 !important;
-  color: var(--text-muted) !important;
-  cursor: pointer;
-  font-variant-numeric: tabular-nums;
-}
-
-.dashboard-home .lb-year-btn.is-active {
-  background: var(--background-secondary) !important;
-  color: var(--lb-green) !important;
-}
-
-.dashboard-home .lb-stat-badge {
-  background: var(--background-primary);
-  padding: 4px 10px;
-  border-radius: 7px;
-  font-size: 0.78rem;
-  font-weight: 500;
-  border: 1px solid var(--background-modifier-border);
-  font-variant-numeric: tabular-nums;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.dashboard-home .lb-stat-badge.is-green {
-  color: var(--lb-green);
-  border-color: color-mix(in srgb, var(--lb-green) 35%, var(--background-modifier-border));
-  font-weight: 650;
-}
-
-.dashboard-home .lb-stat-badge.is-orange {
-  color: var(--lb-orange);
-  border-color: color-mix(in srgb, var(--lb-orange) 35%, var(--background-modifier-border));
-}
-
-.dashboard-home .lb-stat-badge.is-clickable {
-  cursor: pointer;
-  transition: border-color 0.14s ease;
-}
-
-.dashboard-home .lb-stat-badge.is-clickable:hover {
-  border-color: var(--lb-green);
-}
-
-.dashboard-home .lb-creators-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid var(--background-modifier-border);
-}
-
-.dashboard-home .lb-creators-label {
-  font-size: 0.73rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-right: 2px;
-}
-
-.dashboard-home .lb-creator-pill {
-  height: 24px !important;
-  min-height: 24px !important;
-  padding: 0 9px !important;
-  border-radius: 999px !important;
-  font-size: 0.73rem !important;
-  font-weight: 500 !important;
-  background: var(--background-primary) !important;
-  border: 1px solid var(--background-modifier-border) !important;
-  color: var(--text-normal) !important;
-  cursor: pointer;
-  box-shadow: none !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 5px !important;
-}
-
-.dashboard-home .lb-creator-pill:hover {
-  border-color: var(--lb-blue) !important;
-  color: var(--lb-blue) !important;
-}
-
-.dashboard-home .lb-creator-pill.is-active {
-  background: color-mix(in srgb, var(--lb-blue) 16%, var(--background-primary)) !important;
-  border-color: var(--lb-blue) !important;
-  color: var(--lb-blue) !important;
-  font-weight: 650 !important;
-}
-
-.dashboard-home .lb-histogram {
-  display: flex;
-  align-items: flex-end;
-  height: 42px;
-  gap: 4px;
-  padding: 2px 5px;
-  border-radius: 7px;
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
-}
-
-.dashboard-home .lb-hist-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
-  justify-content: flex-end;
-  width: 14px;
-  cursor: pointer;
-}
-
-.dashboard-home .lb-hist-fill {
-  width: 100%;
-  background: var(--lb-green);
-  border-radius: 2px 2px 0 0;
-  min-height: 2px;
-  opacity: 0.55;
-  transition: height 0.25s ease, opacity 0.15s ease, background-color 0.15s ease;
-}
-
-.dashboard-home .lb-hist-col:hover .lb-hist-fill,
-.dashboard-home .lb-hist-col.is-active .lb-hist-fill {
-  opacity: 1;
-  background: var(--lb-orange);
-}
-
-.dashboard-home .lb-hist-label {
-  font-size: 9px;
-  color: var(--text-faint);
-  margin-top: 2px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* 4. ФИЛЬТРЫ И ПОИСК */
 .dashboard-home .lb-filters-bar {
   display: flex;
   align-items: center;
@@ -1446,56 +1280,225 @@
 }
 
 .dashboard-home .lb-search-input {
-  flex: 1 1 190px;
-  min-width: 150px;
-  height: 34px !important;
-  padding: 0 11px !important;
-  border-radius: 8px !important;
-  font-size: 0.82rem !important;
-  background: var(--background-secondary) !important;
-  border: 1px solid var(--background-modifier-border) !important;
+  flex: 1 1 180px;
+  min-width: 145px;
+  height: 32px !important;
+  padding: 0 10px !important;
+  border-radius: 4px !important;
+  font-size: 0.8rem !important;
+  background: var(--медиа-фон-карточки) !important;
+  border: 1px solid var(--медиа-обводка-постера) !important;
   color: var(--text-normal) !important;
 }
 
-.dashboard-home .lb-filters-bar select {
-  height: 34px;
-  font-size: 0.8rem;
-  padding: 0 24px 0 10px;
-  border-radius: 8px;
-  background-color: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  color: var(--text-normal);
+.dashboard-home .lb-search-input:focus {
+  border-color: var(--медиа-акцент) !important;
+  outline: none !important;
 }
 
-/* 5. СЕТКА ПОСТЕРОВ И КАРТОЧКА (РАЗДЕЛЕНИЕ НАВЕДЕНИЯ ПК И КАСАНИЯ IPAD) */
+.dashboard-home .lb-filters-bar select {
+  height: 32px;
+  font-size: 0.78rem;
+  padding: 0 24px 0 9px;
+  border-radius: 4px;
+  background-color: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
+  color: var(--медиа-текст-приглушённый);
+  cursor: pointer;
+}
+
+.dashboard-home .lb-filters-bar select:hover {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dashboard-home .lb-creators-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dashboard-home .lb-creators-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--медиа-текст-приглушённый);
+}
+
+.dashboard-home .lb-creator-pill {
+  height: 22px !important;
+  min-height: 22px !important;
+  padding: 0 8px !important;
+  border-radius: 3px !important;
+  font-size: 0.72rem !important;
+  font-weight: 500 !important;
+  background: var(--медиа-фон-карточки) !important;
+  border: 1px solid var(--медиа-обводка-постера) !important;
+  color: var(--медиа-текст-приглушённый) !important;
+  cursor: pointer;
+  box-shadow: none !important;
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+
+.dashboard-home .lb-creator-pill:hover,
+.dashboard-home .lb-creator-pill.is-active {
+  color: #ffffff !important;
+  border-color: var(--медиа-акцент) !important;
+}
+
+/* Акцентный блок «Оценки» в стиле Letterboxd (минимум 40% ряда, высота ~125px) */
+.dashboard-home .lb-ratings-widget {
+  flex: 1 1 42%;
+  min-width: 300px;
+  min-height: 122px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px 14px 12px 14px;
+  background: rgba(28, 34, 40, 0.45);
+  border: 1px solid var(--медиа-разделитель);
+  border-radius: 6px;
+}
+
+.dashboard-home .lb-ratings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--медиа-разделитель);
+  padding-bottom: 5px;
+  margin-bottom: 10px;
+}
+
+.dashboard-home .lb-ratings-title {
+  font-size: 0.73rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--медиа-текст-приглушённый);
+}
+
+.dashboard-home .lb-ratings-meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.dashboard-home .lb-ratings-count {
+  font-size: 0.74rem;
+  color: var(--медиа-текст-приглушённый);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-home .lb-ratings-avg {
+  font-size: 1.32rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #dbe4ee;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-home .lb-ratings-body {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 66px;
+}
+
+.dashboard-home .lb-ratings-edge-star {
+  font-size: 0.72rem;
+  color: var(--медиа-акцент);
+  line-height: 1;
+  user-select: none;
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+
+.dashboard-home .lb-ratings-bars {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  align-items: end;
+  gap: 3px;
+  height: 100%;
+}
+
+.dashboard-home .lb-rating-col {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  cursor: pointer;
+}
+
+.dashboard-home .lb-rating-bar {
+  width: 100%;
+  background: var(--медиа-бар-график);
+  border-radius: 2px 2px 0 0;
+  min-height: 3px;
+  transition: background-color 0.14s ease, height 0.22s ease;
+}
+
+.dashboard-home .lb-rating-col.is-max .lb-rating-bar,
+.dashboard-home .lb-rating-col.is-active .lb-rating-bar,
+.dashboard-home .lb-rating-col:hover .lb-rating-bar {
+  background: var(--медиа-акцент);
+}
+
+.dashboard-home .lb-rating-tooltip {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #14181c;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  z-index: 15;
+}
+
+.dashboard-home .lb-rating-col:hover .lb-rating-tooltip {
+  opacity: 1;
+}
+
+/* 4. СЕТКА ПОСТЕРОВ И КАРТОЧКА (ЗАДАЧИ 1, 2, 7) */
 .dashboard-home .lb-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(144px, 1fr));
-  gap: 16px 14px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
 }
 
 .dashboard-home .lb-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  border-radius: 8px;
   background: transparent;
-  animation: lbCardReveal 0.24s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+  min-width: 120px;
+  animation: lbCardReveal 0.22s ease both;
 }
 
 .dashboard-home .lb-poster-wrapper {
   position: relative;
   width: 100%;
   aspect-ratio: 2 / 3;
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  background: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
-              box-shadow 0.2s ease,
-              border-color 0.18s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dashboard-home .lb-card:hover .lb-poster-wrapper {
+  border-color: var(--медиа-акцент);
+  box-shadow: inset 0 0 0 1px var(--медиа-акцент), 0 0 0 1px var(--медиа-акцент);
 }
 
 .dashboard-home .lb-poster-img {
@@ -1503,7 +1506,6 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform 0.32s ease;
 }
 
 .dashboard-home .lb-poster-fallback {
@@ -1513,21 +1515,21 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 14px;
+  padding: 12px;
   text-align: center;
-  background: radial-gradient(circle at 50% 25%, var(--background-secondary-alt), var(--background-secondary));
+  background: var(--медиа-фон-карточки);
   gap: 6px;
 }
 
 .dashboard-home .lb-fallback-icon {
-  font-size: 1.5rem;
-  opacity: 0.6;
+  font-size: 1.4rem;
+  opacity: 0.55;
 }
 
 .dashboard-home .lb-fallback-title {
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   font-weight: 650;
-  line-height: 1.28;
+  line-height: 1.25;
   color: var(--text-normal);
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -1536,166 +1538,147 @@
 }
 
 .dashboard-home .lb-fallback-sub {
-  font-size: 0.72rem;
-  color: var(--text-muted);
+  font-size: 0.7rem;
+  color: var(--медиа-текст-приглушённый);
 }
 
-/* ПК-оверлей при наведении мыши (максимум 3 элемента: 2 угла + 1 главная кнопка внизу) */
-.dashboard-home .lb-desktop-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(10, 12, 16, 0.72) 0%,
-    rgba(10, 12, 16, 0.08) 45%,
-    rgba(10, 12, 16, 0.88) 100%
-  );
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 8px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.18s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .dashboard-home .lb-card:hover .lb-poster-wrapper {
-    transform: translateY(-4px) scale(1.02);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--lb-green);
-    border-color: var(--lb-green);
-    z-index: 3;
-  }
-  .dashboard-home .lb-card:hover .lb-poster-img {
-    transform: scale(1.04);
-  }
-  .dashboard-home .lb-card:hover .lb-desktop-overlay {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .dashboard-home .lb-touch-more-btn {
-    display: none !important;
-  }
-}
-
-.dashboard-home .lb-overlay-corners {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 5px;
-}
-
-.dashboard-home .lb-corner-btn {
-  width: 30px !important;
-  min-width: 30px !important;
-  height: 30px !important;
-  min-height: 30px !important;
+/* ЗАДАЧА 1: Круглые кнопки 28x28px по разным углам без наложений */
+.dashboard-home .lb-poster-corner-btn {
+  position: absolute !important;
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
   padding: 0 !important;
-  border-radius: 7px !important;
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  background: rgba(16, 18, 24, 0.82) !important;
+  border-radius: 50% !important;
+  background: rgba(16, 20, 24, 0.78) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
   color: #ffffff !important;
   font-size: 0.82rem !important;
-  cursor: pointer;
+  line-height: 1 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  backdrop-filter: blur(6px);
-  box-shadow: none !important;
-  transition: transform 0.12s ease, background-color 0.12s ease;
+  cursor: pointer;
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35) !important;
+  transition: opacity 0.16s ease, transform 0.12s ease, background-color 0.12s ease;
 }
 
-.dashboard-home .lb-corner-btn:hover {
-  background: rgba(28, 32, 42, 0.96) !important;
+.dashboard-home .lb-poster-corner-btn.is-left {
+  inset: 8px auto auto 8px;
+}
+
+.dashboard-home .lb-poster-corner-btn.is-right {
+  inset: 8px 8px auto auto;
+}
+
+.dashboard-home .lb-card:hover .lb-poster-corner-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Активное сердечко видно всегда, даже без наведения */
+.dashboard-home .lb-poster-corner-btn.is-left.is-fav {
+  opacity: 1;
+  pointer-events: auto;
+  color: var(--медиа-сердце) !important;
+  border-color: rgba(255, 128, 0, 0.55) !important;
+}
+
+.dashboard-home .lb-poster-corner-btn:hover {
+  background: rgba(20, 24, 30, 0.95) !important;
   transform: scale(1.08);
 }
 
-.dashboard-home .lb-corner-btn.is-fav {
-  color: var(--lb-heart) !important;
-  border-color: rgba(255, 71, 87, 0.55) !important;
-}
-
-.dashboard-home .lb-primary-overlay-btn {
-  width: 100% !important;
-  height: 32px !important;
-  min-height: 32px !important;
-  border-radius: 7px !important;
-  border: 1px solid rgba(0, 224, 84, 0.45) !important;
-  background: rgba(14, 17, 22, 0.9) !important;
-  color: #ffffff !important;
-  font-size: 0.76rem !important;
-  font-weight: 650 !important;
-  cursor: pointer;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 5px !important;
-  backdrop-filter: blur(6px);
-  box-shadow: none !important;
-}
-
-.dashboard-home .lb-primary-overlay-btn:hover {
-  background: var(--lb-green) !important;
-  color: #101216 !important;
-}
-
-/* Кнопка «⋯» (44x44px) для сенсорных экранов (iPad / iOS) */
-.dashboard-home .lb-touch-more-btn {
+/* ЗАДАЧА 2: Нижняя полоса 5 звёзд с половинками при наведении (120–200px безопасно) */
+.dashboard-home .lb-poster-bottom-bar {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 44px !important;
-  min-width: 44px !important;
-  height: 44px !important;
-  min-height: 44px !important;
-  padding: 0 !important;
-  border-radius: 10px !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  background: rgba(14, 16, 22, 0.68) !important;
-  color: #ffffff !important;
-  font-size: 1.15rem !important;
-  font-weight: 700 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
-  z-index: 4;
+  inset: auto 0 0 0;
+  height: 32px;
+  padding: 0 6px;
+  background: linear-gradient(180deg, rgba(16, 20, 24, 0) 0%, rgba(16, 20, 24, 0.92) 45%, rgba(16, 20, 24, 0.98) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.dashboard-home .lb-card:hover .lb-poster-bottom-bar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dashboard-home .lb-quick-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  user-select: none;
+}
+
+.dashboard-home .lb-quick-star {
+  font-size: 0.92rem;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.26);
   cursor: pointer;
+  padding: 2px 1px;
+  transition: color 0.1s ease, transform 0.1s ease;
+}
+
+.dashboard-home .lb-quick-star.is-lit {
+  color: var(--медиа-акцент);
+}
+
+.dashboard-home .lb-quick-star:hover {
+  transform: scale(1.14);
+}
+
+.dashboard-home .lb-quick-edit-icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 3px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  font-size: 0.78rem !important;
+  color: var(--медиа-текст-приглушённый) !important;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.dashboard-home .lb-quick-edit-icon:hover {
+  color: #ffffff !important;
 }
 
 @media (hover: none) and (pointer: coarse) {
-  .dashboard-home .lb-desktop-overlay {
-    display: none !important;
-  }
-  .dashboard-home .lb-primary-tab,
-  .dashboard-home .lb-add-cta {
-    height: 44px !important;
-    min-height: 44px !important;
-  }
-  .dashboard-home .lb-sub-btn {
-    height: 38px !important;
-    min-height: 38px !important;
-    padding: 0 13px !important;
-  }
-  .dashboard-home .lb-filters-bar select,
-  .dashboard-home .lb-search-input {
-    height: 40px !important;
-    min-height: 40px !important;
+  .dashboard-home .lb-poster-corner-btn.is-right {
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 
-/* Чистая подпись под постером: Название, Год, Звёзды и иконки состояния */
+/* Подпись под постером: Название (одна строка, ellipsis), ниже звёзды и год */
 .dashboard-home .lb-card-caption {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 6px 2px 0 2px;
+  padding: 6px 1px 0 1px;
+  min-width: 0;
 }
 
 .dashboard-home .lb-caption-title {
-  font-size: 0.81rem;
-  font-weight: 650;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--text-normal);
   line-height: 1.25;
   white-space: nowrap;
@@ -1705,59 +1688,91 @@
 }
 
 .dashboard-home .lb-caption-title:hover {
-  color: var(--lb-green);
+  color: var(--медиа-акцент);
 }
 
 .dashboard-home .lb-caption-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
-  min-height: 16px;
-}
-
-.dashboard-home .lb-caption-year {
+  gap: 6px;
+  min-height: 15px;
   font-size: 0.72rem;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+  color: var(--медиа-текст-приглушённый);
 }
 
 .dashboard-home .lb-stars {
-  font-size: 0.74rem;
-  color: var(--lb-green);
+  font-size: 0.73rem;
+  color: var(--медиа-акцент);
   letter-spacing: 0.5px;
   line-height: 1;
-}
-
-.dashboard-home .lb-caption-badges {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-
-.dashboard-home .lb-caption-creator {
-  font-size: 0.7rem;
-  color: var(--text-faint);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
 }
 
-.dashboard-home .lb-caption-creator:hover {
-  color: var(--lb-blue);
+.dashboard-home .lb-caption-year {
+  font-size: 0.71rem;
+  color: var(--медиа-текст-приглушённый);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-/* 6. НИЖНЯЯ ТАЧ-ПАНЕЛЬ ДЕЙСТВИЙ ДЛЯ IPAD (ACTION SHEET MODAL) */
+/* 5. ХРОНОЛОГИЧЕСКИЙ ДНЕВНИК */
+.dashboard-home .lb-diary-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard-home .lb-diary-month {
+  border-top: 1px solid var(--медиа-разделитель);
+}
+
+.dashboard-home .lb-diary-month-head {
+  padding: 10px 0 6px 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--медиа-текст-приглушённый);
+  display: flex;
+  justify-content: space-between;
+}
+
+.dashboard-home .lb-diary-row {
+  display: grid;
+  grid-template-columns: 42px 36px minmax(140px, 1.5fr) minmax(100px, 1fr) 110px 36px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--медиа-разделитель);
+  font-size: 0.82rem;
+}
+
+.dashboard-home .lb-diary-day {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--медиа-текст-приглушённый);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.dashboard-home .lb-diary-thumb {
+  width: 32px;
+  height: 48px;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
+}
+
+/* 6. МОДАЛЬНЫЕ ОКНА И ТАЧ-ПАНЕЛЬ */
 .lb-action-sheet-modal {
-  width: min(460px, 94vw) !important;
-  border-radius: 16px !important;
+  width: min(440px, 94vw) !important;
+  border-radius: 12px !important;
   padding: 16px !important;
-  background: var(--background-primary) !important;
-  border: 1px solid var(--background-modifier-border) !important;
-  animation: lbSheetSlideUp 0.2s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+  background: #181d22 !important;
+  border: 1px solid var(--медиа-обводка-постера) !important;
+  animation: lbSheetSlideUp 0.18s ease both;
 }
 
 .lb-sheet-head {
@@ -1765,17 +1780,17 @@
   gap: 12px;
   align-items: center;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--background-modifier-border);
+  border-bottom: 1px solid var(--медиа-разделитель);
   margin-bottom: 12px;
 }
 
 .lb-sheet-thumb {
-  width: 52px;
-  height: 78px;
-  border-radius: 6px;
+  width: 50px;
+  height: 75px;
+  border-radius: 4px;
   object-fit: cover;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
+  background: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
   flex-shrink: 0;
 }
 
@@ -1787,44 +1802,44 @@
 }
 
 .lb-sheet-title {
-  font-size: 0.98rem;
+  font-size: 0.96rem;
   font-weight: 700;
-  color: var(--text-normal);
+  color: #ffffff;
   line-height: 1.25;
 }
 
 .lb-sheet-sub {
-  font-size: 0.78rem;
-  color: var(--text-muted);
+  font-size: 0.76rem;
+  color: var(--медиа-текст-приглушённый);
 }
 
 .lb-sheet-review {
   font-size: 0.78rem;
   font-style: italic;
   color: var(--text-normal);
-  background: var(--background-secondary);
+  background: var(--медиа-фон-карточки);
   padding: 8px 10px;
-  border-radius: 8px;
-  border-left: 3px solid var(--lb-green);
+  border-radius: 6px;
+  border-left: 3px solid var(--медиа-акцент);
   margin-bottom: 12px;
 }
 
 .lb-sheet-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .lb-sheet-btn {
   width: 100% !important;
-  min-height: 46px !important;
-  height: 46px !important;
-  padding: 0 14px !important;
-  border-radius: 10px !important;
-  font-size: 0.88rem !important;
+  min-height: 42px !important;
+  height: 42px !important;
+  padding: 0 12px !important;
+  border-radius: 6px !important;
+  font-size: 0.84rem !important;
   font-weight: 600 !important;
-  background: var(--background-secondary) !important;
-  border: 1px solid var(--background-modifier-border) !important;
+  background: var(--медиа-фон-карточки) !important;
+  border: 1px solid var(--медиа-обводка-постера) !important;
   color: var(--text-normal) !important;
   display: flex !important;
   align-items: center !important;
@@ -1833,152 +1848,30 @@
   box-shadow: none !important;
 }
 
-.lb-sheet-btn:active {
-  transform: scale(0.98);
-}
-
-.lb-sheet-btn.is-primary {
-  background: color-mix(in srgb, var(--lb-green) 16%, var(--background-secondary)) !important;
-  border-color: color-mix(in srgb, var(--lb-green) 45%, var(--background-modifier-border)) !important;
-  color: var(--lb-green) !important;
-}
-
-/* 7. ВИТРИНА СПИСКОВ С МИНИ-ПОСТЕРАМИ И ДНЕВНИК */
-.dashboard-home .lb-lists-showcase {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.dashboard-home .lb-list-card {
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 10px;
-  padding: 12px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: border-color 0.16s ease, transform 0.14s ease;
-}
-
-.dashboard-home .lb-list-card:hover,
-.dashboard-home .lb-list-card.is-active {
-  border-color: var(--lb-orange);
-  transform: translateY(-2px);
-}
-
-.dashboard-home .lb-list-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.dashboard-home .lb-list-card-title {
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--text-normal);
-}
-
-.dashboard-home .lb-list-card-count {
-  font-size: 0.74rem;
-  color: var(--text-muted);
-}
-
-.dashboard-home .lb-list-thumbs {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-}
-
-.dashboard-home .lb-list-thumb {
-  width: 100%;
-  aspect-ratio: 2 / 3;
-  border-radius: 5px;
-  object-fit: cover;
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
-}
-
-.dashboard-home .lb-diary-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.dashboard-home .lb-diary-month {
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.dashboard-home .lb-diary-month-head {
-  padding: 8px 14px;
-  background: var(--background-secondary-alt);
-  border-bottom: 1px solid var(--background-modifier-border);
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  display: flex;
-  justify-content: space-between;
-}
-
-.dashboard-home .lb-diary-row {
-  display: grid;
-  grid-template-columns: 48px 38px minmax(140px, 1.5fr) minmax(100px, 1fr) 110px 44px;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--background-modifier-border);
-  font-size: 0.83rem;
-}
-
-.dashboard-home .lb-diary-row:last-child {
-  border-bottom: none;
-}
-
-.dashboard-home .lb-diary-day {
-  font-size: 1.02rem;
-  font-weight: 750;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.dashboard-home .lb-diary-thumb {
-  width: 34px;
-  height: 50px;
-  border-radius: 4px;
-  object-fit: cover;
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
+.lb-sheet-btn:hover {
+  border-color: var(--медиа-акцент) !important;
 }
 
 .lb-modal-grid {
   display: grid;
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: 145px 1fr;
   gap: 16px;
   align-items: start;
 }
 
 .lb-modal-poster-preview {
-  width: 150px;
+  width: 145px;
   aspect-ratio: 2 / 3;
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
+  background: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   font-size: 0.78rem;
-  color: var(--text-muted);
+  color: var(--медиа-текст-приглушённый);
 }
 
 .lb-modal-poster-preview img {
@@ -1989,24 +1882,24 @@
 
 .lb-poster-gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
   gap: 10px;
   margin-top: 10px;
-  max-height: 280px;
+  max-height: 260px;
   overflow-y: auto;
 }
 
 .lb-poster-choice {
   position: relative;
   aspect-ratio: 2 / 3;
-  border-radius: 6px;
+  border-radius: 4px;
   overflow: hidden;
   border: 2px solid transparent;
   cursor: pointer;
 }
 
 .lb-poster-choice.is-selected {
-  border-color: var(--lb-green);
+  border-color: var(--медиа-акцент);
 }
 
 .lb-poster-choice img {
@@ -2018,32 +1911,45 @@
 .dashboard-home .lb-pagination-section {
   display: flex;
   justify-content: center;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .dashboard-home .lb-more-btn {
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  padding: 8px 22px;
-  min-height: 40px;
-  border-radius: 8px;
-  font-size: 0.82rem;
+  background: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
+  padding: 7px 20px;
+  min-height: 36px;
+  border-radius: 4px;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  color: var(--text-normal);
+  color: var(--медиа-текст-приглушённый);
+}
+
+.dashboard-home .lb-more-btn:hover {
+  color: #ffffff;
+  border-color: var(--медиа-акцент);
 }
 
 .dashboard-home .lb-empty-msg {
-  padding: 36px 20px;
+  padding: 32px 18px;
   text-align: center;
-  color: var(--text-muted);
-  background: var(--background-secondary);
-  border: 1px dashed var(--background-modifier-border);
-  border-radius: 12px;
-  font-size: 0.86rem;
+  color: var(--медиа-текст-приглушённый);
+  background: rgba(28, 34, 40, 0.35);
+  border: 1px dashed var(--медиа-разделитель);
+  border-radius: 6px;
+  font-size: 0.84rem;
 }
 
-@media (max-width: 680px) {
+@media (max-width: 760px) {
+  .dashboard-home .lb-toolbar-ratings-layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dashboard-home .lb-ratings-widget {
+    width: 100%;
+    min-width: 0;
+  }
   .lb-modal-grid {
     grid-template-columns: 1fr;
   }
@@ -2051,10 +1957,10 @@
     margin: 0 auto;
   }
   .dashboard-home .lb-top4-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
   }
   .dashboard-home .lb-diary-row {
-    grid-template-columns: 38px 1fr 78px 44px;
+    grid-template-columns: 36px 1fr 84px 34px;
   }
   .dashboard-home .lb-diary-thumb,
   .dashboard-home .lb-diary-creator-col {

@@ -1,12 +1,45 @@
 /* ==========================================================================
-   MEDIA DASHBOARD HUB v3.0 (Letterboxd & Backloggd Redesign)
-   Двухуровневая навигация · Чистые постеры + Тач-панель iPad (44px) · Топ-4 любимых
-   Годовая статистика и лидер периода · Декады · Счётчик пересмотров · Кастомные постеры
+   MEDIA DASHBOARD HUB v4.0 (Letterboxd Dark Redesign)
+   Чистая вёрстка без рамок · Интерактивная шкала 5★ с половинками на постере
+   Акцентная гистограмма оценок Letterboxd · Полная русификация · Без Списков
    ========================================================================== */
 
 const MEDIA_ROOT_FOLDER = "Знания/Медиа";
 const MIN_VALID_DATE_ISO = "1970-01-01";
 const root = dv.container.createDiv({ cls: "dashboard-home dh-media-hub" });
+
+// Единый словарь локализации интерфейса
+const I18N = {
+  addEntry: "＋ Добавить запись",
+  postersView: "▦ Постеры",
+  diaryView: "📓 Дневник",
+  watchlistSlice: "⏱ В планах",
+  favSlice: "♥ Любимое",
+  watchlistHint: "Показать записи со статусом «В планах»",
+  favHint: "Показать только любимые записи",
+  allYears: "Все годы",
+  allDecades: "Все десятилетия",
+  allStatuses: "Статус",
+  allGenres: "Жанры",
+  allPlatforms: "Платформы",
+  directorsAll: "Режиссёры",
+  showrunnersAll: "Шоураннеры и студии",
+  devsAll: "Разработчики и студии",
+  sortDateDesc: "По дате просмотра: сначала новые",
+  sortRatingDesc: "По оценке: сначала высокая",
+  sortYearDesc: "По году выхода: сначала свежие",
+  sortTitleAsc: "По названию: А–Я",
+  ratingsHeader: "ОЦЕНКИ",
+  rateAction: "Оценить",
+  menuAction: "Меню действий",
+  favAdd: "Добавить в любимое",
+  favRemove: "Убрать из любимого",
+  emptyFiltered: "По выбранным фильтрам ничего не найдено. Сбрось фильтр или нажми «＋ Добавить запись».",
+  modalAddTitle: "Отметить в Медиатеке",
+  modalEditTitle: "Редактировать",
+  saveChanges: "Сохранить изменения",
+  saveNew: "Добавить запись"
+};
 
 const notify = msg => {
   try { new Notice(msg); } catch { console.log(msg); }
@@ -96,7 +129,7 @@ const MEDIA_SCHEMAS = {
     pluralTitle: "Фильмы",
     creatorKey: "режиссёр",
     creatorLabel: "Режиссёр",
-    creatorFilterAll: "Все режиссёры",
+    creatorFilterAll: I18N.directorsAll,
     creatorPlaceholder: "Дени Вильнёв, Кристофер Нолан",
     dateKey: "дата_просмотра",
     dateLabel: "Дата просмотра",
@@ -111,10 +144,10 @@ const MEDIA_SCHEMAS = {
     pluralTitle: "Сериалы",
     creatorKey: "шоураннер",
     creatorLabel: "Шоураннер / Студия",
-    creatorFilterAll: "Все шоураннеры и студии",
+    creatorFilterAll: I18N.showrunnersAll,
     creatorPlaceholder: "Винс Гиллиган, HBO, A24",
     dateKey: "дата_просмотра",
-    dateLabel: "Дата завершения / лога",
+    dateLabel: "Дата просмотра",
     statuses: ["Просмотрено", "Смотрю", "В планах", "Брошено"],
     completedStatuses: ["Просмотрено"],
     defaultDoneStatus: "Просмотрено",
@@ -126,7 +159,7 @@ const MEDIA_SCHEMAS = {
     pluralTitle: "Игры",
     creatorKey: "разработчик",
     creatorLabel: "Разработчик / Студия",
-    creatorFilterAll: "Все разработчики и студии",
+    creatorFilterAll: I18N.devsAll,
     creatorPlaceholder: "Kojima Productions, Larian Studios",
     dateKey: "дата_прохождения",
     dateLabel: "Дата прохождения",
@@ -181,56 +214,65 @@ function isItemWatchlist(item) {
   return String(item["статус"] || "").trim() === "В планах";
 }
 
+// Форматирование оценки (хранится по 10-балльной шкале, отображается в 5★ с половинками)
 function formatStars(score10) {
   const num = parseOptionalNum(score10);
   if (num === null || num <= 0) return "";
-  const stars5 = Math.round(num) / 2;
+  const clamped = Math.min(10, Math.max(1, Math.round(num)));
+  const stars5 = clamped / 2;
   const full = Math.floor(stars5);
   const half = stars5 % 1 !== 0;
   return "★".repeat(full) + (half ? "½" : "");
 }
 
-// Встроенные стили (адаптация под светлую/тёмную темы Obsidian + разделение ПК/iPad)
+function formatStars5Label(bucket1to10) {
+  const stars5 = bucket1to10 / 2;
+  const full = Math.floor(stars5);
+  const half = stars5 % 1 !== 0;
+  return `${stars5.toFixed(1).replace(".0", "")} ★ (${"★".repeat(full)}${half ? "½" : ""})`;
+}
+
+// Встроенные стили (Letterboxd Dark Aesthetic + CSS-переменные на русском)
 const styleEl = root.createEl("style");
 styleEl.textContent = `
 @keyframes lbCardReveal {
-  0% { opacity: 0; transform: translateY(8px) scale(0.98); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes lbSheetSlideUp {
-  0% { opacity: 0; transform: translateY(24px); }
+  0% { opacity: 0; transform: translateY(20px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
 .dashboard-home.dh-media-hub {
-  --lb-green: #00c853;
-  --lb-orange: #ff8000;
-  --lb-blue: #29b6f6;
-  --lb-heart: #ff4757;
+  --медиа-акцент: #00e054;
+  --медиа-фон-карточки: #1c2228;
+  --медиа-текст-приглушённый: #9ab;
+  --медиа-бар-график: #2c3440;
+  --медиа-сердце: #ff8000;
+  --медиа-голубой: #40bcf4;
+  --медиа-обводка-постера: rgba(255, 255, 255, 0.08);
+  --медиа-разделитель: rgba(255, 255, 255, 0.07);
+
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 6px 0 28px 0;
+  gap: 20px;
+  padding: 8px 0 32px 0;
   color: var(--text-normal);
   font-family: var(--font-interface);
   box-sizing: border-box;
-}
-
-.theme-dark .dashboard-home.dh-media-hub {
-  --lb-green: #00e054;
-  --lb-blue: #40bcf4;
 }
 
 .dashboard-home.dh-media-hub * {
   box-sizing: border-box;
 }
 
-/* 1. ДВУХУРОВНЕВАЯ НАВИГАЦИЯ */
+/* 1. НАВИГАЦИЯ БЕЗ ПЛАШЕК И РАМОК (ПОДЧЁРКИВАНИЕ КАК В LETTERBOXD) */
 .dashboard-home .lb-nav-stack {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .dashboard-home .lb-primary-bar {
@@ -238,97 +280,100 @@ styleEl.textContent = `
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
+  border-bottom: 1px solid var(--медиа-разделитель);
+  padding-bottom: 2px;
 }
 
 .dashboard-home .lb-primary-tabs {
   display: inline-flex;
   flex-wrap: wrap;
-  background: var(--background-secondary);
-  border-radius: 12px;
-  padding: 4px;
-  gap: 4px;
-  border: 1px solid var(--background-modifier-border);
+  gap: 22px;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .dashboard-home .lb-primary-tab {
+  position: relative;
   background: transparent !important;
-  border: 1px solid transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
   box-shadow: none !important;
-  border-radius: 9px !important;
-  padding: 0 16px !important;
-  height: 38px !important;
-  min-height: 38px !important;
-  font-size: 0.92rem !important;
-  font-weight: 600 !important;
+  border-radius: 0 !important;
+  padding: 8px 2px 10px 2px !important;
+  height: auto !important;
+  min-height: 36px !important;
+  font-size: 0.94rem !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  color: var(--text-muted) !important;
+  color: var(--медиа-текст-приглушённый) !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 8px !important;
-  transition: background-color 0.16s ease, color 0.16s ease, transform 0.12s ease;
+  gap: 7px !important;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .dashboard-home .lb-primary-tab:hover {
   color: var(--text-normal) !important;
-  background: var(--background-modifier-hover) !important;
+  background: transparent !important;
 }
 
 .dashboard-home .lb-primary-tab.is-active {
-  background: var(--background-primary) !important;
-  color: var(--text-normal) !important;
-  border-color: color-mix(in srgb, var(--lb-green) 42%, var(--background-modifier-border)) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14) !important;
+  color: #ffffff !important;
+  border-bottom-color: var(--медиа-акцент) !important;
+  background: transparent !important;
 }
 
 .dashboard-home .lb-primary-count {
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: var(--background-secondary-alt);
-  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--медиа-текст-приглушённый);
+  opacity: 0.75;
   font-variant-numeric: tabular-nums;
 }
 
 .dashboard-home .lb-primary-tab.is-active .lb-primary-count {
-  color: var(--lb-green);
-  background: color-mix(in srgb, var(--lb-green) 16%, transparent);
+  color: var(--медиа-акцент);
+  opacity: 1;
 }
 
+/* Единственная заливная зелёная кнопка на странице */
 .dashboard-home .lb-add-cta {
-  background: color-mix(in srgb, var(--lb-green) 16%, var(--background-secondary)) !important;
-  border: 1px solid color-mix(in srgb, var(--lb-green) 48%, var(--background-modifier-border)) !important;
-  color: var(--lb-green) !important;
-  font-weight: 700 !important;
-  font-size: 0.86rem !important;
-  padding: 0 16px !important;
-  height: 38px !important;
-  min-height: 38px !important;
-  border-radius: 10px !important;
+  background: var(--медиа-акцент) !important;
+  border: none !important;
+  color: #0d1115 !important;
+  font-weight: 750 !important;
+  font-size: 0.82rem !important;
+  letter-spacing: 0.02em;
+  padding: 0 15px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  border-radius: 5px !important;
   cursor: pointer;
   display: inline-flex !important;
   align-items: center !important;
   gap: 6px !important;
-  transition: all 0.16s ease;
+  box-shadow: 0 2px 8px rgba(0, 224, 84, 0.22) !important;
+  transition: filter 0.15s ease, transform 0.12s ease;
 }
 
 .dashboard-home .lb-add-cta:hover {
-  background: color-mix(in srgb, var(--lb-green) 26%, var(--background-secondary)) !important;
+  filter: brightness(1.08);
   transform: translateY(-1px);
 }
 
-/* Вторичный ряд: режимы вида (Постеры | Дневник | Списки) + быстрые срезы (В планах | Любимое) */
+/* Вторичный ряд: Постеры | Дневник + срезы В планах | Любимое */
 .dashboard-home .lb-secondary-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
+  gap: 12px;
+  padding: 2px 0;
+  background: transparent;
+  border: none;
 }
 
 .dashboard-home .lb-view-modes,
@@ -336,63 +381,53 @@ styleEl.textContent = `
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 16px;
 }
 
 .dashboard-home .lb-sub-btn {
   background: transparent !important;
-  border: 1px solid transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
   box-shadow: none !important;
-  height: 30px !important;
-  min-height: 30px !important;
-  padding: 0 11px !important;
-  border-radius: 7px !important;
-  font-size: 0.78rem !important;
+  border-radius: 0 !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 2px 0 4px 0 !important;
+  font-size: 0.79rem !important;
   font-weight: 550 !important;
-  color: var(--text-muted) !important;
+  color: var(--медиа-текст-приглушённый) !important;
   cursor: pointer;
   display: inline-flex !important;
   align-items: center !important;
   gap: 5px !important;
-  transition: all 0.14s ease;
+  transition: color 0.14s ease, border-color 0.14s ease;
 }
 
 .dashboard-home .lb-sub-btn:hover {
-  color: var(--text-normal) !important;
-  background: var(--background-modifier-hover) !important;
+  color: #ffffff !important;
+  background: transparent !important;
 }
 
 .dashboard-home .lb-sub-btn.is-active {
-  background: var(--background-primary) !important;
-  color: var(--text-normal) !important;
-  border-color: var(--background-modifier-border) !important;
+  color: #ffffff !important;
+  border-bottom-color: var(--медиа-акцент) !important;
   font-weight: 650 !important;
-}
-
-.dashboard-home .lb-sub-btn.is-watchlist.is-active {
-  color: var(--lb-blue) !important;
-  border-color: color-mix(in srgb, var(--lb-blue) 45%, var(--background-modifier-border)) !important;
-  background: color-mix(in srgb, var(--lb-blue) 12%, var(--background-primary)) !important;
-}
-
-.dashboard-home .lb-sub-btn.is-fav.is-active {
-  color: var(--lb-heart) !important;
-  border-color: color-mix(in srgb, var(--lb-heart) 45%, var(--background-modifier-border)) !important;
-  background: color-mix(in srgb, var(--lb-heart) 12%, var(--background-primary)) !important;
+  background: transparent !important;
 }
 
 .dashboard-home .lb-sub-count {
-  font-size: 0.69rem;
-  opacity: 0.8;
+  font-size: 0.7rem;
+  color: var(--медиа-текст-приглушённый);
+  opacity: 0.75;
   font-variant-numeric: tabular-nums;
 }
 
-/* 2. ВИТРИНА «ТОП-4 ЛЮБИМЫХ» (LETTERBOXD FOUR FAVORITES) */
+/* 2. ВИТРИНА «ТОП-4 ЛЮБИМЫХ» */
 .dashboard-home .lb-top4-section {
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 12px;
-  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--медиа-разделитель);
+  padding: 0 0 18px 0;
 }
 
 .dashboard-home .lb-top4-section > summary {
@@ -402,11 +437,12 @@ styleEl.textContent = `
   cursor: pointer;
   user-select: none;
   list-style: none;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--медиа-текст-приглушённый);
+  padding-bottom: 10px;
 }
 
 .dashboard-home .lb-top4-section > summary::-webkit-details-marker {
@@ -415,189 +451,29 @@ styleEl.textContent = `
 
 .dashboard-home .lb-top4-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 145px));
-  gap: 12px;
-  margin-top: 10px;
+  grid-template-columns: repeat(4, minmax(120px, 175px));
+  gap: 16px;
 }
 
-/* 3. ГОДОВАЯ СТАТИСТИКА, ЛИДЕР ПЕРИОДА И ГИСТОГРАММА */
-.dashboard-home .lb-stats-section {
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 12px;
-  padding: 12px 16px;
+/* 3. ПАНЕЛЬ ФИЛЬТРОВ + АКЦЕНТНЫЙ БЛОК «ОЦЕНКИ» (LETTERBOXD RATINGS) */
+.dashboard-home .lb-toolbar-ratings-layout {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--медиа-разделитель);
+}
+
+.dashboard-home .lb-filters-column {
+  flex: 1 1 420px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 260px;
 }
 
-.dashboard-home .lb-stats-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.dashboard-home .lb-summary {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.dashboard-home .lb-year-pills {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  background: var(--background-primary);
-  padding: 2px;
-  border-radius: 8px;
-  border: 1px solid var(--background-modifier-border);
-}
-
-.dashboard-home .lb-year-btn {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  height: 24px !important;
-  min-height: 24px !important;
-  padding: 0 8px !important;
-  border-radius: 6px !important;
-  font-size: 0.74rem !important;
-  font-weight: 600 !important;
-  color: var(--text-muted) !important;
-  cursor: pointer;
-  font-variant-numeric: tabular-nums;
-}
-
-.dashboard-home .lb-year-btn.is-active {
-  background: var(--background-secondary) !important;
-  color: var(--lb-green) !important;
-}
-
-.dashboard-home .lb-stat-badge {
-  background: var(--background-primary);
-  padding: 4px 10px;
-  border-radius: 7px;
-  font-size: 0.78rem;
-  font-weight: 500;
-  border: 1px solid var(--background-modifier-border);
-  font-variant-numeric: tabular-nums;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.dashboard-home .lb-stat-badge.is-green {
-  color: var(--lb-green);
-  border-color: color-mix(in srgb, var(--lb-green) 35%, var(--background-modifier-border));
-  font-weight: 650;
-}
-
-.dashboard-home .lb-stat-badge.is-orange {
-  color: var(--lb-orange);
-  border-color: color-mix(in srgb, var(--lb-orange) 35%, var(--background-modifier-border));
-}
-
-.dashboard-home .lb-stat-badge.is-clickable {
-  cursor: pointer;
-  transition: border-color 0.14s ease;
-}
-
-.dashboard-home .lb-stat-badge.is-clickable:hover {
-  border-color: var(--lb-green);
-}
-
-.dashboard-home .lb-creators-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-top: 8px;
-  border-top: 1px solid var(--background-modifier-border);
-}
-
-.dashboard-home .lb-creators-label {
-  font-size: 0.73rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-right: 2px;
-}
-
-.dashboard-home .lb-creator-pill {
-  height: 24px !important;
-  min-height: 24px !important;
-  padding: 0 9px !important;
-  border-radius: 999px !important;
-  font-size: 0.73rem !important;
-  font-weight: 500 !important;
-  background: var(--background-primary) !important;
-  border: 1px solid var(--background-modifier-border) !important;
-  color: var(--text-normal) !important;
-  cursor: pointer;
-  box-shadow: none !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 5px !important;
-}
-
-.dashboard-home .lb-creator-pill:hover {
-  border-color: var(--lb-blue) !important;
-  color: var(--lb-blue) !important;
-}
-
-.dashboard-home .lb-creator-pill.is-active {
-  background: color-mix(in srgb, var(--lb-blue) 16%, var(--background-primary)) !important;
-  border-color: var(--lb-blue) !important;
-  color: var(--lb-blue) !important;
-  font-weight: 650 !important;
-}
-
-.dashboard-home .lb-histogram {
-  display: flex;
-  align-items: flex-end;
-  height: 42px;
-  gap: 4px;
-  padding: 2px 5px;
-  border-radius: 7px;
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
-}
-
-.dashboard-home .lb-hist-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  height: 100%;
-  justify-content: flex-end;
-  width: 14px;
-  cursor: pointer;
-}
-
-.dashboard-home .lb-hist-fill {
-  width: 100%;
-  background: var(--lb-green);
-  border-radius: 2px 2px 0 0;
-  min-height: 2px;
-  opacity: 0.55;
-  transition: height 0.25s ease, opacity 0.15s ease, background-color 0.15s ease;
-}
-
-.dashboard-home .lb-hist-col:hover .lb-hist-fill,
-.dashboard-home .lb-hist-col.is-active .lb-hist-fill {
-  opacity: 1;
-  background: var(--lb-orange);
-}
-
-.dashboard-home .lb-hist-label {
-  font-size: 9px;
-  color: var(--text-faint);
-  margin-top: 2px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* 4. ФИЛЬТРЫ И ПОИСК */
 .dashboard-home .lb-filters-bar {
   display: flex;
   align-items: center;
@@ -606,56 +482,225 @@ styleEl.textContent = `
 }
 
 .dashboard-home .lb-search-input {
-  flex: 1 1 190px;
-  min-width: 150px;
-  height: 34px !important;
-  padding: 0 11px !important;
-  border-radius: 8px !important;
-  font-size: 0.82rem !important;
-  background: var(--background-secondary) !important;
-  border: 1px solid var(--background-modifier-border) !important;
+  flex: 1 1 180px;
+  min-width: 145px;
+  height: 32px !important;
+  padding: 0 10px !important;
+  border-radius: 4px !important;
+  font-size: 0.8rem !important;
+  background: var(--медиа-фон-карточки) !important;
+  border: 1px solid var(--медиа-обводка-постера) !important;
   color: var(--text-normal) !important;
 }
 
-.dashboard-home .lb-filters-bar select {
-  height: 34px;
-  font-size: 0.8rem;
-  padding: 0 24px 0 10px;
-  border-radius: 8px;
-  background-color: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  color: var(--text-normal);
+.dashboard-home .lb-search-input:focus {
+  border-color: var(--медиа-акцент) !important;
+  outline: none !important;
 }
 
-/* 5. СЕТКА ПОСТЕРОВ И КАРТОЧКА (РАЗДЕЛЕНИЕ НАВЕДЕНИЯ ПК И КАСАНИЯ IPAD) */
+.dashboard-home .lb-filters-bar select {
+  height: 32px;
+  font-size: 0.78rem;
+  padding: 0 24px 0 9px;
+  border-radius: 4px;
+  background-color: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
+  color: var(--медиа-текст-приглушённый);
+  cursor: pointer;
+}
+
+.dashboard-home .lb-filters-bar select:hover {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.dashboard-home .lb-creators-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dashboard-home .lb-creators-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--медиа-текст-приглушённый);
+}
+
+.dashboard-home .lb-creator-pill {
+  height: 22px !important;
+  min-height: 22px !important;
+  padding: 0 8px !important;
+  border-radius: 3px !important;
+  font-size: 0.72rem !important;
+  font-weight: 500 !important;
+  background: var(--медиа-фон-карточки) !important;
+  border: 1px solid var(--медиа-обводка-постера) !important;
+  color: var(--медиа-текст-приглушённый) !important;
+  cursor: pointer;
+  box-shadow: none !important;
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+
+.dashboard-home .lb-creator-pill:hover,
+.dashboard-home .lb-creator-pill.is-active {
+  color: #ffffff !important;
+  border-color: var(--медиа-акцент) !important;
+}
+
+/* Акцентный блок «Оценки» в стиле Letterboxd (минимум 40% ряда, высота ~125px) */
+.dashboard-home .lb-ratings-widget {
+  flex: 1 1 42%;
+  min-width: 300px;
+  min-height: 122px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px 14px 12px 14px;
+  background: rgba(28, 34, 40, 0.45);
+  border: 1px solid var(--медиа-разделитель);
+  border-radius: 6px;
+}
+
+.dashboard-home .lb-ratings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--медиа-разделитель);
+  padding-bottom: 5px;
+  margin-bottom: 10px;
+}
+
+.dashboard-home .lb-ratings-title {
+  font-size: 0.73rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--медиа-текст-приглушённый);
+}
+
+.dashboard-home .lb-ratings-meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.dashboard-home .lb-ratings-count {
+  font-size: 0.74rem;
+  color: var(--медиа-текст-приглушённый);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-home .lb-ratings-avg {
+  font-size: 1.32rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #dbe4ee;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-home .lb-ratings-body {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 66px;
+}
+
+.dashboard-home .lb-ratings-edge-star {
+  font-size: 0.72rem;
+  color: var(--медиа-акцент);
+  line-height: 1;
+  user-select: none;
+  flex-shrink: 0;
+  padding-bottom: 2px;
+}
+
+.dashboard-home .lb-ratings-bars {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  align-items: end;
+  gap: 3px;
+  height: 100%;
+}
+
+.dashboard-home .lb-rating-col {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  cursor: pointer;
+}
+
+.dashboard-home .lb-rating-bar {
+  width: 100%;
+  background: var(--медиа-бар-график);
+  border-radius: 2px 2px 0 0;
+  min-height: 3px;
+  transition: background-color 0.14s ease, height 0.22s ease;
+}
+
+.dashboard-home .lb-rating-col.is-max .lb-rating-bar,
+.dashboard-home .lb-rating-col.is-active .lb-rating-bar,
+.dashboard-home .lb-rating-col:hover .lb-rating-bar {
+  background: var(--медиа-акцент);
+}
+
+.dashboard-home .lb-rating-tooltip {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #14181c;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  z-index: 15;
+}
+
+.dashboard-home .lb-rating-col:hover .lb-rating-tooltip {
+  opacity: 1;
+}
+
+/* 4. СЕТКА ПОСТЕРОВ И КАРТОЧКА (ЗАДАЧИ 1, 2, 7) */
 .dashboard-home .lb-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(144px, 1fr));
-  gap: 16px 14px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
 }
 
 .dashboard-home .lb-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  border-radius: 8px;
   background: transparent;
-  animation: lbCardReveal 0.24s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+  min-width: 120px;
+  animation: lbCardReveal 0.22s ease both;
 }
 
 .dashboard-home .lb-poster-wrapper {
   position: relative;
   width: 100%;
   aspect-ratio: 2 / 3;
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  background: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
   cursor: pointer;
-  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1),
-              box-shadow 0.2s ease,
-              border-color 0.18s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.dashboard-home .lb-card:hover .lb-poster-wrapper {
+  border-color: var(--медиа-акцент);
+  box-shadow: inset 0 0 0 1px var(--медиа-акцент), 0 0 0 1px var(--медиа-акцент);
 }
 
 .dashboard-home .lb-poster-img {
@@ -663,7 +708,6 @@ styleEl.textContent = `
   height: 100%;
   object-fit: cover;
   display: block;
-  transition: transform 0.32s ease;
 }
 
 .dashboard-home .lb-poster-fallback {
@@ -673,21 +717,21 @@ styleEl.textContent = `
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 14px;
+  padding: 12px;
   text-align: center;
-  background: radial-gradient(circle at 50% 25%, var(--background-secondary-alt), var(--background-secondary));
+  background: var(--медиа-фон-карточки);
   gap: 6px;
 }
 
 .dashboard-home .lb-fallback-icon {
-  font-size: 1.5rem;
-  opacity: 0.6;
+  font-size: 1.4rem;
+  opacity: 0.55;
 }
 
 .dashboard-home .lb-fallback-title {
-  font-size: 0.84rem;
+  font-size: 0.8rem;
   font-weight: 650;
-  line-height: 1.28;
+  line-height: 1.25;
   color: var(--text-normal);
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -696,166 +740,147 @@ styleEl.textContent = `
 }
 
 .dashboard-home .lb-fallback-sub {
-  font-size: 0.72rem;
-  color: var(--text-muted);
+  font-size: 0.7rem;
+  color: var(--медиа-текст-приглушённый);
 }
 
-/* ПК-оверлей при наведении мыши (максимум 3 элемента: 2 угла + 1 главная кнопка внизу) */
-.dashboard-home .lb-desktop-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(10, 12, 16, 0.72) 0%,
-    rgba(10, 12, 16, 0.08) 45%,
-    rgba(10, 12, 16, 0.88) 100%
-  );
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 8px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.18s ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .dashboard-home .lb-card:hover .lb-poster-wrapper {
-    transform: translateY(-4px) scale(1.02);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--lb-green);
-    border-color: var(--lb-green);
-    z-index: 3;
-  }
-  .dashboard-home .lb-card:hover .lb-poster-img {
-    transform: scale(1.04);
-  }
-  .dashboard-home .lb-card:hover .lb-desktop-overlay {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .dashboard-home .lb-touch-more-btn {
-    display: none !important;
-  }
-}
-
-.dashboard-home .lb-overlay-corners {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 5px;
-}
-
-.dashboard-home .lb-corner-btn {
-  width: 30px !important;
-  min-width: 30px !important;
-  height: 30px !important;
-  min-height: 30px !important;
+/* ЗАДАЧА 1: Круглые кнопки 28x28px по разным углам без наложений */
+.dashboard-home .lb-poster-corner-btn {
+  position: absolute !important;
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
   padding: 0 !important;
-  border-radius: 7px !important;
-  border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  background: rgba(16, 18, 24, 0.82) !important;
+  border-radius: 50% !important;
+  background: rgba(16, 20, 24, 0.78) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
   color: #ffffff !important;
   font-size: 0.82rem !important;
-  cursor: pointer;
+  line-height: 1 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  backdrop-filter: blur(6px);
-  box-shadow: none !important;
-  transition: transform 0.12s ease, background-color 0.12s ease;
+  cursor: pointer;
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35) !important;
+  transition: opacity 0.16s ease, transform 0.12s ease, background-color 0.12s ease;
 }
 
-.dashboard-home .lb-corner-btn:hover {
-  background: rgba(28, 32, 42, 0.96) !important;
+.dashboard-home .lb-poster-corner-btn.is-left {
+  inset: 8px auto auto 8px;
+}
+
+.dashboard-home .lb-poster-corner-btn.is-right {
+  inset: 8px 8px auto auto;
+}
+
+.dashboard-home .lb-card:hover .lb-poster-corner-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Активное сердечко видно всегда, даже без наведения */
+.dashboard-home .lb-poster-corner-btn.is-left.is-fav {
+  opacity: 1;
+  pointer-events: auto;
+  color: var(--медиа-сердце) !important;
+  border-color: rgba(255, 128, 0, 0.55) !important;
+}
+
+.dashboard-home .lb-poster-corner-btn:hover {
+  background: rgba(20, 24, 30, 0.95) !important;
   transform: scale(1.08);
 }
 
-.dashboard-home .lb-corner-btn.is-fav {
-  color: var(--lb-heart) !important;
-  border-color: rgba(255, 71, 87, 0.55) !important;
-}
-
-.dashboard-home .lb-primary-overlay-btn {
-  width: 100% !important;
-  height: 32px !important;
-  min-height: 32px !important;
-  border-radius: 7px !important;
-  border: 1px solid rgba(0, 224, 84, 0.45) !important;
-  background: rgba(14, 17, 22, 0.9) !important;
-  color: #ffffff !important;
-  font-size: 0.76rem !important;
-  font-weight: 650 !important;
-  cursor: pointer;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 5px !important;
-  backdrop-filter: blur(6px);
-  box-shadow: none !important;
-}
-
-.dashboard-home .lb-primary-overlay-btn:hover {
-  background: var(--lb-green) !important;
-  color: #101216 !important;
-}
-
-/* Кнопка «⋯» (44x44px) для сенсорных экранов (iPad / iOS) */
-.dashboard-home .lb-touch-more-btn {
+/* ЗАДАЧА 2: Нижняя полоса 5 звёзд с половинками при наведении (120–200px безопасно) */
+.dashboard-home .lb-poster-bottom-bar {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 44px !important;
-  min-width: 44px !important;
-  height: 44px !important;
-  min-height: 44px !important;
-  padding: 0 !important;
-  border-radius: 10px !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  background: rgba(14, 16, 22, 0.68) !important;
-  color: #ffffff !important;
-  font-size: 1.15rem !important;
-  font-weight: 700 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  backdrop-filter: blur(6px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
-  z-index: 4;
+  inset: auto 0 0 0;
+  height: 32px;
+  padding: 0 6px;
+  background: linear-gradient(180deg, rgba(16, 20, 24, 0) 0%, rgba(16, 20, 24, 0.92) 45%, rgba(16, 20, 24, 0.98) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  z-index: 5;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.16s ease;
+}
+
+.dashboard-home .lb-card:hover .lb-poster-bottom-bar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.dashboard-home .lb-quick-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  user-select: none;
+}
+
+.dashboard-home .lb-quick-star {
+  font-size: 0.92rem;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.26);
   cursor: pointer;
+  padding: 2px 1px;
+  transition: color 0.1s ease, transform 0.1s ease;
+}
+
+.dashboard-home .lb-quick-star.is-lit {
+  color: var(--медиа-акцент);
+}
+
+.dashboard-home .lb-quick-star:hover {
+  transform: scale(1.14);
+}
+
+.dashboard-home .lb-quick-edit-icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 3px !important;
+  height: 22px !important;
+  min-height: 22px !important;
+  font-size: 0.78rem !important;
+  color: var(--медиа-текст-приглушённый) !important;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.dashboard-home .lb-quick-edit-icon:hover {
+  color: #ffffff !important;
 }
 
 @media (hover: none) and (pointer: coarse) {
-  .dashboard-home .lb-desktop-overlay {
-    display: none !important;
-  }
-  .dashboard-home .lb-primary-tab,
-  .dashboard-home .lb-add-cta {
-    height: 44px !important;
-    min-height: 44px !important;
-  }
-  .dashboard-home .lb-sub-btn {
-    height: 38px !important;
-    min-height: 38px !important;
-    padding: 0 13px !important;
-  }
-  .dashboard-home .lb-filters-bar select,
-  .dashboard-home .lb-search-input {
-    height: 40px !important;
-    min-height: 40px !important;
+  .dashboard-home .lb-poster-corner-btn.is-right {
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 
-/* Чистая подпись под постером: Название, Год, Звёзды и иконки состояния */
+/* Подпись под постером: Название (одна строка, ellipsis), ниже звёзды и год */
 .dashboard-home .lb-card-caption {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 6px 2px 0 2px;
+  padding: 6px 1px 0 1px;
+  min-width: 0;
 }
 
 .dashboard-home .lb-caption-title {
-  font-size: 0.81rem;
-  font-weight: 650;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--text-normal);
   line-height: 1.25;
   white-space: nowrap;
@@ -865,59 +890,91 @@ styleEl.textContent = `
 }
 
 .dashboard-home .lb-caption-title:hover {
-  color: var(--lb-green);
+  color: var(--медиа-акцент);
 }
 
 .dashboard-home .lb-caption-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
-  min-height: 16px;
-}
-
-.dashboard-home .lb-caption-year {
+  gap: 6px;
+  min-height: 15px;
   font-size: 0.72rem;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+  color: var(--медиа-текст-приглушённый);
 }
 
 .dashboard-home .lb-stars {
-  font-size: 0.74rem;
-  color: var(--lb-green);
+  font-size: 0.73rem;
+  color: var(--медиа-акцент);
   letter-spacing: 0.5px;
   line-height: 1;
-}
-
-.dashboard-home .lb-caption-badges {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.7rem;
-  color: var(--text-muted);
-}
-
-.dashboard-home .lb-caption-creator {
-  font-size: 0.7rem;
-  color: var(--text-faint);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
 }
 
-.dashboard-home .lb-caption-creator:hover {
-  color: var(--lb-blue);
+.dashboard-home .lb-caption-year {
+  font-size: 0.71rem;
+  color: var(--медиа-текст-приглушённый);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-/* 6. НИЖНЯЯ ТАЧ-ПАНЕЛЬ ДЕЙСТВИЙ ДЛЯ IPAD (ACTION SHEET MODAL) */
+/* 5. ХРОНОЛОГИЧЕСКИЙ ДНЕВНИК */
+.dashboard-home .lb-diary-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard-home .lb-diary-month {
+  border-top: 1px solid var(--медиа-разделитель);
+}
+
+.dashboard-home .lb-diary-month-head {
+  padding: 10px 0 6px 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--медиа-текст-приглушённый);
+  display: flex;
+  justify-content: space-between;
+}
+
+.dashboard-home .lb-diary-row {
+  display: grid;
+  grid-template-columns: 42px 36px minmax(140px, 1.5fr) minmax(100px, 1fr) 110px 36px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--медиа-разделитель);
+  font-size: 0.82rem;
+}
+
+.dashboard-home .lb-diary-day {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--медиа-текст-приглушённый);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.dashboard-home .lb-diary-thumb {
+  width: 32px;
+  height: 48px;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
+}
+
+/* 6. МОДАЛЬНЫЕ ОКНА И ТАЧ-ПАНЕЛЬ */
 .lb-action-sheet-modal {
-  width: min(460px, 94vw) !important;
-  border-radius: 16px !important;
+  width: min(440px, 94vw) !important;
+  border-radius: 12px !important;
   padding: 16px !important;
-  background: var(--background-primary) !important;
-  border: 1px solid var(--background-modifier-border) !important;
-  animation: lbSheetSlideUp 0.2s cubic-bezier(0.2, 0.85, 0.25, 1) both;
+  background: #181d22 !important;
+  border: 1px solid var(--медиа-обводка-постера) !important;
+  animation: lbSheetSlideUp 0.18s ease both;
 }
 
 .lb-sheet-head {
@@ -925,17 +982,17 @@ styleEl.textContent = `
   gap: 12px;
   align-items: center;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--background-modifier-border);
+  border-bottom: 1px solid var(--медиа-разделитель);
   margin-bottom: 12px;
 }
 
 .lb-sheet-thumb {
-  width: 52px;
-  height: 78px;
-  border-radius: 6px;
+  width: 50px;
+  height: 75px;
+  border-radius: 4px;
   object-fit: cover;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
+  background: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
   flex-shrink: 0;
 }
 
@@ -947,44 +1004,44 @@ styleEl.textContent = `
 }
 
 .lb-sheet-title {
-  font-size: 0.98rem;
+  font-size: 0.96rem;
   font-weight: 700;
-  color: var(--text-normal);
+  color: #ffffff;
   line-height: 1.25;
 }
 
 .lb-sheet-sub {
-  font-size: 0.78rem;
-  color: var(--text-muted);
+  font-size: 0.76rem;
+  color: var(--медиа-текст-приглушённый);
 }
 
 .lb-sheet-review {
   font-size: 0.78rem;
   font-style: italic;
   color: var(--text-normal);
-  background: var(--background-secondary);
+  background: var(--медиа-фон-карточки);
   padding: 8px 10px;
-  border-radius: 8px;
-  border-left: 3px solid var(--lb-green);
+  border-radius: 6px;
+  border-left: 3px solid var(--медиа-акцент);
   margin-bottom: 12px;
 }
 
 .lb-sheet-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .lb-sheet-btn {
   width: 100% !important;
-  min-height: 46px !important;
-  height: 46px !important;
-  padding: 0 14px !important;
-  border-radius: 10px !important;
-  font-size: 0.88rem !important;
+  min-height: 42px !important;
+  height: 42px !important;
+  padding: 0 12px !important;
+  border-radius: 6px !important;
+  font-size: 0.84rem !important;
   font-weight: 600 !important;
-  background: var(--background-secondary) !important;
-  border: 1px solid var(--background-modifier-border) !important;
+  background: var(--медиа-фон-карточки) !important;
+  border: 1px solid var(--медиа-обводка-постера) !important;
   color: var(--text-normal) !important;
   display: flex !important;
   align-items: center !important;
@@ -993,152 +1050,30 @@ styleEl.textContent = `
   box-shadow: none !important;
 }
 
-.lb-sheet-btn:active {
-  transform: scale(0.98);
-}
-
-.lb-sheet-btn.is-primary {
-  background: color-mix(in srgb, var(--lb-green) 16%, var(--background-secondary)) !important;
-  border-color: color-mix(in srgb, var(--lb-green) 45%, var(--background-modifier-border)) !important;
-  color: var(--lb-green) !important;
-}
-
-/* 7. ВИТРИНА СПИСКОВ С МИНИ-ПОСТЕРАМИ И ДНЕВНИК */
-.dashboard-home .lb-lists-showcase {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.dashboard-home .lb-list-card {
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 10px;
-  padding: 12px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: border-color 0.16s ease, transform 0.14s ease;
-}
-
-.dashboard-home .lb-list-card:hover,
-.dashboard-home .lb-list-card.is-active {
-  border-color: var(--lb-orange);
-  transform: translateY(-2px);
-}
-
-.dashboard-home .lb-list-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.dashboard-home .lb-list-card-title {
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--text-normal);
-}
-
-.dashboard-home .lb-list-card-count {
-  font-size: 0.74rem;
-  color: var(--text-muted);
-}
-
-.dashboard-home .lb-list-thumbs {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-}
-
-.dashboard-home .lb-list-thumb {
-  width: 100%;
-  aspect-ratio: 2 / 3;
-  border-radius: 5px;
-  object-fit: cover;
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
-}
-
-.dashboard-home .lb-diary-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.dashboard-home .lb-diary-month {
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.dashboard-home .lb-diary-month-head {
-  padding: 8px 14px;
-  background: var(--background-secondary-alt);
-  border-bottom: 1px solid var(--background-modifier-border);
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  display: flex;
-  justify-content: space-between;
-}
-
-.dashboard-home .lb-diary-row {
-  display: grid;
-  grid-template-columns: 48px 38px minmax(140px, 1.5fr) minmax(100px, 1fr) 110px 44px;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--background-modifier-border);
-  font-size: 0.83rem;
-}
-
-.dashboard-home .lb-diary-row:last-child {
-  border-bottom: none;
-}
-
-.dashboard-home .lb-diary-day {
-  font-size: 1.02rem;
-  font-weight: 750;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.dashboard-home .lb-diary-thumb {
-  width: 34px;
-  height: 50px;
-  border-radius: 4px;
-  object-fit: cover;
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
+.lb-sheet-btn:hover {
+  border-color: var(--медиа-акцент) !important;
 }
 
 .lb-modal-grid {
   display: grid;
-  grid-template-columns: 150px 1fr;
+  grid-template-columns: 145px 1fr;
   gap: 16px;
   align-items: start;
 }
 
 .lb-modal-poster-preview {
-  width: 150px;
+  width: 145px;
   aspect-ratio: 2 / 3;
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
+  background: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   font-size: 0.78rem;
-  color: var(--text-muted);
+  color: var(--медиа-текст-приглушённый);
 }
 
 .lb-modal-poster-preview img {
@@ -1149,24 +1084,24 @@ styleEl.textContent = `
 
 .lb-poster-gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
   gap: 10px;
   margin-top: 10px;
-  max-height: 280px;
+  max-height: 260px;
   overflow-y: auto;
 }
 
 .lb-poster-choice {
   position: relative;
   aspect-ratio: 2 / 3;
-  border-radius: 6px;
+  border-radius: 4px;
   overflow: hidden;
   border: 2px solid transparent;
   cursor: pointer;
 }
 
 .lb-poster-choice.is-selected {
-  border-color: var(--lb-green);
+  border-color: var(--медиа-акцент);
 }
 
 .lb-poster-choice img {
@@ -1178,32 +1113,45 @@ styleEl.textContent = `
 .dashboard-home .lb-pagination-section {
   display: flex;
   justify-content: center;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .dashboard-home .lb-more-btn {
-  background: var(--background-secondary);
-  border: 1px solid var(--background-modifier-border);
-  padding: 8px 22px;
-  min-height: 40px;
-  border-radius: 8px;
-  font-size: 0.82rem;
+  background: var(--медиа-фон-карточки);
+  border: 1px solid var(--медиа-обводка-постера);
+  padding: 7px 20px;
+  min-height: 36px;
+  border-radius: 4px;
+  font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
-  color: var(--text-normal);
+  color: var(--медиа-текст-приглушённый);
+}
+
+.dashboard-home .lb-more-btn:hover {
+  color: #ffffff;
+  border-color: var(--медиа-акцент);
 }
 
 .dashboard-home .lb-empty-msg {
-  padding: 36px 20px;
+  padding: 32px 18px;
   text-align: center;
-  color: var(--text-muted);
-  background: var(--background-secondary);
-  border: 1px dashed var(--background-modifier-border);
-  border-radius: 12px;
-  font-size: 0.86rem;
+  color: var(--медиа-текст-приглушённый);
+  background: rgba(28, 34, 40, 0.35);
+  border: 1px dashed var(--медиа-разделитель);
+  border-radius: 6px;
+  font-size: 0.84rem;
 }
 
-@media (max-width: 680px) {
+@media (max-width: 760px) {
+  .dashboard-home .lb-toolbar-ratings-layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dashboard-home .lb-ratings-widget {
+    width: 100%;
+    min-width: 0;
+  }
   .lb-modal-grid {
     grid-template-columns: 1fr;
   }
@@ -1211,10 +1159,10 @@ styleEl.textContent = `
     margin: 0 auto;
   }
   .dashboard-home .lb-top4-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
   }
   .dashboard-home .lb-diary-row {
-    grid-template-columns: 38px 1fr 78px 44px;
+    grid-template-columns: 36px 1fr 84px 34px;
   }
   .dashboard-home .lb-diary-thumb,
   .dashboard-home .lb-diary-creator-col {
@@ -1223,19 +1171,18 @@ styleEl.textContent = `
 }
 `;
 
-// Состояние сессии UI с безопасной миграцией со старых вкладок
+// Состояние сессии UI (функционал «Списки» полностью удалён)
 const defaultState = {
-  activeCategory: "Фильм", // Главная троица: "Фильм" | "Сериал" | "Игра"
-  viewMode: "grid",        // Вторичный вид: "grid" | "diary" | "lists"
-  quickWatchlist: false,   // Быстрый фильтр «В планах» внутри раздела
-  onlyFavorites: false,    // Быстрый фильтр «Любимое» внутри раздела
-  yearFilter: "Все",       // Годовая статистика: "Все" | "2026" | "2025"...
-  decadeFilter: "Все",     // Фильтр по декаде релиза: "Все" | "2020-е"...
+  activeCategory: "Фильм", // "Фильм" | "Сериал" | "Игра"
+  viewMode: "grid",        // "grid" | "diary"
+  quickWatchlist: false,
+  onlyFavorites: false,
+  yearFilter: "Все",
+  decadeFilter: "Все",
   statusFilter: "Все",
   genreFilter: "Все",
   creatorFilter: "Все",
   platformFilter: "Все",
-  listFilter: "Все",
   ratingFilter: null,
   searchQuery: "",
   sortBy: "date_desc",
@@ -1254,6 +1201,10 @@ if (!window.dhMediaState || typeof window.dhMediaState !== "object") {
   if (!["Фильм", "Сериал", "Игра"].includes(s.activeCategory)) {
     s.activeCategory = "Фильм";
   }
+  if (!["grid", "diary"].includes(s.viewMode)) {
+    s.viewMode = "grid";
+  }
+  delete s.listFilter;
 }
 const state = window.dhMediaState;
 
@@ -1267,7 +1218,7 @@ async function updateMediaFrontmatter(filePath, mutator) {
 }
 
 // ==========================================================================
-// МОДАЛЬНОЕ ОКНО ВЫБОРА / СМЕНЫ ПОСТЕРА (LETTERBOXD PATRON)
+// МОДАЛЬНОЕ ОКНО ВЫБОРА / СМЕНЫ ПОСТЕРА
 // ==========================================================================
 class PosterPickerModal extends obsidian.Modal {
   constructor(app, item, onSaved) {
@@ -1293,21 +1244,21 @@ class PosterPickerModal extends obsidian.Modal {
     const urlInput = urlRow.createEl("input", {
       attr: {
         type: "text",
-        placeholder: "Вставь URL постера или [[файл.jpg]]…",
+        placeholder: "Вставь ссылку на постер или [[файл.jpg]]…",
         value: this.currentPoster,
-        style: "flex: 1; min-width: 180px; height: 36px; padding: 0 10px; border-radius: 7px;"
+        style: "flex: 1; min-width: 180px; height: 34px; padding: 0 10px; border-radius: 4px;"
       }
     });
 
     const addAltBtn = urlRow.createEl("button", {
       text: "＋ В коллекцию",
-      attr: { type: "button", style: "height: 36px; border-radius: 7px; cursor: pointer;" }
+      attr: { type: "button", style: "height: 34px; border-radius: 4px; cursor: pointer;" }
     });
 
     const applyBtn = urlRow.createEl("button", {
       cls: "mod-cta",
       text: "Сделать основным",
-      attr: { type: "button", style: "height: 36px; border-radius: 7px; cursor: pointer;" }
+      attr: { type: "button", style: "height: 34px; border-radius: 4px; cursor: pointer;" }
     });
 
     const vaultImages = app.vault.getFiles().filter(f =>
@@ -1316,8 +1267,8 @@ class PosterPickerModal extends obsidian.Modal {
     );
 
     contentEl.createDiv({
-      text: "Доступные обложки (кликни, чтобы выбрать):",
-      attr: { style: "font-size: 0.8rem; color: var(--text-muted); margin-top: 6px;" }
+      text: "Доступные обложки (выбери кликом):",
+      attr: { style: "font-size: 0.78rem; color: var(--text-muted); margin-top: 6px;" }
     });
 
     const gallery = contentEl.createDiv({ cls: "lb-poster-gallery" });
@@ -1331,8 +1282,8 @@ class PosterPickerModal extends obsidian.Modal {
 
       if (candidates.length === 0) {
         gallery.createDiv({
-          text: "Пока нет сохранённых вариантов. Вставь ссылку выше.",
-          attr: { style: "grid-column: 1 / -1; color: var(--text-muted); font-size: 0.8rem; padding: 12px 0;" }
+          text: "Пока нет сохранённых вариантов. Вставь ссылку в поле выше.",
+          attr: { style: "grid-column: 1 / -1; color: var(--text-muted); font-size: 0.78rem; padding: 12px 0;" }
         });
         return;
       }
@@ -1387,7 +1338,7 @@ class PosterPickerModal extends obsidian.Modal {
 }
 
 // ==========================================================================
-// НИЖНЯЯ ТАЧ-ПАНЕЛЬ ДЕЙСТВИЙ ДЛЯ IPAD (ЧИСТЫЕ ПОСТЕРЫ БЕЗ ШУМА)
+// МЕНЮ ДЕЙСТВИЙ С КАРТОЧКОЙ (ПО КНОПКЕ «⋯»)
 // ==========================================================================
 class PosterActionSheetModal extends obsidian.Modal {
   constructor(app, item, onUpdated) {
@@ -1430,7 +1381,7 @@ class PosterActionSheetModal extends obsidian.Modal {
     const actions = contentEl.createDiv({ cls: "lb-sheet-actions" });
 
     const openNoteBtn = actions.createEl("button", {
-      cls: "lb-sheet-btn is-primary",
+      cls: "lb-sheet-btn",
       attr: { type: "button" }
     });
     openNoteBtn.createSpan({ text: "📄 Открыть заметку" });
@@ -1444,8 +1395,8 @@ class PosterActionSheetModal extends obsidian.Modal {
       cls: "lb-sheet-btn",
       attr: { type: "button" }
     });
-    editBtn.createSpan({ text: "✎ Оценить / Изменить свойства" });
-    editBtn.createSpan({ text: item["оценка"] ? `★ ${item["оценка"]}` : "—" });
+    editBtn.createSpan({ text: "✎ Оценить" });
+    editBtn.createSpan({ text: formatStars(item["оценка"]) || "—" });
     editBtn.onclick = () => {
       this.close();
       new MediaLogModal(app, item["тип"], item, this.onUpdated).open();
@@ -1537,7 +1488,7 @@ class MediaLogModal extends obsidian.Modal {
       type,
       title: ex ? String(ex["название"] || ex.file.name) : "",
       year: ex && parseOptionalNum(ex["год"]) !== null ? Number(ex["год"]) : new Date().getFullYear(),
-      rating: ex && parseOptionalNum(ex["оценка"]) !== null ? Number(ex["оценка"]) : 8,
+      rating: ex && parseOptionalNum(ex["оценка"]) !== null ? Number(ex["оценка"]) : 0,
       status: ex && ex["статус"] ? String(ex["статус"]) : schema.defaultDoneStatus,
       date: ex ? (getItemDateISO(ex) || todayLocalISO()) : todayLocalISO(),
       poster: ex ? String(ex["постер"] || "") : "",
@@ -1549,10 +1500,9 @@ class MediaLogModal extends obsidian.Modal {
       runtimeMin: ex && parseOptionalNum(ex["длительность_мин"]) !== null ? Number(ex["длительность_мин"]) : "",
       seasons: ex && parseOptionalNum(ex["сезонов"]) !== null ? Number(ex["сезонов"]) : "",
       episodes: ex && parseOptionalNum(ex["серий"]) !== null ? Number(ex["серий"]) : "",
-      platform: ex ? flatArray(ex["платформа"]).join(", ") : "PC",
+      platform: ex ? flatArray(ex["платформа"]).join(", ") : "ПК",
       hoursPlayed: ex && parseOptionalNum(ex["часов_наиграно"]) !== null ? Number(ex["часов_наиграно"]) : "",
       genres: ex ? flatArray(ex["жанр"]).join(", ") : "",
-      lists: ex ? flatArray(ex["списки"]).join(", ") : "",
       mediaTags: ex ? flatArray(ex["теги_медиа"]).join(", ") : "",
       review: ex ? String(ex["отзыв"] || "") : ""
     };
@@ -1569,8 +1519,8 @@ class MediaLogModal extends obsidian.Modal {
     const schema = getSchemaForType(this.data.type);
     contentEl.createEl("h2", {
       text: this.existingItem
-        ? `${schema.icon} Редактировать: ${this.data.title}`
-        : `${schema.icon} Залогировать в Медиатеку`
+        ? `${schema.icon} ${I18N.modalEditTitle}: ${this.data.title}`
+        : `${schema.icon} ${I18N.modalAddTitle}`
     });
 
     const layout = contentEl.createDiv({ cls: "lb-modal-grid" });
@@ -1617,7 +1567,7 @@ class MediaLogModal extends obsidian.Modal {
 
     new obsidian.Setting(rightCol)
       .setName(schema.creatorLabel)
-      .setDesc("Через запятую для фильтрации и статистики")
+      .setDesc("Через запятую для фильтрации")
       .addText(t => t
         .setPlaceholder(schema.creatorPlaceholder)
         .setValue(this.data.creator)
@@ -1625,18 +1575,18 @@ class MediaLogModal extends obsidian.Modal {
 
     if (this.data.type === "Фильм") {
       new obsidian.Setting(rightCol)
-        .setName("Год выпуска и Хронометраж (мин)")
+        .setName("Год выхода и хронометраж (мин)")
         .addText(t => t
           .setPlaceholder("Год (2024)")
           .setValue(String(this.data.year ?? ""))
           .onChange(v => { this.data.year = parseOptionalNum(v); }))
         .addText(t => t
-          .setPlaceholder("Мин (напр. 166)")
+          .setPlaceholder("Мин (166)")
           .setValue(String(this.data.runtimeMin ?? ""))
           .onChange(v => { this.data.runtimeMin = parseOptionalNum(v) ?? ""; }));
     } else if (this.data.type === "Сериал") {
       new obsidian.Setting(rightCol)
-        .setName("Год, Сезоны и Серии")
+        .setName("Год, сезоны и серии")
         .addText(t => t
           .setPlaceholder("Год")
           .setValue(String(this.data.year ?? ""))
@@ -1651,23 +1601,23 @@ class MediaLogModal extends obsidian.Modal {
           .onChange(v => { this.data.episodes = parseOptionalNum(v) ?? ""; }));
     } else if (this.data.type === "Игра") {
       new obsidian.Setting(rightCol)
-        .setName("Год, Платформа и Наиграно часов")
+        .setName("Год, платформа и наиграно часов")
         .addText(t => t
           .setPlaceholder("Год")
           .setValue(String(this.data.year ?? ""))
           .onChange(v => { this.data.year = parseOptionalNum(v); }))
         .addText(t => t
-          .setPlaceholder("PC, PS5")
+          .setPlaceholder("ПК, PS5")
           .setValue(this.data.platform)
           .onChange(v => { this.data.platform = v; }))
         .addText(t => t
-          .setPlaceholder("Часов (напр. 85)")
+          .setPlaceholder("Часов (85)")
           .setValue(String(this.data.hoursPlayed ?? ""))
           .onChange(v => { this.data.hoursPlayed = parseOptionalNum(v) ?? ""; }));
     }
 
     new obsidian.Setting(rightCol)
-      .setName("Статус и Дата")
+      .setName(`Статус и ${schema.dateLabel.toLowerCase()}`)
       .addDropdown(d => {
         schema.statuses.forEach(st => d.addOption(st, st));
         d.setValue(this.data.status);
@@ -1678,19 +1628,23 @@ class MediaLogModal extends obsidian.Modal {
         .setValue(this.data.date)
         .onChange(v => { this.data.date = v.trim(); }));
 
+    const ratingLabel = val => val > 0
+      ? `Оценка: ${(val / 2).toFixed(1).replace(".0", "")} из 5 (${formatStars(val)})`
+      : "Оценка: не записано";
+
     const ratingSetting = new obsidian.Setting(rightCol)
-      .setName(`Оценка: ★ ${this.data.rating} (${formatStars(this.data.rating) || "без оценки"})`)
+      .setName(ratingLabel(this.data.rating))
       .addSlider(s => s
-        .setLimits(0, 10, 0.5)
+        .setLimits(0, 10, 1)
         .setValue(this.data.rating)
         .setDynamicTooltip()
         .onChange(v => {
           this.data.rating = v;
-          ratingSetting.setName(`Оценка: ★ ${v} (${formatStars(v) || "без оценки"})`);
+          ratingSetting.setName(ratingLabel(v));
         }));
 
     new obsidian.Setting(rightCol)
-      .setName(`♥ Любимое / 📌 В Топ-4 / 🔄 Число повторов`)
+      .setName("♥ Любимое / 📌 В Топ-4 / 🔄 Число повторов")
       .addToggle(tg => tg
         .setTooltip("♥ Любимое")
         .setValue(this.data.favorite)
@@ -1709,7 +1663,7 @@ class MediaLogModal extends obsidian.Modal {
         }));
 
     new obsidian.Setting(rightCol)
-      .setName("Постер (URL или [[файл.jpg]])")
+      .setName("Постер (ссылка или [[файл.jpg]])")
       .addText(t => t
         .setPlaceholder("https://image.tmdb.org/...")
         .setValue(this.data.poster)
@@ -1719,22 +1673,18 @@ class MediaLogModal extends obsidian.Modal {
         }));
 
     new obsidian.Setting(rightCol)
-      .setName("Жанры, Списки и Теги")
+      .setName("Жанры и ключевые слова")
       .addText(t => t
-        .setPlaceholder("Жанры: Sci-Fi, Триллер")
+        .setPlaceholder("Жанры: фантастика, триллер")
         .setValue(this.data.genres)
         .onChange(v => { this.data.genres = v; }))
       .addText(t => t
-        .setPlaceholder("Списки: Топ 2026")
-        .setValue(this.data.lists)
-        .onChange(v => { this.data.lists = v; }))
-      .addText(t => t
-        .setPlaceholder("Теги: кооп, атмосфера")
+        .setPlaceholder("Ключевые слова: космос, атмосфера")
         .setValue(this.data.mediaTags)
         .onChange(v => { this.data.mediaTags = v; }));
 
     new obsidian.Setting(contentEl)
-      .setName("Рецензия / короткий отзыв")
+      .setName("Рецензия / короткая заметка о просмотре")
       .addTextArea(t => {
         t.setValue(this.data.review);
         t.inputEl.rows = 3;
@@ -1744,11 +1694,11 @@ class MediaLogModal extends obsidian.Modal {
 
     new obsidian.Setting(contentEl)
       .addButton(btn => btn
-        .setButtonText(this.existingItem ? "Сохранить изменения" : "Добавить в Медиатеку")
+        .setButtonText(this.existingItem ? I18N.saveChanges : I18N.saveNew)
         .setCta()
         .onClick(async () => {
           if (!this.data.title.trim()) {
-            notify("Введите название!");
+            notify("Укажи название!");
             return;
           }
           await this.saveEntry();
@@ -1766,7 +1716,6 @@ class MediaLogModal extends obsidian.Modal {
 
     const creatorsList = splitClean(this.data.creator);
     const genresList = splitClean(this.data.genres);
-    const listsArray = splitClean(this.data.lists);
     const tagsArray = splitClean(this.data.mediaTags);
     const platformsList = splitClean(this.data.platform);
     const cleanDate = toISODateStr(this.data.date);
@@ -1781,6 +1730,7 @@ class MediaLogModal extends obsidian.Modal {
         if (this.data.poster) fm["постер"] = this.data.poster;
         else delete fm["постер"];
 
+        // Пустое значение — это «не записано», а не 0
         if (this.data.rating > 0) fm["оценка"] = Number(this.data.rating);
         else delete fm["оценка"];
 
@@ -1798,9 +1748,6 @@ class MediaLogModal extends obsidian.Modal {
 
         fm[schema.creatorKey] = creatorsList.length <= 1 ? (creatorsList[0] || "") : creatorsList;
         fm["жанр"] = genresList;
-
-        if (listsArray.length > 0) fm["списки"] = listsArray;
-        else delete fm["списки"];
 
         if (tagsArray.length > 0) fm["теги_медиа"] = tagsArray;
         else delete fm["теги_медиа"];
@@ -1822,7 +1769,7 @@ class MediaLogModal extends obsidian.Modal {
           else delete fm["часов_наиграно"];
         }
       });
-      notify(`Обновлено: «${this.data.title}»`);
+      notify(`Сохранено: «${this.data.title}»`);
       return;
     }
 
@@ -1858,7 +1805,7 @@ class MediaLogModal extends obsidian.Modal {
         if (this.data.seasons !== "") fm["сезонов"] = Number(this.data.seasons);
         if (this.data.episodes !== "") fm["серий"] = Number(this.data.episodes);
       } else if (this.data.type === "Игра") {
-        fm["платформа"] = platformsList.length ? platformsList : ["PC"];
+        fm["платформа"] = platformsList.length ? platformsList : ["ПК"];
         if (this.data.hoursPlayed !== "") fm["часов_наиграно"] = Number(this.data.hoursPlayed);
       }
 
@@ -1871,7 +1818,6 @@ class MediaLogModal extends obsidian.Modal {
       fm["пересмотр"] = Boolean(this.data.rewatchCount > 0 || this.data.rewatch);
       if (this.data.rewatchCount > 0) fm["количество_повторов"] = Number(this.data.rewatchCount);
       if (genresList.length > 0) fm["жанр"] = genresList;
-      if (listsArray.length > 0) fm["списки"] = listsArray;
       if (tagsArray.length > 0) fm["теги_медиа"] = tagsArray;
       if (this.data.review.trim()) fm["отзыв"] = this.data.review.trim();
     });
@@ -1889,9 +1835,7 @@ class MediaLogModal extends obsidian.Modal {
 // ==========================================================================
 const navContainer = root.createDiv({ cls: "lb-nav-stack" });
 const top4Container = root.createDiv({ cls: "lb-top4-host" });
-const statsContainer = root.createDiv({ cls: "lb-stats-section" });
-const listsShowcaseContainer = root.createDiv({ cls: "lb-lists-host" });
-const controlsContainer = root.createDiv({ cls: "lb-controls-section" });
+const toolbarAndRatingsContainer = root.createDiv({ cls: "lb-toolbar-ratings-layout" });
 const gridContainer = root.createDiv({ cls: "lb-grid-section" });
 const paginationContainer = root.createDiv({ cls: "lb-pagination-section" });
 
@@ -1907,7 +1851,7 @@ function getCategoryPages(allMedia) {
   return allMedia.filter(p => String(p["тип"] || "").trim().toLowerCase() === cat);
 }
 
-// 1. Отрисовка двухуровневой навигации
+// 1. Отрисовка двухуровневой навигации (без «Списков» и лишних рамок)
 function renderNavigation(allMedia, categoryItems) {
   navContainer.empty();
 
@@ -1917,7 +1861,6 @@ function renderNavigation(allMedia, categoryItems) {
     "Игра": allMedia.filter(p => String(p["тип"]).toLowerCase() === "игра").length
   };
 
-  // Ряд 1: Главная троица (Фильмы, Сериалы, Игры) + кнопка «+ Залогировать»
   const primaryBar = navContainer.createDiv({ cls: "lb-primary-bar" });
   const primaryTabs = primaryBar.createDiv({ cls: "lb-primary-tabs" });
 
@@ -1942,7 +1885,6 @@ function renderNavigation(allMedia, categoryItems) {
       state.platformFilter = "Все";
       state.decadeFilter = "Все";
       state.statusFilter = "Все";
-      state.listFilter = "Все";
       state.ratingFilter = null;
       state.page = 1;
       renderDashboard();
@@ -1951,24 +1893,21 @@ function renderNavigation(allMedia, categoryItems) {
 
   const addBtn = primaryBar.createEl("button", {
     cls: "lb-add-cta",
-    text: "＋ Залогировать",
+    text: I18N.addEntry,
     attr: { type: "button" }
   });
   addBtn.onclick = () => {
     new MediaLogModal(app, state.activeCategory, null, () => renderDashboard()).open();
   };
 
-  // Ряд 2: Компактные режимы представления слева + быстрые фильтры «В планах» и «Любимое» справа
   const secondaryBar = navContainer.createDiv({ cls: "lb-secondary-bar" });
   const viewModes = secondaryBar.createDiv({ cls: "lb-view-modes" });
 
   const diaryCount = categoryItems.filter(p => isItemCompleted(p) && Boolean(getItemDateISO(p))).length;
-  const listsCount = new Set(categoryItems.flatMap(p => flatArray(p["списки"]))).size;
 
   [
-    { id: "grid", label: "▦ Постеры", count: categoryItems.length },
-    { id: "diary", label: "📓 Дневник", count: diaryCount },
-    { id: "lists", label: "📑 Списки", count: listsCount }
+    { id: "grid", label: I18N.postersView, count: categoryItems.length },
+    { id: "diary", label: I18N.diaryView, count: diaryCount }
   ].forEach(vm => {
     const isAct = state.viewMode === vm.id;
     const b = viewModes.createEl("button", {
@@ -1989,10 +1928,10 @@ function renderNavigation(allMedia, categoryItems) {
   const favCount = categoryItems.filter(p => p["любимое"] === true).length;
 
   const wlBtn = quickSlices.createEl("button", {
-    cls: `lb-sub-btn is-watchlist ${state.quickWatchlist ? "is-active" : ""}`,
-    attr: { type: "button", title: "Фильтр «В планах» внутри текущего раздела" }
+    cls: `lb-sub-btn ${state.quickWatchlist ? "is-active" : ""}`,
+    attr: { type: "button", title: I18N.watchlistHint }
   });
-  wlBtn.createSpan({ text: "⏱ В планах" });
+  wlBtn.createSpan({ text: I18N.watchlistSlice });
   wlBtn.createSpan({ cls: "lb-sub-count", text: String(watchlistCount) });
   wlBtn.onclick = () => {
     state.quickWatchlist = !state.quickWatchlist;
@@ -2003,10 +1942,10 @@ function renderNavigation(allMedia, categoryItems) {
   };
 
   const favBtn = quickSlices.createEl("button", {
-    cls: `lb-sub-btn is-fav ${state.onlyFavorites ? "is-active" : ""}`,
-    attr: { type: "button", title: "Показать только любимые тайтлы в этом разделе" }
+    cls: `lb-sub-btn ${state.onlyFavorites ? "is-active" : ""}`,
+    attr: { type: "button", title: I18N.favHint }
   });
-  favBtn.createSpan({ text: "♥ Любимое" });
+  favBtn.createSpan({ text: I18N.favSlice });
   favBtn.createSpan({ cls: "lb-sub-count", text: String(favCount) });
   favBtn.onclick = () => {
     state.onlyFavorites = !state.onlyFavorites;
@@ -2015,7 +1954,7 @@ function renderNavigation(allMedia, categoryItems) {
   };
 }
 
-// 2. Витрина «Топ-4 любимых» (Letterboxd Four Favorites)
+// 2. Витрина «Топ-4 любимых»
 function renderTop4Showcase(categoryItems) {
   top4Container.empty();
   if (state.viewMode !== "grid" || state.quickWatchlist || state.searchQuery.trim()) return;
@@ -2041,7 +1980,7 @@ function renderTop4Showcase(categoryItems) {
   const schema = getSchemaForType(state.activeCategory);
   const summary = details.createEl("summary");
   summary.createSpan({ text: `★ Топ-${showcaseItems.length} любимых · ${schema.pluralTitle}` });
-  summary.createSpan({ text: details.open ? "Свернуть ▲" : "Развернуть ▾", attr: { style: "font-size: 0.72rem;" } });
+  summary.createSpan({ text: details.open ? "Свернуть ▲" : "Развернуть ▾", attr: { style: "font-size: 0.7rem;" } });
 
   const grid = details.createDiv({ cls: "lb-top4-grid" });
   showcaseItems.forEach((item, idx) => {
@@ -2049,9 +1988,10 @@ function renderTop4Showcase(categoryItems) {
   });
 }
 
-// 3. Годовая статистика, лидер периода и гистограмма
-function renderStats(categoryItems) {
-  statsContainer.empty();
+// 3. Фильтры (включая компактный выбор года) + Акцентная гистограмма оценок Letterboxd (Задачи 4, 5, 6)
+function renderToolbarAndRatings(categoryItems) {
+  toolbarAndRatingsContainer.empty();
+  const schema = getSchemaForType(state.activeCategory);
 
   const availableYears = new Set();
   categoryItems.forEach(item => {
@@ -2067,222 +2007,21 @@ function renderStats(categoryItems) {
     ? categoryItems
     : categoryItems.filter(i => getItemDateISO(i).startsWith(state.yearFilter));
 
-  const completed = yearScoped.filter(isItemCompleted);
-  const ratedItems = yearScoped.filter(i => parseOptionalNum(i["оценка"]) !== null && parseNum(i["оценка"], 0) > 0);
-  const avgScore = ratedItems.length
-    ? (ratedItems.reduce((acc, curr) => acc + parseNum(curr["оценка"], 0), 0) / ratedItems.length).toFixed(1)
-    : "—";
-
-  const totalGameHours = yearScoped.reduce((acc, i) => acc + parseNum(i["часов_наиграно"], 0), 0);
-  const totalMovieMin = yearScoped.reduce((acc, i) => acc + parseNum(i["длительность_мин"], 0), 0);
-  const totalRewatches = yearScoped.reduce((acc, i) => acc + getRewatchCount(i), 0);
-
-  // Самый высоко оценённый тайтл за выбранный период
-  const highestRated = [...ratedItems].sort(
-    (a, b) => parseNum(b["оценка"], 0) - parseNum(a["оценка"], 0) ||
-      (getItemDateISO(b) || "").localeCompare(getItemDateISO(a) || "")
-  )[0] || null;
-
-  // Топ жанр за период
-  const genreCounter = new Map();
-  yearScoped.forEach(i => {
-    flatArray(i["жанр"]).forEach(g => genreCounter.set(g, (genreCounter.get(g) || 0) + 1));
-  });
-  const topGenreEntry = [...genreCounter.entries()].sort((a, b) => b[1] - a[1])[0] || null;
-
-  const statsBar = statsContainer.createDiv({ cls: "lb-stats-bar" });
-  const summary = statsBar.createDiv({ cls: "lb-summary" });
-
-  // Переключатель года («Все годы» | «2026» | «2025»...)
-  if (sortedYears.length > 0) {
-    const yearPills = summary.createDiv({ cls: "lb-year-pills" });
-    ["Все", ...sortedYears.slice(0, 4)].forEach(yr => {
-      const b = yearPills.createEl("button", {
-        cls: `lb-year-btn ${state.yearFilter === yr ? "is-active" : ""}`,
-        text: yr === "Все" ? "Все годы" : yr,
-        attr: { type: "button" }
-      });
-      b.onclick = () => {
-        state.yearFilter = yr;
-        state.page = 1;
-        renderDashboard();
-      };
-    });
-  }
-
-  summary.createDiv({ cls: "lb-stat-badge", text: `Завершено: ${completed.length}` });
-  summary.createDiv({ cls: "lb-stat-badge is-green", text: `★ Средняя: ${avgScore}` });
-
-  if (state.activeCategory === "Игра" && totalGameHours > 0) {
-    summary.createDiv({ cls: "lb-stat-badge is-orange", text: `🕹 Часов: ${Math.round(totalGameHours)} ч` });
-  } else if (state.activeCategory === "Фильм" && totalMovieMin > 0) {
-    summary.createDiv({ cls: "lb-stat-badge is-orange", text: `🎞 Время: ${Math.round(totalMovieMin / 60)} ч` });
-  }
-
-  if (totalRewatches > 0) {
-    summary.createDiv({ cls: "lb-stat-badge", text: `🔄 Повторов: ${totalRewatches}` });
-  }
-
-  if (topGenreEntry) {
-    const gBadge = summary.createDiv({
-      cls: "lb-stat-badge is-clickable",
-      text: `🎭 Жанр: ${topGenreEntry[0]} (${topGenreEntry[1]})`,
-      attr: { title: "Нажми, чтобы отфильтровать по этому жанру" }
-    });
-    gBadge.onclick = () => {
-      state.genreFilter = state.genreFilter === topGenreEntry[0] ? "Все" : topGenreEntry[0];
-      state.page = 1;
-      renderDashboard();
-    };
-  }
-
-  if (highestRated) {
-    const bestTitle = highestRated["название"] || highestRated.file.name;
-    const bestBadge = summary.createDiv({
-      cls: "lb-stat-badge is-green is-clickable",
-      text: `🏆 Лидер: ${bestTitle} (★ ${highestRated["оценка"]})`,
-      attr: { title: "Открыть самую высоко оценённую заметку периода" }
-    });
-    bestBadge.onclick = () => {
-      app.workspace.openLinkText(highestRated.file.path, "", false);
-    };
-  }
-
-  // Гистограмма оценок 1..10
-  const histoContainer = statsBar.createDiv({ cls: "lb-histogram" });
-  const counts = Array(10).fill(0);
-  ratedItems.forEach(i => {
-    const s = Math.min(10, Math.max(1, Math.round(parseNum(i["оценка"], 0))));
-    counts[s - 1]++;
-  });
-  const maxVal = Math.max(...counts, 1);
-
-  counts.forEach((c, idx) => {
-    const scoreVal = idx + 1;
-    const isAct = state.ratingFilter === scoreVal;
-    const col = histoContainer.createDiv({
-      cls: `lb-hist-col ${isAct ? "is-active" : ""}`,
-      attr: { title: `Оценка ${scoreVal}: ${c} шт. (нажми для фильтра)` }
-    });
-    const barHeight = Math.max(6, Math.round((c / maxVal) * 100));
-    col.createDiv({
-      cls: "lb-hist-fill",
-      attr: { style: `height: ${c > 0 ? barHeight : 4}%;` }
-    });
-    col.createSpan({ cls: "lb-hist-label", text: `${scoreVal}` });
-    col.onclick = () => {
-      state.ratingFilter = state.ratingFilter === scoreVal ? null : scoreVal;
-      state.page = 1;
-      renderDashboard();
-    };
+  // Пустые значения («не записано») в график не попадают
+  const ratedItems = yearScoped.filter(i => {
+    const val = parseOptionalNum(i["оценка"]);
+    return val !== null && val > 0;
   });
 
-  // Топ режиссёров / шоураннеров / студий за выбранный период
-  const creatorCounter = new Map();
-  yearScoped.forEach(item => {
-    getItemCreators(item).forEach(cr => {
-      creatorCounter.set(cr, (creatorCounter.get(cr) || 0) + 1);
-    });
-  });
-
-  const topCreators = [...creatorCounter.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"))
-    .slice(0, 8);
-
-  if (topCreators.length > 0) {
-    const creatorsRow = statsContainer.createDiv({ cls: "lb-creators-row" });
-    const labelText =
-      state.activeCategory === "Фильм"
-        ? "Режиссёры:"
-        : state.activeCategory === "Сериал"
-          ? "Шоураннеры и студии:"
-          : "Разработчики и студии:";
-
-    creatorsRow.createSpan({ cls: "lb-creators-label", text: labelText });
-
-    topCreators.forEach(([name, count]) => {
-      const isAct = state.creatorFilter === name;
-      const pill = creatorsRow.createEl("button", {
-        cls: `lb-creator-pill ${isAct ? "is-active" : ""}`,
-        text: `${name} (${count})`,
-        attr: { type: "button", title: `Фильтровать по: ${name}` }
-      });
-      pill.onclick = () => {
-        state.creatorFilter = isAct ? "Все" : name;
-        state.page = 1;
-        renderDashboard();
-      };
-    });
-  }
-}
-
-// 4. Витрина коллекций (Списков) с мини-постерами
-function renderListsShowcase(categoryItems) {
-  listsShowcaseContainer.empty();
-  const listMap = new Map();
-
-  categoryItems.forEach(item => {
-    flatArray(item["списки"]).forEach(listName => {
-      if (!listMap.has(listName)) listMap.set(listName, []);
-      listMap.get(listName).push(item);
-    });
-  });
-
-  if (state.viewMode !== "lists") return;
-
-  if (listMap.size === 0) {
-    listsShowcaseContainer.createDiv({
-      cls: "lb-empty-msg",
-      text: "В этом разделе пока нет списков. Добавь название подборки в поле «Списки» при редактировании тайтла."
-    });
-    return;
-  }
-
-  const grid = listsShowcaseContainer.createDiv({ cls: "lb-lists-showcase" });
-  [...listMap.entries()]
-    .sort((a, b) => b[1].length - a[1].length)
-    .forEach(([listName, items]) => {
-      const isAct = state.listFilter === listName;
-      const card = grid.createDiv({
-        cls: `lb-list-card ${isAct ? "is-active" : ""}`
-      });
-      const head = card.createDiv({ cls: "lb-list-card-head" });
-      head.createSpan({ cls: "lb-list-card-title", text: `📑 ${listName}` });
-      head.createSpan({ cls: "lb-list-card-count", text: `${items.length} шт.` });
-
-      const thumbsRow = card.createDiv({ cls: "lb-list-thumbs" });
-      items.slice(0, 4).forEach(it => {
-        const src = resolvePosterSrc(it["постер"], it.file.path);
-        if (src) {
-          thumbsRow.createEl("img", { cls: "lb-list-thumb", attr: { src } });
-        } else {
-          thumbsRow.createDiv({
-            cls: "lb-list-thumb",
-            text: getSchemaForType(it["тип"]).icon,
-            attr: { style: "display:flex;align-items:center;justify-content:center;font-size:1.1rem;" }
-          });
-        }
-      });
-
-      card.onclick = () => {
-        state.listFilter = isAct ? "Все" : listName;
-        state.page = 1;
-        renderDashboard();
-      };
-    });
-}
-
-// 5. Панель фильтров (поиск, статус, режиссёр/студия, жанр, декада, платформа, сортировка)
-function renderControls(categoryItems) {
-  controlsContainer.empty();
-  const bar = controlsContainer.createDiv({ cls: "lb-filters-bar" });
-  const schema = getSchemaForType(state.activeCategory);
+  // Левая колонка: фильтры + компактный год + топ авторов
+  const filtersCol = toolbarAndRatingsContainer.createDiv({ cls: "lb-filters-column" });
+  const bar = filtersCol.createDiv({ cls: "lb-filters-bar" });
 
   const searchInput = bar.createEl("input", {
     cls: "lb-search-input",
     attr: {
       type: "search",
-      placeholder: `Поиск по названию, ${schema.creatorLabel.toLowerCase()}, тегам…`,
+      placeholder: `Поиск по названию, ${schema.creatorLabel.toLowerCase()}…`,
       value: state.searchQuery
     }
   });
@@ -2292,9 +2031,22 @@ function renderControls(categoryItems) {
     renderContent(categoryItems);
   };
 
+  // Компактный выпадающий фильтр по году просмотра (вместо старых плашек)
+  const yearSelect = bar.createEl("select", { cls: "dropdown", attr: { title: "Год просмотра" } });
+  yearSelect.createEl("option", { text: I18N.allYears, value: "Все" });
+  sortedYears.forEach(yr => {
+    const opt = yearSelect.createEl("option", { text: yr, value: yr });
+    if (state.yearFilter === yr) opt.selected = true;
+  });
+  yearSelect.onchange = e => {
+    state.yearFilter = e.target.value;
+    state.page = 1;
+    renderDashboard();
+  };
+
   const statusSelect = bar.createEl("select", { cls: "dropdown" });
   ["Все", ...schema.statuses].forEach(st => {
-    const opt = statusSelect.createEl("option", { text: st === "Все" ? "Все статусы" : st, value: st });
+    const opt = statusSelect.createEl("option", { text: st === "Все" ? I18N.allStatuses : st, value: st });
     if (state.statusFilter === st) opt.selected = true;
   });
   statusSelect.onchange = e => {
@@ -2323,7 +2075,7 @@ function renderControls(categoryItems) {
   categoryItems.forEach(i => flatArray(i["жанр"]).forEach(g => genres.add(g)));
 
   const genreSelect = bar.createEl("select", { cls: "dropdown" });
-  genreSelect.createEl("option", { text: "Все жанры", value: "Все" });
+  genreSelect.createEl("option", { text: I18N.allGenres, value: "Все" });
   [...genres].sort((a, b) => a.localeCompare(b, "ru")).forEach(g => {
     const opt = genreSelect.createEl("option", { text: g, value: g });
     if (state.genreFilter === g) opt.selected = true;
@@ -2334,7 +2086,6 @@ function renderControls(categoryItems) {
     renderDashboard();
   };
 
-  // Фильтр по декаде выхода (1990-е, 2000-е, 2010-е, 2020-е)
   const decades = new Set();
   categoryItems.forEach(i => {
     const dec = getItemDecade(i);
@@ -2342,7 +2093,7 @@ function renderControls(categoryItems) {
   });
   if (decades.size > 0) {
     const decSelect = bar.createEl("select", { cls: "dropdown" });
-    decSelect.createEl("option", { text: "Все декады", value: "Все" });
+    decSelect.createEl("option", { text: I18N.allDecades, value: "Все" });
     [...decades].sort((a, b) => b.localeCompare(a)).forEach(dec => {
       const opt = decSelect.createEl("option", { text: dec, value: dec });
       if (state.decadeFilter === dec) opt.selected = true;
@@ -2359,7 +2110,7 @@ function renderControls(categoryItems) {
     categoryItems.forEach(i => flatArray(i["платформа"]).forEach(pl => platforms.add(pl)));
     if (platforms.size > 0) {
       const platSelect = bar.createEl("select", { cls: "dropdown" });
-      platSelect.createEl("option", { text: "Все платформы", value: "Все" });
+      platSelect.createEl("option", { text: I18N.allPlatforms, value: "Все" });
       [...platforms].sort().forEach(pl => {
         const opt = platSelect.createEl("option", { text: pl, value: pl });
         if (state.platformFilter === pl) opt.selected = true;
@@ -2374,10 +2125,10 @@ function renderControls(categoryItems) {
 
   const sortSelect = bar.createEl("select", { cls: "dropdown" });
   [
-    { id: "date_desc", label: "По дате лога (новые)" },
-    { id: "rating_desc", label: "По оценке (высокая)" },
-    { id: "year_desc", label: "По году релиза (свежие)" },
-    { id: "title_asc", label: "По названию (А–Я)" }
+    { id: "date_desc", label: I18N.sortDateDesc },
+    { id: "rating_desc", label: I18N.sortRatingDesc },
+    { id: "year_desc", label: I18N.sortYearDesc },
+    { id: "title_asc", label: I18N.sortTitleAsc }
   ].forEach(s => {
     const opt = sortSelect.createEl("option", { text: s.label, value: s.id });
     if (state.sortBy === s.id) opt.selected = true;
@@ -2386,6 +2137,93 @@ function renderControls(categoryItems) {
     state.sortBy = e.target.value;
     renderContent(categoryItems);
   };
+
+  // Быстрые кнопки авторов периода
+  const creatorCounter = new Map();
+  yearScoped.forEach(item => {
+    getItemCreators(item).forEach(cr => {
+      creatorCounter.set(cr, (creatorCounter.get(cr) || 0) + 1);
+    });
+  });
+
+  const topCreators = [...creatorCounter.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"))
+    .slice(0, 6);
+
+  if (topCreators.length > 0) {
+    const creatorsRow = filtersCol.createDiv({ cls: "lb-creators-row" });
+    creatorsRow.createSpan({ cls: "lb-creators-label", text: `${schema.creatorFilterAll}:` });
+
+    topCreators.forEach(([name, count]) => {
+      const isAct = state.creatorFilter === name;
+      const pill = creatorsRow.createEl("button", {
+        cls: `lb-creator-pill ${isAct ? "is-active" : ""}`,
+        text: `${name} (${count})`,
+        attr: { type: "button", title: `Отфильтровать: ${name}` }
+      });
+      pill.onclick = () => {
+        state.creatorFilter = isAct ? "Все" : name;
+        state.page = 1;
+        renderDashboard();
+      };
+    });
+  }
+
+  // Правая колонка: Акцентный блок «Оценки» в стиле Letterboxd (Задача 5)
+  const ratingsWidget = toolbarAndRatingsContainer.createDiv({ cls: "lb-ratings-widget" });
+  const rHeader = ratingsWidget.createDiv({ cls: "lb-ratings-header" });
+  rHeader.createSpan({ cls: "lb-ratings-title", text: I18N.ratingsHeader });
+
+  // Средняя оценка в масштабе 5.0 (как на Letterboxd)
+  const avg5 = ratedItems.length
+    ? (ratedItems.reduce((acc, curr) => acc + parseNum(curr["оценка"], 0) / 2, 0) / ratedItems.length).toFixed(1)
+    : "—";
+
+  const rMeta = rHeader.createDiv({ cls: "lb-ratings-meta" });
+  rMeta.createSpan({ cls: "lb-ratings-count", text: `Оценено: ${ratedItems.length}` });
+  rMeta.createSpan({ cls: "lb-ratings-avg", text: avg5 });
+
+  const rBody = ratingsWidget.createDiv({ cls: "lb-ratings-body" });
+  rBody.createSpan({ cls: "lb-ratings-edge-star", text: "★" });
+
+  const barsGrid = rBody.createDiv({ cls: "lb-ratings-bars" });
+  const counts = Array(10).fill(0);
+  ratedItems.forEach(i => {
+    const raw = parseNum(i["оценка"], 0);
+    const bucket = Math.min(10, Math.max(1, Math.round(raw)));
+    counts[bucket - 1]++;
+  });
+  const maxVal = Math.max(...counts, 0);
+
+  counts.forEach((c, idx) => {
+    const bucketScore10 = idx + 1; // 1..10 соответствует 0.5★..5.0★
+    const isMax = maxVal > 0 && c === maxVal;
+    const isAct = state.ratingFilter === bucketScore10;
+
+    const col = barsGrid.createDiv({
+      cls: `lb-rating-col ${isMax ? "is-max" : ""} ${isAct ? "is-active" : ""}`,
+      attr: { "aria-label": `${formatStars5Label(bucketScore10)}: ${c}` }
+    });
+
+    const heightPct = maxVal > 0 && c > 0 ? Math.max(10, Math.round((c / maxVal) * 100)) : 5;
+    col.createDiv({
+      cls: "lb-rating-bar",
+      attr: { style: `height: ${heightPct}%;` }
+    });
+
+    col.createDiv({
+      cls: "lb-rating-tooltip",
+      text: `${formatStars5Label(bucketScore10)} · ${c}`
+    });
+
+    col.onclick = () => {
+      state.ratingFilter = state.ratingFilter === bucketScore10 ? null : bucketScore10;
+      state.page = 1;
+      renderDashboard();
+    };
+  });
+
+  rBody.createSpan({ cls: "lb-ratings-edge-star", text: "★★★★★" });
 }
 
 function applyFiltersAndSort(items) {
@@ -2410,12 +2248,11 @@ function applyFiltersAndSort(items) {
     if (state.activeCategory === "Игра" && state.platformFilter !== "Все") {
       if (!flatArray(p["платформа"]).includes(state.platformFilter)) return false;
     }
-    if (state.listFilter !== "Все") {
-      if (!flatArray(p["списки"]).includes(state.listFilter)) return false;
-    }
     if (state.ratingFilter !== null) {
-      const r = Math.round(parseNum(p["оценка"], 0));
-      if (r !== state.ratingFilter) return false;
+      const val = parseOptionalNum(p["оценка"]);
+      if (val === null || val <= 0) return false;
+      const bucket = Math.min(10, Math.max(1, Math.round(val)));
+      if (bucket !== state.ratingFilter) return false;
     }
     if (state.onlyFavorites && !p["любимое"]) return false;
 
@@ -2424,7 +2261,6 @@ function applyFiltersAndSort(items) {
         p["название"] || p.file.name,
         ...getItemCreators(p),
         ...flatArray(p["жанр"]),
-        ...flatArray(p["списки"]),
         ...flatArray(p["теги_медиа"]),
         p["отзыв"] || ""
       ].join(" ").toLowerCase();
@@ -2447,18 +2283,18 @@ function applyFiltersAndSort(items) {
   return filtered;
 }
 
-// 6. Отрисовка одной карточки постера (чистый постер + ПК hover / iPad touch sheet)
+// 4. Отрисовка карточки постера (Задачи 1, 2, 7)
 function renderPosterCard(parentGrid, item, index) {
   const schema = getSchemaForType(item["тип"]);
   const title = item["название"] || item.file.name;
   const creators = getItemCreators(item);
   const primaryCreator = creators[0] || "";
   const posterSrc = resolvePosterSrc(item["постер"], item.file.path);
-  const rewatchCount = getRewatchCount(item);
+  const currentScore10 = parseOptionalNum(item["оценка"]);
 
   const card = parentGrid.createDiv({
     cls: "lb-card",
-    attr: { style: `animation-delay: ${Math.min(index * 16, 240)}ms;` }
+    attr: { style: `animation-delay: ${Math.min(index * 14, 200)}ms;` }
   });
 
   const posterWrapper = card.createDiv({ cls: "lb-poster-wrapper" });
@@ -2480,17 +2316,14 @@ function renderPosterCard(parentGrid, item, index) {
     }
   }
 
-  // ПК-оверлей (показывается только при наведении мыши: 2 кнопки в углу + 1 главная внизу)
-  const desktopOverlay = posterWrapper.createDiv({ cls: "lb-desktop-overlay" });
-  const corners = desktopOverlay.createDiv({ cls: "lb-overlay-corners" });
-
-  const favBtn = corners.createEl("button", {
-    cls: `lb-corner-btn ${item["любимое"] ? "is-fav" : ""}`,
+  // ЗАДАЧА 1: Сердечко в левом верхнем углу (28x28px), остаётся видимым если активно
+  const favBtn = posterWrapper.createEl("button", {
+    cls: `lb-poster-corner-btn is-left ${item["любимое"] ? "is-fav" : ""}`,
     text: "♥",
     attr: {
       type: "button",
-      title: item["любимое"] ? "Убрать из любимого" : "Добавить в любимое",
-      "aria-label": "Любимое"
+      title: item["любимое"] ? I18N.favRemove : I18N.favAdd,
+      "aria-label": I18N.favSlice
     }
   });
   favBtn.onclick = async e => {
@@ -2501,52 +2334,96 @@ function renderPosterCard(parentGrid, item, index) {
     renderDashboard();
   };
 
-  const posterBtn = corners.createEl("button", {
-    cls: "lb-corner-btn",
-    text: "🖼",
-    attr: {
-      type: "button",
-      title: "Сменить постер",
-      "aria-label": "Сменить постер"
-    }
-  });
-  posterBtn.onclick = e => {
-    e.stopPropagation();
-    new PosterPickerModal(app, item, () => renderDashboard()).open();
-  };
-
-  const mainEditBtn = desktopOverlay.createEl("button", {
-    cls: "lb-primary-overlay-btn",
-    text: "✎ Оценить / Изменить",
-    attr: {
-      type: "button",
-      title: "Открыть окно оценки, отзыва и свойств",
-      "aria-label": "Оценить или изменить"
-    }
-  });
-  mainEditBtn.onclick = e => {
-    e.stopPropagation();
-    new MediaLogModal(app, item["тип"], item, () => renderDashboard()).open();
-  };
-
-  // Кнопка «⋯» (44x44px) для iPad и сенсорных экранов
-  const touchMoreBtn = posterWrapper.createEl("button", {
-    cls: "lb-touch-more-btn",
+  // ЗАДАЧА 1: Кнопка «⋯» в правом верхнем углу (28x28px)
+  const menuBtn = posterWrapper.createEl("button", {
+    cls: "lb-poster-corner-btn is-right",
     text: "⋯",
     attr: {
       type: "button",
-      title: "Действия с тайтлом",
-      "aria-label": "Действия с тайтлом"
+      title: I18N.menuAction,
+      "aria-label": I18N.menuAction
     }
   });
-  touchMoreBtn.onclick = e => {
+  menuBtn.onclick = e => {
     e.stopPropagation();
     new PosterActionSheetModal(app, item, () => renderDashboard()).open();
   };
 
-  // Поведение клика/тапа по самому постеру: на iPad открывает нижнюю панель действий, на ПК — заметку
+  // ЗАДАЧА 2: Минималистичная полоса снизу при наведении (5★ с половинками + иконка ✎ с title="Оценить")
+  const bottomBar = posterWrapper.createDiv({ cls: "lb-poster-bottom-bar" });
+  const starsBox = bottomBar.createDiv({ cls: "lb-quick-stars" });
+
+  const starEls = [];
+  const syncStarsVisual = previewScore10 => {
+    const score = previewScore10 !== null && previewScore10 > 0 ? previewScore10 : 0;
+    for (let i = 0; i < 5; i++) {
+      const fullThreshold = (i + 1) * 2;
+      const halfThreshold = fullThreshold - 1;
+      const el = starEls[i];
+      if (score >= fullThreshold) {
+        el.textContent = "★";
+        el.classList.add("is-lit");
+      } else if (score >= halfThreshold) {
+        el.textContent = "½";
+        el.classList.add("is-lit");
+      } else {
+        el.textContent = "★";
+        el.classList.remove("is-lit");
+      }
+    }
+  };
+
+  for (let i = 0; i < 5; i++) {
+    const starEl = starsBox.createSpan({ cls: "lb-quick-star", text: "★" });
+    starEls.push(starEl);
+
+    const calcScoreFromPointer = ev => {
+      const rect = starEl.getBoundingClientRect();
+      const isLeftHalf = (ev.clientX - rect.left) < rect.width / 2;
+      return isLeftHalf ? i * 2 + 1 : (i + 1) * 2;
+    };
+
+    starEl.onmousemove = ev => {
+      const hoveredScore10 = calcScoreFromPointer(ev);
+      syncStarsVisual(hoveredScore10);
+      starEl.title = `${I18N.rateAction}: ${(hoveredScore10 / 2).toFixed(1).replace(".0", "")} ★`;
+    };
+
+    starEl.onclick = async ev => {
+      ev.stopPropagation();
+      const chosenScore10 = calcScoreFromPointer(ev);
+      const nextScore = currentScore10 === chosenScore10 ? null : chosenScore10;
+      await updateMediaFrontmatter(item.file.path, fm => {
+        if (nextScore !== null && nextScore > 0) fm["оценка"] = Number(nextScore);
+        else delete fm["оценка"];
+      });
+      item["оценка"] = nextScore;
+      renderDashboard();
+    };
+  }
+
+  starsBox.onmouseleave = () => {
+    syncStarsVisual(currentScore10);
+  };
+  syncStarsVisual(currentScore10);
+
+  const editIconBtn = bottomBar.createEl("button", {
+    cls: "lb-quick-edit-icon",
+    text: "✎",
+    attr: {
+      type: "button",
+      title: I18N.rateAction,
+      "aria-label": I18N.rateAction
+    }
+  });
+  editIconBtn.onclick = e => {
+    e.stopPropagation();
+    new MediaLogModal(app, item["тип"], item, () => renderDashboard()).open();
+  };
+
+  // Клик по самому постеру
   posterWrapper.onclick = e => {
-    if (e.target.closest("button")) return;
+    if (e.target.closest("button") || e.target.closest(".lb-quick-stars")) return;
     if (isTouchDevice()) {
       new PosterActionSheetModal(app, item, () => renderDashboard()).open();
     } else {
@@ -2554,7 +2431,7 @@ function renderPosterCard(parentGrid, item, index) {
     }
   };
 
-  // Чистая подпись под постером (Название, Год, Звёзды, бейджи)
+  // ЗАДАЧА 7: Чистая подпись под постером (название в одну строку + ниже звёзды и год)
   const caption = card.createDiv({ cls: "lb-card-caption" });
 
   const capTitle = caption.createDiv({
@@ -2567,48 +2444,19 @@ function renderPosterCard(parentGrid, item, index) {
   };
 
   const capMeta = caption.createDiv({ cls: "lb-caption-meta" });
-  const starsText = formatStars(item["оценка"]);
+  const starsText = formatStars(currentScore10);
 
-  if (starsText) {
-    capMeta.createSpan({ cls: "lb-stars", text: starsText });
-  } else if (item["год"]) {
+  capMeta.createSpan({
+    cls: "lb-stars",
+    text: starsText || ""
+  });
+
+  if (item["год"]) {
     capMeta.createSpan({ cls: "lb-caption-year", text: String(item["год"]) });
-  } else {
-    capMeta.createSpan({ cls: "lb-caption-year", text: item["статус"] || "" });
-  }
-
-  const badges = capMeta.createDiv({ cls: "lb-caption-badges" });
-  if (starsText && item["год"]) {
-    badges.createSpan({ text: String(item["год"]) });
-  }
-  if (item["любимое"]) {
-    badges.createSpan({ text: "♥", attr: { style: "color: var(--lb-heart);" } });
-  }
-  if (rewatchCount > 0) {
-    badges.createSpan({
-      text: rewatchCount > 1 ? `🔄×${rewatchCount}` : "🔄",
-      attr: { title: `${schema.rewatchLabel}: ${rewatchCount}` }
-    });
-  }
-  if (item["отзыв"]) {
-    badges.createSpan({ text: "📝", attr: { title: String(item["отзыв"]) } });
-  }
-
-  if (primaryCreator) {
-    const capCr = caption.createDiv({
-      cls: "lb-caption-creator",
-      text: primaryCreator,
-      attr: { title: `${schema.creatorLabel}: ${creators.join(", ")}` }
-    });
-    capCr.onclick = () => {
-      state.creatorFilter = state.creatorFilter === primaryCreator ? "Все" : primaryCreator;
-      state.page = 1;
-      renderDashboard();
-    };
   }
 }
 
-// 7. Хронологический Дневник (Diary View)
+// 5. Хронологический Дневник
 function renderDiaryView(filtered) {
   const diaryWrap = gridContainer.createDiv({ cls: "lb-diary-wrap" });
   const byMonth = new Map();
@@ -2629,7 +2477,7 @@ function renderDiaryView(filtered) {
     }
     const head = monthBox.createDiv({ cls: "lb-diary-month-head" });
     head.createSpan({ text: monthTitle });
-    head.createSpan({ text: `${list.length} шт.` });
+    head.createSpan({ text: `${list.length}` });
 
     list.forEach(item => {
       const schema = getSchemaForType(item["тип"]);
@@ -2662,32 +2510,28 @@ function renderDiaryView(filtered) {
         app.workspace.openLinkText(item.file.path, "", e.ctrlKey || e.metaKey);
       };
       if (item["год"]) {
-        titleCol.createSpan({ text: ` (${item["год"]})`, attr: { style: "font-size: 0.75rem; color: var(--text-muted);" } });
+        titleCol.createSpan({ text: ` (${item["год"]})`, attr: { style: "font-size: 0.74rem; color: var(--медиа-текст-приглушённый);" } });
       }
 
       const creators = getItemCreators(item);
       row.createDiv({
         cls: "lb-diary-creator-col",
         text: creators.join(", ") || "—",
-        attr: { style: "font-size: 0.78rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" }
+        attr: { style: "font-size: 0.76rem; color: var(--медиа-текст-приглушённый); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" }
       });
 
       const ratingCol = row.createDiv({ attr: { style: "display:flex;align-items:center;gap:6px;" } });
       ratingCol.createSpan({ cls: "lb-stars", text: formatStars(item["оценка"]) });
-      if (item["любимое"]) ratingCol.createSpan({ text: "♥", attr: { style: "color: var(--lb-heart);" } });
-      if (rewatchCount > 0) ratingCol.createSpan({ text: rewatchCount > 1 ? `🔄×${rewatchCount}` : "🔄", attr: { style: "font-size: 0.75rem;" } });
+      if (item["любимое"]) ratingCol.createSpan({ text: "♥", attr: { style: "color: var(--медиа-сердце);" } });
+      if (rewatchCount > 0) ratingCol.createSpan({ text: rewatchCount > 1 ? `🔄×${rewatchCount}` : "🔄", attr: { style: "font-size: 0.74rem;" } });
 
       const editBtn = row.createEl("button", {
         cls: "lb-sub-btn",
         text: "⋯",
-        attr: { type: "button", title: "Действия с записью", style: "width:40px !important;justify-content:center !important;" }
+        attr: { type: "button", title: I18N.menuAction, style: "width:34px !important;justify-content:center !important;" }
       });
       editBtn.onclick = () => {
-        if (isTouchDevice()) {
-          new PosterActionSheetModal(app, item, () => renderDashboard()).open();
-        } else {
-          new MediaLogModal(app, item["тип"], item, () => renderDashboard()).open();
-        }
+        new PosterActionSheetModal(app, item, () => renderDashboard()).open();
       };
     });
   }
@@ -2703,7 +2547,7 @@ function renderContent(categoryItems) {
   if (total === 0) {
     gridContainer.createDiv({
       cls: "lb-empty-msg",
-      text: "В этом разделе по выбранным фильтрам ничего не найдено. Сбрось фильтр или нажми «＋ Залогировать»."
+      text: I18N.emptyFiltered
     });
     return;
   }
@@ -2737,9 +2581,7 @@ function renderDashboard() {
   const categoryItems = getCategoryPages(allMedia);
   renderNavigation(allMedia, categoryItems);
   renderTop4Showcase(categoryItems);
-  renderStats(categoryItems);
-  renderListsShowcase(categoryItems);
-  renderControls(categoryItems);
+  renderToolbarAndRatings(categoryItems);
   renderContent(categoryItems);
 }
 
