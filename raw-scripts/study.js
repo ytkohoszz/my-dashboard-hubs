@@ -543,7 +543,18 @@ function ensureStudyCardsState() {
 
     isAddCardsOpen: false,
     addMode: "SINGLE",
-    singleDraft: { q: "", a: "", hint: "", isBi: false },
+    singleDraft: {
+      q: "",
+      a: "",
+      hint: "",
+      isBi: false,
+      qType: "text",
+      aType: "text",
+      qImagePath: "",
+      aImagePath: "",
+      qImageCaption: "",
+      aImageCaption: ""
+    },
     bulkDraft: { text: "", defaultBi: false },
     lastAddedBadge: null,
 
@@ -554,7 +565,13 @@ function ensureStudyCardsState() {
   };
 
   if (!window.__dhStudyCardsState || typeof window.__dhStudyCardsState !== "object") {
-    window.__dhStudyCardsState = { ...defaults };
+    window.__dhStudyCardsState = {
+      ...defaults,
+      newDeckDraft: { ...defaults.newDeckDraft },
+      singleDraft: { ...defaults.singleDraft },
+      bulkDraft: { ...defaults.bulkDraft },
+      localCreatedDecks: []
+    };
   } else {
     const s = window.__dhStudyCardsState;
     for (const [k, v] of Object.entries(defaults)) {
@@ -564,8 +581,19 @@ function ensureStudyCardsState() {
     if (!s.newDeckDraft || typeof s.newDeckDraft !== "object") {
       s.newDeckDraft = { title: "", parentProjectPath: "", discipline: "", defaultBi: false };
     }
-    if (!s.singleDraft || typeof s.singleDraft !== "object") {
-      s.singleDraft = { q: "", a: "", hint: "", isBi: false };
+    if (!s.singleDraft || typeof s.singleDraft !== "object" || Array.isArray(s.singleDraft)) {
+      s.singleDraft = {};
+    }
+    s.singleDraft = { ...defaults.singleDraft, ...s.singleDraft };
+    for (const key of ["q", "a", "hint", "qImagePath", "aImagePath", "qImageCaption", "aImageCaption"]) {
+      if (typeof s.singleDraft[key] !== "string") s.singleDraft[key] = "";
+    }
+    if (typeof s.singleDraft.isBi !== "boolean") s.singleDraft.isBi = false;
+    if (!["text", "formula", "image"].includes(s.singleDraft.qType)) {
+      s.singleDraft.qType = "text";
+    }
+    if (!["text", "formula", "image"].includes(s.singleDraft.aType)) {
+      s.singleDraft.aType = "text";
     }
     if (!s.bulkDraft || typeof s.bulkDraft !== "object") {
       s.bulkDraft = { text: "", defaultBi: false };
@@ -614,6 +642,374 @@ function enqueueDiskWrite(taskFn) {
   const next = window.__dhStudyCardsWriteQueue.catch(() => {}).then(taskFn);
   window.__dhStudyCardsWriteQueue = next;
   return next;
+}
+
+const STUDY_MEDIA_MIN_PLUGIN_VERSION = "0.1.3";
+const STUDY_MEDIA_IMAGE_EXTENSIONS = new Set([
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "gif",
+  "svg",
+  "bmp",
+  "avif",
+  "heic"
+]);
+
+function compareStudyPluginVersions(left, right) {
+  const parse = value => {
+    const match = String(value || "").match(/^(\d+)\.(\d+)\.(\d+)/);
+    return match ? match.slice(1).map(Number) : null;
+  };
+  const a = parse(left);
+  const b = parse(right);
+  if (!a || !b) return null;
+  for (let i = 0; i < 3; i++) {
+    if (a[i] !== b[i]) return a[i] > b[i] ? 1 : -1;
+  }
+  return 0;
+}
+
+function hasStudyMediaPluginSupport(showNotice = true) {
+  const plugin = app.plugins?.plugins?.["my-sr-trainer"];
+  const version = plugin?.manifest?.version;
+  const versionComparison = compareStudyPluginVersions(
+    version,
+    STUDY_MEDIA_MIN_PLUGIN_VERSION
+  );
+  const compatible =
+    versionComparison !== null &&
+    versionComparison >= 0 &&
+    typeof plugin?.settings?.studyAttachmentsFolder === "string";
+
+  if (!compatible && showNotice) {
+    notify(
+      "Чтобы добавлять изображения в карточки, обнови my-sr-trainer до версии " +
+        STUDY_MEDIA_MIN_PLUGIN_VERSION +
+        " или новее."
+    );
+  }
+  return Boolean(compatible);
+}
+
+function isStudyCardImageTarget(target) {
+  const clean = String(target || "")
+    .split("|")[0]
+    .split("#")[0]
+    .split("?")[0]
+    .trim();
+  const dot = clean.lastIndexOf(".");
+  return dot >= 0 &&
+    STUDY_MEDIA_IMAGE_EXTENSIONS.has(clean.slice(dot + 1).toLowerCase());
+}
+
+function getStudyCardImageMatches(raw) {
+  const text = String(raw || "");
+  const matches = [];
+  const patterns = [
+    {
+      regex: /!\[\[([^\]|#]+)(?:#[^\]|]*)?(?:\|([^\]]*))?\]\]/g,
+      targetIndex: 1
+    },
+    {
+      regex: /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g,
+      targetIndex: 2
+    }
+  ];
+
+  for (const { regex, targetIndex } of patterns) {
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const target = match[targetIndex];
+      if (isStudyCardImageTarget(target)) {
+        matches.push({ fullMatch: match[0], target });
+      }
+    }
+  }
+  return matches;
+}
+
+function findStudyLatexRanges(text) {
+  const ranges = [];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "\\" && i + 1 < text.length) {
+      i++;
+      continue;
+    }
+    if (text[i] !== "$") continue;
+
+    const delimiter = text[i + 1] === "$" ? "$$" : "$";
+    let end = i + delimiter.length;
+    while (end < text.length) {
+      if (text[end] === "\\" && end + 1 < text.length) {
+        end += 2;
+        continue;
+      }
+      if (
+        text.startsWith(delimiter, end) &&
+        (delimiter === "$$" || text[end + 1] !== "$")
+      ) {
+        ranges.push({ start: i, end: end + delimiter.length });
+        i = end + delimiter.length - 1;
+        break;
+      }
+      end++;
+    }
+  }
+  return ranges;
+}
+
+function findStudyCardToken(text, token) {
+  let inBlockMath = false;
+  let inInlineMath = false;
+  let inCode = false;
+  let wikiDepth = 0;
+  let markdownImageDepth = 0;
+  const inlineFields = [...text.matchAll(/\([а-яА-Яa-zA-Z0-9_]+::\s*[^)]+\)/g)]
+    .map(match => ({ start: match.index, end: match.index + match[0].length }));
+  let inlineFieldIndex = 0;
+
+  for (let i = 0; i < text.length; i++) {
+    while (inlineFieldIndex < inlineFields.length && i >= inlineFields[inlineFieldIndex].end) {
+      inlineFieldIndex++;
+    }
+    const ch = text[i];
+    if (ch === "\\" && i + 1 < text.length) {
+      i++;
+      continue;
+    }
+
+    if (!inInlineMath && !inBlockMath && ch === "`") {
+      inCode = !inCode;
+      continue;
+    }
+    if (inCode) continue;
+
+    if (!wikiDepth && !markdownImageDepth) {
+      if (ch === "$" && text[i + 1] === "$") {
+        inBlockMath = !inBlockMath;
+        i++;
+        continue;
+      }
+      if (ch === "$" && !inBlockMath) {
+        inInlineMath = !inInlineMath;
+        continue;
+      }
+    }
+    if (inInlineMath || inBlockMath) continue;
+
+    if (ch === "[" && text[i + 1] === "[") {
+      wikiDepth++;
+      i++;
+      continue;
+    }
+    if (ch === "]" && text[i + 1] === "]" && wikiDepth > 0) {
+      wikiDepth--;
+      i++;
+      continue;
+    }
+    if (ch === "!" && text[i + 1] === "[" && text[i + 2] !== "[") {
+      markdownImageDepth = 1;
+      i++;
+      continue;
+    }
+    if (markdownImageDepth === 1 && ch === "]" && text[i + 1] === "(") {
+      markdownImageDepth = 2;
+      i++;
+      continue;
+    }
+    if (markdownImageDepth === 2 && ch === ")") {
+      markdownImageDepth = 0;
+      continue;
+    }
+    if (markdownImageDepth === 1 && ch === "]") {
+      markdownImageDepth = 0;
+      continue;
+    }
+    if (wikiDepth || markdownImageDepth) continue;
+    if (inlineFieldIndex < inlineFields.length &&
+      i >= inlineFields[inlineFieldIndex].start &&
+      i < inlineFields[inlineFieldIndex].end) continue;
+    if (text.startsWith(token, i)) return i;
+  }
+  return -1;
+}
+
+function splitStudyCardLine(rawLine) {
+  const found = findStudyCardToken(rawLine, "::");
+  if (found < 0) return null;
+  let separatorLength = 2;
+  while (rawLine[found + separatorLength] === ":") separatorLength++;
+  const front = rawLine.slice(0, found).trim();
+  const back = rawLine.slice(found + separatorLength).trim();
+  if (!front || !back) return null;
+  const { question, hint } = parseFrontQuestionAndHint(front);
+  return {
+    question,
+    answer: back,
+    hint,
+    isBi: separatorLength >= 3
+  };
+}
+
+function classifyStudyCardSide(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return "text";
+
+  const images = getStudyCardImageMatches(text);
+  let remainder = text;
+  for (const image of images) {
+    remainder = remainder.replace(image.fullMatch, "");
+  }
+
+  const formulas = findStudyLatexRanges(remainder);
+  let plainText = "";
+  let cursor = 0;
+  for (const formula of formulas) {
+    plainText += remainder.slice(cursor, formula.start);
+    cursor = formula.end;
+  }
+  plainText += remainder.slice(cursor);
+
+  if (images.length && !plainText.trim() && !formulas.length) return "image";
+  if (!images.length && formulas.length && !plainText.trim()) return "formula";
+  if (images.length || formulas.length) return "mixed";
+  return "text";
+}
+
+function buildStudyCardLine(question, answer, hint = "", isBi = false) {
+  const q = cleanLineText(question);
+  const a = cleanLineText(answer);
+  const h = cleanLineText(hint);
+  if (!q || !a) throw new Error("Стороны карточки не могут быть пустыми.");
+
+  const front = h ? q + HINT_SEP + h : q;
+  const separator = isBi ? ":::" : "::";
+  return front + " " + separator + " " + a;
+}
+
+function buildStudyCardSideValue(side) {
+  const draft = ui.singleDraft;
+  const type = draft[side + "Type"];
+
+  if (type === "image") {
+    const path = String(draft[side + "ImagePath"] || "").trim();
+    if (!path) {
+      throw new Error(
+        (side === "q" ? "Добавь изображение на лицевую" : "Добавь изображение на оборотную") +
+          " сторону карточки."
+      );
+    }
+    if (!isStudyCardImageTarget(path)) {
+      throw new Error("Путь к изображению имеет неподдерживаемый формат.");
+    }
+    const caption = cleanLineText(draft[side + "ImageCaption"]);
+    const embed = "![[" + path + "]]";
+    return caption ? caption + " " + embed : embed;
+  }
+
+  const value = cleanLineText(draft[side]);
+  if (!value) {
+    throw new Error(
+      (side === "q" ? "Заполни лицевую" : "Заполни оборотную") +
+        " сторону карточки."
+    );
+  }
+
+  if (type === "formula") {
+    if (value.startsWith("$$") && value.endsWith("$$")) return value;
+    if (value.startsWith("$") && value.endsWith("$")) return value;
+    return "$$" + value + "$$";
+  }
+  return value;
+}
+
+if (!(window.__dhStudyImageImportCache instanceof Map)) {
+  window.__dhStudyImageImportCache = new Map();
+}
+
+async function saveStudyCardImage(file) {
+  if (!hasStudyMediaPluginSupport()) {
+    throw new Error("Добавление изображений требует совместимой версии my-sr-trainer.");
+  }
+  if (!(file instanceof Blob) || typeof file.name !== "string") {
+    throw new Error("Не удалось прочитать выбранный файл изображения.");
+  }
+
+  const nameParts = file.name.split(".");
+  const extension = (nameParts.length > 1 ? nameParts.pop() : "")
+    .toLowerCase()
+    .trim();
+  if (!STUDY_MEDIA_IMAGE_EXTENSIONS.has(extension)) {
+    throw new Error("Формат изображения не поддерживается.");
+  }
+
+  const bytes = await file.arrayBuffer();
+  if (!window.crypto?.subtle) {
+    throw new Error("В этой среде недоступна проверка дубликатов изображений.");
+  }
+  const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+  const fingerprint =
+    extension +
+    ":" +
+    Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+  const cache = window.__dhStudyImageImportCache;
+  const cachedImport = cache.get(fingerprint);
+  if (cachedImport) {
+    let cachedPath;
+    try {
+      cachedPath = await cachedImport;
+    } catch (error) {
+      cache.delete(fingerprint);
+      throw error;
+    }
+    if (await app.vault.adapter.exists(cachedPath)) return cachedPath;
+    cache.delete(fingerprint);
+  }
+
+  const folderSetting = String(
+    app.plugins.plugins["my-sr-trainer"].settings.studyAttachmentsFolder || ""
+  ).trim();
+  const folder = folderSetting.replace(/^\/+|\/+$/g, "");
+  if (!folder || folder.split("/").includes("..")) {
+    throw new Error("Проверь настройку папки вложений учебных карточек.");
+  }
+
+  const importTask = enqueueDiskWrite(async () => {
+    await ensureFolderExists(folder);
+    const now = new Date();
+    const timestamp =
+      now.getFullYear().toString() +
+      String(now.getMonth() + 1).padStart(2, "0") +
+      String(now.getDate()).padStart(2, "0") +
+      "-" +
+      String(now.getHours()).padStart(2, "0") +
+      String(now.getMinutes()).padStart(2, "0") +
+      String(now.getSeconds()).padStart(2, "0");
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const suffix = Math.random().toString(16).slice(2, 6).padEnd(4, "0");
+      const path = folder + "/card-" + timestamp + "-" + suffix + "." + extension;
+      if (await app.vault.adapter.exists(path)) continue;
+      try {
+        await app.vault.createBinary(path, bytes);
+        return path;
+      } catch (error) {
+        if (await app.vault.adapter.exists(path)) continue;
+        throw error;
+      }
+    }
+    throw new Error("Не удалось подобрать уникальное имя для изображения.");
+  });
+
+  cache.set(fingerprint, importTask);
+  try {
+    return await importTask;
+  } catch (error) {
+    if (cache.get(fingerprint) === importTask) cache.delete(fingerprint);
+    throw error;
+  }
 }
 
 const root = dv.container.createDiv({ cls: "dh dh-study-section", attr: { style: "margin: 8px 0 24px 0;" } });
@@ -696,11 +1092,27 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-study-cards-hub .dsc-stat-hint { font-size: 0.7rem; color: var(--text-muted); }",
   ".dashboard-home .dh-study-cards-hub .dsc-actions-box { padding: 10px 12px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 8px; display: flex; flex-direction: column; justify-content: center; gap: 6px; }",
   ".dashboard-home .dh-study-cards-hub .dsc-actions-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-card-side-editor { background: var(--background-primary); transition: border-color 0.15s ease, background-color 0.15s ease; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-card-side-editor:focus-within { border-color: color-mix(in srgb, var(--interactive-accent) 48%, var(--background-modifier-border)) !important; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-side-type-row { align-items: center; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-image-dropzone { width: 100%; background: var(--background-secondary); transition: border-color 0.15s ease, background-color 0.15s ease; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-image-dropzone:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-image-preview { width: 100%; min-width: 0; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-formula-preview { width: 100%; min-width: 0; border-radius: 6px; background: var(--background-secondary); }",
+  ".dashboard-home .dh-study-cards-hub .dsc-bulk-input { display: block; min-width: 0; max-width: 100%; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-card-preview-side { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; min-width: 0; overflow-wrap: anywhere; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-card-preview-side.is-question { color: var(--text-normal); font-weight: 700; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-card-preview-side.is-answer { color: var(--text-muted); }",
+  ".dashboard-home .dh-study-cards-hub .dsc-card-preview-image { display: block; max-width: min(160px, 100%); max-height: 112px; object-fit: contain; border-radius: 5px; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-card-preview-missing { color: var(--text-faint); font-size: 0.72rem; font-style: italic; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-card-edit-side { display: flex; flex-direction: column; gap: 5px; flex: 1 1 220px; min-width: 0; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-card-edit-input { width: 100%; min-height: 54px; resize: vertical; font-size: 0.82rem; line-height: 1.4; }",
   ".dashboard-home .dh-study-cards-hub .dsc-btn-cta { flex: 1.3; min-width: 120px; height: 34px; font-size: 0.8rem; font-weight: 650; padding: 0 10px; border-radius: 7px; cursor: pointer; }",
   ".dashboard-home .dh-study-cards-hub .dsc-btn-sec { flex: 1; min-width: 100px; height: 34px; font-size: 0.78rem; font-weight: 600; padding: 0 10px; border-radius: 7px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-normal); cursor: pointer; }",
   ".dashboard-home .dh-study-cards-hub .dsc-btn-sec.is-active { border-color: #599ed6; color: #599ed6; }",
   ".dashboard-home .dh-study-cards-hub .dsc-drawer { margin-top: 12px; padding: 12px 14px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-top: 2px solid #9c83e8; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }",
   "@media (pointer: coarse), (any-pointer: coarse), (hover: none) {",
+  "  .dashboard-home .dh-study-cards-hub .dsc-side-type-row .dh-chip, .dashboard-home .dh-study-cards-hub .dsc-image-dropzone .dh-chip { min-height: 40px; padding-top: 6px !important; padding-bottom: 6px !important; }",
   "  .dashboard-home .dh-sp-btn { height: 40px !important; min-height: 40px !important; }",
   "  .dashboard-home .dh-sp-deadline { height: 32px !important; min-height: 32px !important; padding: 0 10px !important; }",
   "  .dashboard-home .dh-sp-icon-action { width: 44px !important; min-width: 44px !important; height: 44px !important; min-height: 44px !important; opacity: 1 !important; background: var(--background-primary) !important; border-color: var(--background-modifier-border) !important; font-size: 0.9rem !important; }",
@@ -713,6 +1125,9 @@ const STUDY_HUB_CSS = [
   "@media (max-width: 640px) {",
   "  .dashboard-home .dh-sp-grid { grid-template-columns: 1fr; gap: var(--dh-sp-s3); }",
   "  .dashboard-home .dh-study-cards-hub .dsc-panel { padding: 10px 12px; }",
+  "  .dashboard-home .dh-study-cards-hub .dsc-drawer { padding: 10px; }",
+  "  .dashboard-home .dh-study-cards-hub .dsc-image-dropzone { min-height: 96px !important; }",
+  "  .dashboard-home .dh-study-cards-hub .dsc-bulk-input { min-height: 120px; font-size: 0.9rem !important; }",
   "  .dashboard-home .dh-study-cards-hub .dsc-summary-grid { grid-template-columns: 1fr 1fr; gap: 8px; }",
   "  .dashboard-home .dh-study-cards-hub .dsc-actions-box { grid-column: 1 / -1; padding: 8px 10px; }",
   "}"
@@ -977,7 +1392,7 @@ function getDataset() {
 
 function parseFrontQuestionAndHint(rawFront) {
   const cleaned = String(rawFront ?? "").replace(/^[-*+]\s+/, "").replace(/^\d+[.)]\s+/, "").trim();
-  const hIdx = cleaned.indexOf(HINT_SEP);
+  const hIdx = findStudyCardToken(cleaned, HINT_SEP);
   if (hIdx === -1) return { question: cleaned, hint: "" };
   return {
     question: cleaned.slice(0, hIdx).trim(),
@@ -1002,6 +1417,7 @@ function parseDeckFileContent(content, deckInfo, todayISO) {
   const srRegex = /!(\d{4}-\d{2}-\d{2}),(\d+),(\d+)/g;
   let pendingCard = null;
   let inFrontmatter = false;
+  let codeFenceMarker = "";
 
   const finalizePendingAsUnscheduled = () => {
     if (!pendingCard) return;
@@ -1141,30 +1557,44 @@ function parseDeckFileContent(content, deckInfo, todayISO) {
       continue;
     }
 
+    const fenceMatch = line.match(/^\s{0,3}(`{3,}|~{3,})/);
+    if (codeFenceMarker) {
+      if (
+        fenceMatch &&
+        fenceMatch[1][0] === codeFenceMarker[0] &&
+        fenceMatch[1].length >= codeFenceMarker.length &&
+        /^\s*$/.test(line.slice(fenceMatch[0].length))
+      ) {
+        codeFenceMarker = "";
+      }
+      continue;
+    }
+    if (fenceMatch) {
+      finalizePendingAsUnscheduled();
+      codeFenceMarker = fenceMatch[1];
+      continue;
+    }
+
     const srIdx = line.indexOf("<!--SR:");
     const cardPart = srIdx === -1 ? line : line.slice(0, srIdx);
     const trimmedPart = cardPart.trimStart();
 
     const isDataviewInlineField = /\([а-яА-Яa-zA-Z0-9_]+::\s*[^)]+\)/.test(cardPart) && !/\s:::{0,1}\s/.test(cardPart);
-    const hasCardSep = !trimmedPart.startsWith("#") && !trimmedPart.startsWith("```") && !isDataviewInlineField && /:{2,3}/.test(cardPart);
+    const cardSides = !trimmedPart.startsWith("#") &&
+      !trimmedPart.startsWith("```") &&
+      !isDataviewInlineField
+      ? splitStudyCardLine(cardPart)
+      : null;
 
-    if (hasCardSep) {
+    if (cardSides) {
       finalizePendingAsUnscheduled();
 
-      const isBidirectional = cardPart.includes(":::");
-      const sepToken = isBidirectional ? ":::" : "::";
-      const sepPos = cardPart.indexOf(sepToken);
-      const rawFront = cardPart.slice(0, sepPos).trim();
-      const rawBack = cardPart.slice(sepPos + sepToken.length).trim();
-
-      if (!rawFront || !rawBack) continue;
-
       totalEntries++;
+      const isBidirectional = cardSides.isBi;
       if (isBidirectional) biSidedEntries++;
       else singleSidedEntries++;
 
       const expectedDirections = isBidirectional ? 2 : 1;
-      const { question, hint } = parseFrontQuestionAndHint(rawFront);
 
       const cardObj = {
         uidKey: deckInfo.path + ":" + i,
@@ -1172,9 +1602,9 @@ function parseDeckFileContent(content, deckInfo, todayISO) {
         deckTitle: deckInfo.title,
         lineIndex: i,
         lineNumber: i + 1,
-        question,
-        answer: rawBack,
-        hint,
+        question: cardSides.question,
+        answer: cardSides.answer,
+        hint: cardSides.hint,
         isBidirectional,
         expectedDirections,
         isUnscheduled: false,
@@ -1364,45 +1794,50 @@ async function createStudyDeckNote({ title, parentProject, discipline, defaultBi
 function parseBulkInputLines(rawText, defaultBi) {
   const lines = String(rawText ?? "").split(/\r?\n/);
   const parsed = [];
+  const normalizeSide = value => {
+    const trimmed = value.trim();
+    return classifyStudyCardSide(trimmed) === "text" ? cleanLineText(trimmed) : trimmed;
+  };
 
   for (const rawLine of lines) {
     const trimmed = rawLine.trim().replace(/^[-*+]\s+/, "").replace(/^\d+[.)]\s+/, "").trim();
     if (!trimmed || trimmed.startsWith("#")) continue;
 
-    let qPart = "";
-    let aPart = "";
+    const cardSides = splitStudyCardLine(trimmed);
+    let question = "";
+    let answer = "";
+    let hint = "";
     let isBi = Boolean(defaultBi);
 
-    if (trimmed.includes(":::")) {
-      const idx = trimmed.indexOf(":::");
-      qPart = trimmed.slice(0, idx).trim();
-      aPart = trimmed.slice(idx + 3).trim();
-      isBi = true;
-    } else if (trimmed.includes("::")) {
-      const idx = trimmed.indexOf("::");
-      qPart = trimmed.slice(0, idx).trim();
-      aPart = trimmed.slice(idx + 2).trim();
-      isBi = false;
-    } else if (trimmed.includes("\t")) {
-      const idx = trimmed.indexOf("\t");
-      qPart = trimmed.slice(0, idx).trim();
-      aPart = trimmed.slice(idx + 1).trim();
-    } else if (trimmed.includes(" — ")) {
-      const idx = trimmed.indexOf(" — ");
-      qPart = trimmed.slice(0, idx).trim();
-      aPart = trimmed.slice(idx + 3).trim();
-    } else if (trimmed.includes(" - ")) {
-      const idx = trimmed.indexOf(" - ");
-      qPart = trimmed.slice(0, idx).trim();
-      aPart = trimmed.slice(idx + 3).trim();
+    if (cardSides) {
+      question = cardSides.question;
+      answer = cardSides.answer;
+      hint = cardSides.hint;
+      isBi = cardSides.isBi;
+    } else {
+      let splitIndex = -1;
+      let separatorLength = 0;
+      for (const token of ["\t", " — ", " - "]) {
+        const index = findStudyCardToken(trimmed, token);
+        if (index >= 0 && (splitIndex < 0 || index < splitIndex)) {
+          splitIndex = index;
+          separatorLength = token.length;
+        }
+      }
+      if (splitIndex >= 0) {
+        const front = trimmed.slice(0, splitIndex).trim();
+        answer = trimmed.slice(splitIndex + separatorLength).trim();
+        const parsedFront = parseFrontQuestionAndHint(front);
+        question = parsedFront.question;
+        hint = parsedFront.hint;
+      }
     }
 
-    if (qPart && aPart) {
-      const { question, hint } = parseFrontQuestionAndHint(qPart);
+    if (question && answer) {
       parsed.push({
-        question: cleanLineText(question),
-        answer: cleanLineText(aPart),
-        hint: cleanLineText(hint),
+        question: normalizeSide(question),
+        answer: normalizeSide(answer),
+        hint: normalizeSide(hint),
         isBi
       });
     }
@@ -1434,9 +1869,18 @@ async function modifyStudyCardLine(card, { newQuestion, newAnswer, newHint, newI
     const srIdx = line.indexOf("<!--SR:");
     const srTail = srIdx !== -1 ? " " + line.slice(srIdx).trim() : "";
 
+    const normalizeSide = value => {
+      const trimmed = String(value ?? "").trim();
+      return classifyStudyCardSide(trimmed) === "text" ? cleanLineText(trimmed) : trimmed;
+    };
+    const question = normalizeSide(newQuestion);
+    const answer = normalizeSide(newAnswer);
+    const hint = cleanLineText(newHint);
+    if (!question || !answer) throw new Error("Стороны карточки не могут быть пустыми.");
+
     const sep = newIsBi ? ":::" : "::";
-    const frontPart = newHint ? cleanLineText(newQuestion) + HINT_SEP + cleanLineText(newHint) : cleanLineText(newQuestion);
-    lines[idx] = frontPart + " " + sep + " " + cleanLineText(newAnswer) + srTail;
+    const frontPart = hint ? question + HINT_SEP + hint : question;
+    lines[idx] = frontPart + " " + sep + " " + answer + srTail;
 
     await app.vault.modify(fileObj, lines.join("\n"));
   });
@@ -1446,6 +1890,283 @@ async function modifyStudyCardLine(card, { newQuestion, newAnswer, newHint, newI
 // ОТРИСОВКА СЕКЦИИ КАРТОЧЕК
 // =====================================================================
 let focusQuestionAfterRender = false;
+
+function renderStudyCardSideDraft(parent, side, cardsContainer, activeProjects) {
+  const isQuestion = side === "q";
+  const draft = ui.singleDraft;
+  const title = isQuestion ? "Лицевая сторона" : "Оборотная сторона";
+  const typeKey = side + "Type";
+  const imagePathKey = side + "ImagePath";
+  const imageCaptionKey = side + "ImageCaption";
+  const placeholder = isQuestion
+    ? "Вопрос / термин"
+    : "Ответ / определение";
+  const panel = parent.createDiv({
+    cls: "dsc-card-side-editor",
+    attr: {
+      style: "display:flex;flex-direction:column;gap:6px;min-width:0;padding:8px;border:1px solid var(--background-modifier-border);border-radius:8px;"
+    }
+  });
+  panel.createDiv({
+    text: title,
+    attr: { style: "font-size:0.76rem;font-weight:600;color:var(--text-muted);" }
+  });
+
+  const typeRow = panel.createDiv({
+    cls: "dsc-side-type-row",
+    attr: { style: "display:flex;gap:5px;flex-wrap:wrap;" }
+  });
+  const typeLabels = [
+    { value: "text", label: "Текст" },
+    { value: "formula", label: "Формула" },
+    { value: "image", label: "Картинка" }
+  ];
+  typeLabels.forEach(type => {
+    const button = typeRow.createEl("button", {
+      cls: "dh-chip" + (draft[typeKey] === type.value ? " is-active" : ""),
+      text: type.label,
+      attr: { type: "button", style: "font-size:0.74rem;padding:2px 9px;cursor:pointer;" }
+    });
+    button.onclick = () => {
+      draft[typeKey] = type.value;
+      renderCardsSection(cardsContainer, activeProjects);
+    };
+  });
+
+  if (draft[typeKey] === "image") {
+    const dropZone = panel.createDiv({
+      cls: "dsc-image-dropzone",
+      attr: {
+        tabindex: "0",
+        style: "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:84px;padding:8px;border:1px dashed var(--background-modifier-border);border-radius:8px;text-align:center;"
+      }
+    });
+    const fileInput = dropZone.createEl("input", {
+      attr: { type: "file", accept: "image/*,.heic", style: "display:none;" }
+    });
+    const actionRow = dropZone.createDiv({
+      attr: { style: "display:flex;gap:6px;flex-wrap:wrap;justify-content:center;" }
+    });
+    const chooseButton = actionRow.createEl("button", {
+      cls: "dh-chip",
+      text: "Выбрать файл",
+      attr: { type: "button", style: "font-size:0.74rem;padding:3px 9px;" }
+    });
+    const pasteButton = actionRow.createEl("button", {
+      cls: "dh-chip",
+      text: "Вставить изображение",
+      attr: { type: "button", style: "font-size:0.74rem;padding:3px 9px;" }
+    });
+    const status = dropZone.createDiv({
+      text: draft[imagePathKey]
+        ? "Изображение выбрано. Можно перетащить или вставить другое."
+        : "Перетащи изображение сюда или вставь из буфера.",
+      attr: { style: "font-size:0.72rem;color:var(--text-muted);overflow-wrap:anywhere;" }
+    });
+    const preview = dropZone.createDiv({
+      cls: "dsc-image-preview",
+      attr: { style: "display:flex;align-items:center;justify-content:center;max-width:100%;" }
+    });
+
+    if (draft[imagePathKey]) {
+      const imageFile = app.metadataCache.getFirstLinkpathDest(
+        draft[imagePathKey],
+        ui.selectedDeckPath === "ALL" ? "" : ui.selectedDeckPath
+      );
+      if (imageFile) {
+        const image = preview.createEl("img", {
+          attr: {
+            src: app.vault.getResourcePath(imageFile),
+            alt: draft[imageCaptionKey] || "Предпросмотр изображения",
+            style: "display:block;max-width:100%;max-height:160px;object-fit:contain;border-radius:6px;"
+          }
+        });
+        image.onerror = () => {
+          status.setText("Не удалось показать выбранное изображение.");
+        };
+      }
+    }
+
+    const importImage = async file => {
+      if (!file) return;
+      const fileName = String(file.name || "");
+      const nameExtension = fileName.includes(".")
+        ? fileName.split(".").pop().toLowerCase()
+        : "";
+      const mimeExtension = {
+        "image/jpeg": "jpg",
+        "image/svg+xml": "svg"
+      }[file.type] || String(file.type || "").split("/")[1] || "";
+      const extension = nameExtension || mimeExtension;
+      if (!file.type.startsWith("image/") && !STUDY_MEDIA_IMAGE_EXTENSIONS.has(extension)) {
+        notify("Выбери файл изображения поддерживаемого формата.");
+        return;
+      }
+      if (!STUDY_MEDIA_IMAGE_EXTENSIONS.has(extension)) {
+        notify("Формат изображения не поддерживается.");
+        return;
+      }
+      try {
+        status.setText("Сохраняю изображение…");
+        const namedFile = fileName && nameExtension
+          ? file
+          : new File([file], "image." + extension, { type: file.type || "image/" + extension });
+        draft[imagePathKey] = await saveStudyCardImage(namedFile);
+        status.setText("Изображение добавлено.");
+        await renderCardsSection(cardsContainer, activeProjects);
+      } catch (error) {
+        status.setText("Не удалось сохранить изображение.");
+        notify("Ошибка изображения: " + (error instanceof Error ? error.message : String(error)));
+      }
+    };
+
+    chooseButton.onclick = () => fileInput.click();
+    fileInput.onchange = () => {
+      const file = fileInput.files?.[0];
+      fileInput.value = "";
+      void importImage(file);
+    };
+    pasteButton.onclick = async () => {
+      try {
+        if (!navigator.clipboard?.read) {
+          notify("Вставь изображение клавишами Ctrl+V в область карточки.");
+          dropZone.focus();
+          return;
+        }
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const imageType = item.types.find(type => type.startsWith("image/"));
+          if (!imageType) continue;
+          const blob = await item.getType(imageType);
+          const extension = imageType.split("/")[1] === "jpeg" ? "jpg" : imageType.split("/")[1];
+          await importImage(new File([blob], "clipboard." + extension, { type: imageType }));
+          return;
+        }
+        notify("В буфере обмена нет изображения.");
+      } catch (error) {
+        notify("Не удалось прочитать изображение из буфера: " + (error instanceof Error ? error.message : String(error)));
+      }
+    };
+    dropZone.ondragover = event => {
+      event.preventDefault();
+      dropZone.style.borderColor = "var(--interactive-accent)";
+    };
+    dropZone.ondragleave = () => {
+      dropZone.style.borderColor = "";
+    };
+    dropZone.ondrop = event => {
+      event.preventDefault();
+      dropZone.style.borderColor = "";
+      void importImage(event.dataTransfer?.files?.[0]);
+    };
+    dropZone.onpaste = event => {
+      const file = Array.from(event.clipboardData?.items || [])
+        .find(item => item.type.startsWith("image/"))
+        ?.getAsFile();
+      if (file) {
+        event.preventDefault();
+        void importImage(file);
+      }
+    };
+
+    const captionInput = panel.createEl("input", {
+      attr: {
+        type: "text",
+        placeholder: "Подпись к изображению (необязательно)",
+        value: draft[imageCaptionKey] || "",
+        style: "font-size:0.82rem;height:32px;padding:4px 10px;"
+      }
+    });
+    captionInput.oninput = () => {
+      draft[imageCaptionKey] = captionInput.value;
+    };
+    return { input: captionInput };
+  }
+
+  const input = panel.createEl("input", {
+    attr: {
+      type: "text",
+      placeholder: draft[typeKey] === "formula"
+        ? "Введи LaTeX без знаков $"
+        : placeholder + " *",
+      value: draft[side] || "",
+      style: "font-size:0.84rem;height:34px;padding:4px 10px;"
+    }
+  });
+  input.oninput = () => {
+    draft[side] = input.value;
+    if (draft[typeKey] !== "formula") return;
+    const preview = panel.querySelector(".dh-study-formula-preview");
+    if (!preview) return;
+    const latex = input.value.trim();
+    preview.setText(latex ? "$$" + latex + "$$" : "Предпросмотр формулы");
+    if (latex && window.MathJax?.typesetPromise) {
+      void window.MathJax.typesetPromise([preview]).catch(error => {
+        console.error("Не удалось отобразить предпросмотр формулы.", error);
+      });
+    }
+  };
+
+  if (draft[typeKey] === "formula") {
+    const formulaPreview = panel.createDiv({
+      cls: "dh-study-formula-preview dsc-formula-preview",
+      text: draft[side] ? "$$" + draft[side] + "$$" : "Предпросмотр формулы",
+      attr: {
+        style: "min-height:30px;padding:5px 8px;overflow-x:auto;text-align:center;color:var(--text-muted);font-size:0.82rem;"
+      }
+    });
+    if (draft[side] && window.MathJax?.typesetPromise) {
+      void window.MathJax.typesetPromise([formulaPreview]).catch(error => {
+        console.error("Не удалось отобразить предпросмотр формулы.", error);
+      });
+    }
+  }
+  return { input };
+}
+
+function renderStudyCardListSide(parent, rawValue, deckPath, isQuestion) {
+  const text = String(rawValue ?? "");
+  const side = parent.createDiv({
+    cls: "dsc-card-preview-side " + (isQuestion ? "is-question" : "is-answer")
+  });
+  const images = getStudyCardImageMatches(text)
+    .map(image => ({ ...image, index: text.indexOf(image.fullMatch) }))
+    .filter(image => image.index >= 0)
+    .sort((a, b) => a.index - b.index);
+  let cursor = 0;
+
+  for (const imageMatch of images) {
+    if (imageMatch.index < cursor) continue;
+    if (imageMatch.index > cursor) {
+      side.createSpan({ text: text.slice(cursor, imageMatch.index) });
+    }
+
+    const target = imageMatch.target.split("|")[0].split("#")[0].split("?")[0].trim();
+    const file = app.metadataCache.getFirstLinkpathDest(target, deckPath);
+    if (file) {
+      side.createEl("img", {
+        cls: "dsc-card-preview-image",
+        attr: { src: app.vault.getResourcePath(file), alt: target }
+      });
+    } else {
+      side.createSpan({
+        cls: "dsc-card-preview-missing",
+        text: "Изображение не найдено: " + target
+      });
+    }
+    cursor = imageMatch.index + imageMatch.fullMatch.length;
+  }
+
+  if (cursor < text.length || images.length === 0) {
+    side.createSpan({ text: text.slice(cursor) });
+  }
+  if (text.includes("$") && window.MathJax?.typesetPromise) {
+    void window.MathJax.typesetPromise([side]).catch(error => {
+      console.error("Не удалось отобразить формулу в списке карточек.", error);
+    });
+  }
+  return side;
+}
 
 async function renderCardsSection(cardsContainer, activeProjects) {
   ensureStudyCardsState();
@@ -1813,25 +2534,20 @@ async function renderCardsSection(cardsContainer, activeProjects) {
         attr: { style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px;" }
       });
 
-      const qInp = inputsRow.createEl("input", {
-        attr: {
-          type: "text",
-          placeholder: ui.singleDraft.isBi ? "Термин / Понятие / Формула *" : "Вопрос билета / теста *",
-          value: ui.singleDraft.q || "",
-          style: "font-size: 0.84rem; height: 34px; padding: 4px 10px;"
-        }
-      });
-      qInp.oninput = () => { ui.singleDraft.q = qInp.value; };
-
-      const aInp = inputsRow.createEl("input", {
-        attr: {
-          type: "text",
-          placeholder: ui.singleDraft.isBi ? "Определение / Значение *" : "Правильный ответ *",
-          value: ui.singleDraft.a || "",
-          style: "font-size: 0.84rem; height: 34px; padding: 4px 10px;"
-        }
-      });
-      aInp.oninput = () => { ui.singleDraft.a = aInp.value; };
+      const qSideEditor = renderStudyCardSideDraft(
+        inputsRow,
+        "q",
+        cardsContainer,
+        activeProjects
+      );
+      const aSideEditor = renderStudyCardSideDraft(
+        inputsRow,
+        "a",
+        cardsContainer,
+        activeProjects
+      );
+      const qInp = qSideEditor.input;
+      const aInp = aSideEditor.input;
 
       const bottomRow = addDrawer.createDiv({
         attr: { style: "display: flex; gap: 8px; align-items: center; flex-wrap: wrap;" }
@@ -1855,15 +2571,9 @@ async function renderCardsSection(cardsContainer, activeProjects) {
 
       const submitSingleCard = async () => {
         if (saveSingleBtn.disabled) return;
-        const q = cleanLineText(qInp.value);
-        const a = cleanLineText(aInp.value);
         const h = cleanLineText(hintInp.value);
         const targetDeck = deckByPath.get(targetDeckSel.value);
 
-        if (!q || !a) {
-          notify("Заполни и вопрос, и ответ.");
-          return;
-        }
         if (!targetDeck) {
           notify("Выбери тему.");
           return;
@@ -1871,21 +2581,45 @@ async function renderCardsSection(cardsContainer, activeProjects) {
 
         saveSingleBtn.disabled = true;
         try {
-          const sep = ui.singleDraft.isBi ? ":::" : "::";
-          const frontStr = h ? q + HINT_SEP + h : q;
-          const curContent = await app.vault.read(targetDeck.fileObj);
-          const prefix = curContent.length > 0 && !curContent.endsWith("\n") ? "\n" : "";
+          const containsImage =
+            ui.singleDraft.qType === "image" ||
+            ui.singleDraft.aType === "image";
+          if (containsImage && !hasStudyMediaPluginSupport()) {
+            throw new Error(
+              "Добавление изображений требует совместимой версии my-sr-trainer."
+            );
+          }
 
-          await enqueueDiskWrite(() => app.vault.append(targetDeck.fileObj, prefix + frontStr + " " + sep + " " + a + "\n"));
+          const q = buildStudyCardSideValue("q");
+          const a = buildStudyCardSideValue("a");
+          const cardLine = buildStudyCardLine(
+            q,
+            a,
+            h,
+            Boolean(ui.singleDraft.isBi)
+          );
+          await enqueueDiskWrite(async () => {
+            const curContent = await app.vault.read(targetDeck.fileObj);
+            const prefix =
+              curContent.length > 0 && !curContent.endsWith("\n") ? "\n" : "";
+            await app.vault.append(
+              targetDeck.fileObj,
+              prefix + cardLine + "\n"
+            );
+          });
 
           ui.lastAddedBadge = q.slice(0, 28) + (q.length > 28 ? "…" : "");
           ui.singleDraft.q = "";
           ui.singleDraft.a = "";
           ui.singleDraft.hint = "";
+          ui.singleDraft.qImagePath = "";
+          ui.singleDraft.aImagePath = "";
+          ui.singleDraft.qImageCaption = "";
+          ui.singleDraft.aImageCaption = "";
           focusQuestionAfterRender = true;
           await renderCardsSection(cardsContainer, activeProjects);
         } catch (e) {
-          notify("Ошибка сохранения: " + e.message);
+          notify("Ошибка сохранения: " + (e instanceof Error ? e.message : String(e)));
           saveSingleBtn.disabled = false;
         }
       };
@@ -1924,6 +2658,7 @@ async function renderCardsSection(cardsContainer, activeProjects) {
       bBiBtn.onclick = () => { ui.bulkDraft.defaultBi = true; renderCardsSection(cardsContainer, activeProjects); };
 
       const bulkArea = addDrawer.createEl("textarea", {
+        cls: "dsc-bulk-input",
         attr: {
           rows: "6",
           placeholder: "Что такое ПА-6? :: Полиамид-6, конструкционный термопластичный полимер\nСферичность частицы ::: Степень приближения формы частицы к шару",
@@ -2020,22 +2755,39 @@ async function renderCardsSection(cardsContainer, activeProjects) {
       });
 
       if (isEditingThis) {
-        const editRow = row.createDiv({ attr: { style: "display: flex; flex-wrap: wrap; gap: 6px;" } });
-        const qInp = editRow.createEl("input", {
-          attr: { type: "text", value: c.question, style: "flex: 1; min-width: 160px; font-size: 0.8rem; height: 28px; padding: 2px 8px;" }
-        });
-        const aInp = editRow.createEl("input", {
-          attr: { type: "text", value: c.answer, style: "flex: 1; min-width: 160px; font-size: 0.8rem; height: 28px; padding: 2px 8px;" }
-        });
+        const editRow = row.createDiv({ attr: { style: "display: flex; flex-wrap: wrap; gap: 8px;" } });
+        const createSideEditor = (label, value, isQuestion) => {
+          const editor = editRow.createDiv({ cls: "dsc-card-edit-side" });
+          editor.createDiv({
+            text: label,
+            attr: { style: "font-size: 0.72rem; font-weight: 600; color: var(--text-muted);" }
+          });
+          const input = editor.createEl("textarea", {
+            cls: "dsc-card-edit-input",
+            attr: { rows: "2", "aria-label": label }
+          });
+          input.value = value;
+          const preview = editor.createDiv();
+          const updatePreview = () => {
+            preview.empty();
+            renderStudyCardListSide(preview, input.value, c.deckPath, isQuestion);
+          };
+          input.oninput = updatePreview;
+          updatePreview();
+          return input;
+        };
+        const qInp = createSideEditor("Лицевая сторона", c.question, true);
+        const aInp = createSideEditor("Оборотная сторона", c.answer, false);
         const hInp = editRow.createEl("input", {
-          attr: { type: "text", value: c.hint || "", placeholder: "Пояснение", style: "width: 150px; font-size: 0.78rem; height: 28px; padding: 2px 8px;" }
+          attr: { type: "text", value: c.hint || "", placeholder: "Пояснение", style: "flex: 1 1 140px; min-width: 120px; font-size: 0.78rem; height: 32px; padding: 4px 8px;" }
         });
-        const saveB = editRow.createEl("button", {
+        const editActions = row.createDiv({ attr: { style: "display: flex; gap: 6px; justify-content: flex-end;" } });
+        const saveB = editActions.createEl("button", {
           cls: "dh-btn mod-cta",
           text: "✓",
           attr: { type: "button", style: "height: 28px; padding: 0 10px; font-size: 0.76rem;" }
         });
-        const cancelB = editRow.createEl("button", {
+        const cancelB = editActions.createEl("button", {
           cls: "dh-chip",
           text: "✕",
           attr: { type: "button", style: "height: 28px; padding: 0 8px; font-size: 0.76rem; cursor: pointer;" }
@@ -2044,14 +2796,19 @@ async function renderCardsSection(cardsContainer, activeProjects) {
         saveB.onclick = async () => {
           if (!qInp.value.trim() || !aInp.value.trim()) return;
           saveB.disabled = true;
-          await modifyStudyCardLine(c, {
-            newQuestion: qInp.value.trim(),
-            newAnswer: aInp.value.trim(),
-            newHint: hInp.value.trim(),
-            newIsBi: c.isBidirectional
-          });
-          ui.editingCardKey = null;
-          await renderCardsSection(cardsContainer, activeProjects);
+          try {
+            await modifyStudyCardLine(c, {
+              newQuestion: qInp.value,
+              newAnswer: aInp.value,
+              newHint: hInp.value.trim(),
+              newIsBi: c.isBidirectional
+            });
+            ui.editingCardKey = null;
+            await renderCardsSection(cardsContainer, activeProjects);
+          } catch (error) {
+            notify("Ошибка сохранения карточки: " + (error instanceof Error ? error.message : String(error)));
+            saveB.disabled = false;
+          }
         };
         return;
       }
@@ -2060,7 +2817,9 @@ async function renderCardsSection(cardsContainer, activeProjects) {
         attr: { style: "display: flex; justify-content: space-between; align-items: baseline; gap: 8px;" }
       });
 
-      const leftText = mainLine.createDiv({ attr: { style: "flex: 1; min-width: 0; font-size: 0.81rem; line-height: 1.35;" } });
+      const leftText = mainLine.createDiv({
+        attr: { style: "flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 0.81rem; line-height: 1.35;" }
+      });
 
       const toggleBiBtn = leftText.createEl("button", {
         cls: "dh-chip",
@@ -2081,8 +2840,8 @@ async function renderCardsSection(cardsContainer, activeProjects) {
         await renderCardsSection(cardsContainer, activeProjects);
       };
 
-      leftText.createSpan({ text: c.question, attr: { style: "font-weight: 700; color: var(--text-normal);" } });
-      leftText.createSpan({ text: " — " + c.answer, attr: { style: "color: var(--text-muted);" } });
+      renderStudyCardListSide(leftText, c.question, c.deckPath, true);
+      renderStudyCardListSide(leftText, c.answer, c.deckPath, false);
       if (c.hint) {
         leftText.createSpan({ text: " (" + c.hint + ")", attr: { style: "font-size: 0.73rem; color: #e5a158; font-style: italic;" } });
       }
