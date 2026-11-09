@@ -1341,6 +1341,557 @@
         font-size: 0.7rem;
       }
 
+/* --- Module: health --- */
+.dashboard-home .dh-health-analytics-layout {
+      --dh-c-weight: #e5a158;
+      --dh-c-calories: #8b8dff;
+      --dh-c-proteins: #4aab80;
+      --dh-c-fats: #d78f60;
+      --dh-c-carbs: #599ed6;
+      --dh-c-up: #4aab80;
+      --dh-c-down: #d85b57;
+      --dh-c-flat: #7e9ad9;
+      --dh-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .dashboard-home .dh-health-analytics-layout > * {
+      min-width: 0;
+      margin-top: 0 !important;
+    }
+
+    /* Карточки-аккордеоны обоих блоков */
+    .dashboard-home .dh-dyn-panel,
+    .dashboard-home .dh-ex-panel {
+      border-radius: 12px;
+      border: 1px solid var(--background-modifier-border);
+      background: var(--background-secondary);
+      overflow: hidden;
+      transition: border-color 220ms var(--dh-ease-out), box-shadow 220ms var(--dh-ease-out);
+    }
+    .dashboard-home .dh-dyn-panel[open],
+    .dashboard-home .dh-ex-panel[open] {
+      border-color: color-mix(in srgb, var(--dh-block-accent, var(--interactive-accent)) 38%, var(--background-modifier-border));
+    }
+    .dashboard-home .dh-dyn-summary,
+    .dashboard-home .dh-ex-summary {
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 46px;
+      padding: 10px 14px;
+      color: var(--text-normal);
+      transition: background-color 160ms var(--dh-ease-out);
+    }
+    .dashboard-home .dh-dyn-summary::-webkit-details-marker,
+    .dashboard-home .dh-ex-summary::-webkit-details-marker {
+      display: none;
+    }
+    .dashboard-home .dh-dyn-summary:hover,
+    .dashboard-home .dh-ex-summary:hover {
+      background: color-mix(in srgb, var(--text-normal) 4%, transparent);
+    }
+    .dashboard-home .dh-dyn-summary-title,
+    .dashboard-home .dh-ex-summary-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.94rem;
+      font-weight: 700;
+      color: var(--text-normal);
+    }
+    .dashboard-home .dh-dyn-chevron,
+    .dashboard-home .dh-ex-chevron {
+      display: inline-block;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      transition: transform 240ms var(--dh-ease-out);
+    }
+    .dashboard-home .dh-dyn-panel[open] .dh-dyn-chevron,
+    .dashboard-home .dh-ex-panel[open] .dh-ex-chevron {
+      transform: rotate(90deg);
+    }
+    .dashboard-home .dh-dyn-summary-meta,
+    .dashboard-home .dh-ex-summary-meta {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--background-primary);
+      border: 1px solid var(--background-modifier-border);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 55%;
+    }
+
+    /* Тело блоков */
+    .dashboard-home .dh-dyn-body,
+    .dashboard-home .dh-ex-body {
+      padding: 2px 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 60%, transparent);
+    }
+
+    /* Верхняя строка: Главное число + кнопка «⋯» */
+    .dashboard-home .dh-dyn-hero,
+    .dashboard-home .dh-ex-hero {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 10px;
+      flex-wrap: wrap;
+    }
+    .dashboard-home .dh-dyn-hero-left,
+    .dashboard-home .dh-ex-hero-left {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+    .dashboard-home .dh-dyn-hero-val,
+    .dashboard-home .dh-ex-hero-val {
+      font-size: 1.65rem;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: var(--text-normal);
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-home .dh-dyn-hero-unit,
+    .dashboard-home .dh-ex-hero-unit {
+      font-size: 0.84rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-left: 3px;
+    }
+    .dashboard-home .dh-dyn-hero-delta,
+    .dashboard-home .dh-ex-hero-delta {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.76rem;
+      font-weight: 650;
+      font-variant-numeric: tabular-nums;
+      background: var(--background-primary);
+      color: var(--text-muted);
+      border: 1px solid var(--background-modifier-border);
+      white-space: nowrap;
+    }
+    .dashboard-home .dh-dyn-hero-delta.is-up,
+    .dashboard-home .dh-ex-hero-delta.is-up {
+      color: var(--dh-c-up);
+      background: color-mix(in srgb, var(--dh-c-up) 13%, var(--background-primary));
+      border-color: color-mix(in srgb, var(--dh-c-up) 35%, var(--background-modifier-border));
+    }
+    .dashboard-home .dh-dyn-hero-delta.is-down,
+    .dashboard-home .dh-ex-hero-delta.is-down {
+      color: var(--dh-c-down);
+      background: color-mix(in srgb, var(--dh-c-down) 13%, var(--background-primary));
+      border-color: color-mix(in srgb, var(--dh-c-down) 35%, var(--background-modifier-border));
+    }
+    .dashboard-home button.dh-dyn-more-btn,
+    .dashboard-home button.dh-ex-more-btn {
+      min-width: 36px;
+      min-height: 36px;
+      height: 36px;
+      padding: 0 10px;
+      border-radius: 8px;
+      border: 1px solid var(--background-modifier-border);
+      background: var(--background-primary);
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: none;
+      touch-action: manipulation;
+      transition: color 160ms var(--dh-ease-out), border-color 160ms var(--dh-ease-out), background-color 160ms var(--dh-ease-out);
+    }
+    .dashboard-home button.dh-dyn-more-btn:hover,
+    .dashboard-home button.dh-ex-more-btn:hover,
+    .dashboard-home button.dh-dyn-more-btn[aria-expanded="true"],
+    .dashboard-home button.dh-ex-more-btn[aria-expanded="true"] {
+      color: var(--text-normal);
+      border-color: var(--dh-block-accent, var(--interactive-accent));
+      background: color-mix(in srgb, var(--dh-block-accent, var(--interactive-accent)) 14%, var(--background-primary));
+    }
+
+    /* Панель управления: сегменты-таблетки со скользящим индикатором и select */
+    .dashboard-home .dh-dyn-controls,
+    .dashboard-home .dh-ex-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .dashboard-home .dh-dyn-seg,
+    .dashboard-home .dh-ex-seg {
+      position: relative;
+      display: inline-grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      align-items: center;
+      padding: 3px;
+      border-radius: 10px;
+      background: var(--background-primary);
+      border: 1px solid var(--background-modifier-border);
+      isolation: isolate;
+      overflow-x: auto;
+      scrollbar-width: none;
+      max-width: 100%;
+    }
+    .dashboard-home .dh-dyn-seg::-webkit-scrollbar,
+    .dashboard-home .dh-ex-seg::-webkit-scrollbar {
+      display: none;
+    }
+    .dashboard-home .dh-dyn-seg-thumb,
+    .dashboard-home .dh-ex-seg-thumb {
+      position: absolute;
+      top: 3px;
+      bottom: 3px;
+      left: 3px;
+      width: calc((100% - 6px) / var(--seg-count, 5));
+      transform: translateX(calc(var(--seg-index, 0) * 100%));
+      border-radius: 7px;
+      background: color-mix(in srgb, var(--dh-block-accent, var(--interactive-accent)) 22%, var(--background-secondary));
+      border: 1px solid color-mix(in srgb, var(--dh-block-accent, var(--interactive-accent)) 55%, transparent);
+      z-index: 0;
+      pointer-events: none;
+      transition: transform 260ms var(--dh-ease-out), background-color 220ms var(--dh-ease-out), border-color 220ms var(--dh-ease-out);
+    }
+    .dashboard-home button.dh-dyn-seg-btn,
+    .dashboard-home button.dh-ex-seg-btn {
+      position: relative;
+      z-index: 1;
+      min-height: 36px;
+      height: 36px;
+      padding: 0 10px;
+      border: none;
+      border-radius: 7px;
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: color 180ms var(--dh-ease-out);
+    }
+    .dashboard-home button.dh-dyn-seg-btn.is-active,
+    .dashboard-home button.dh-ex-seg-btn.is-active {
+      color: var(--text-normal);
+      font-weight: 700;
+    }
+    .dashboard-home select.dh-ex-select {
+      flex: 1 1 190px;
+      min-width: 150px;
+      max-width: 100%;
+      min-height: 38px;
+      height: 38px;
+      padding: 0 28px 0 11px;
+      border-radius: 9px;
+      border: 1px solid var(--background-modifier-border);
+      background-color: var(--background-primary);
+      color: var(--text-normal);
+      font-size: 0.8rem;
+      font-weight: 650;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: border-color 160ms var(--dh-ease-out);
+    }
+    .dashboard-home select.dh-ex-select:focus {
+      outline: none;
+      border-color: var(--dh-block-accent, var(--interactive-accent));
+    }
+
+    /* Раскрывающаяся шторка «⋯» через grid-template-rows: 0fr -> 1fr */
+    .dashboard-home .dh-dyn-drawer,
+    .dashboard-home .dh-ex-drawer {
+      display: grid;
+      grid-template-rows: 0fr;
+      opacity: 0;
+      transition: grid-template-rows 280ms var(--dh-ease-out), opacity 220ms var(--dh-ease-out);
+    }
+    .dashboard-home .dh-dyn-drawer.is-open,
+    .dashboard-home .dh-ex-drawer.is-open {
+      grid-template-rows: 1fr;
+      opacity: 1;
+    }
+    .dashboard-home .dh-dyn-drawer-inner,
+    .dashboard-home .dh-ex-drawer-inner {
+      overflow: hidden;
+      min-height: 0;
+    }
+    .dashboard-home .dh-dyn-drawer-box,
+    .dashboard-home .dh-ex-drawer-box {
+      padding: 10px 12px;
+      border-radius: 9px;
+      background: var(--background-primary);
+      border: 1px solid var(--background-modifier-border);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 0.75rem;
+    }
+    .dashboard-home .dh-ex-drawer-filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .dashboard-home .dh-ex-filter-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .dashboard-home .dh-ex-filter-label {
+      font-size: 0.68rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--text-muted);
+    }
+    .dashboard-home .dh-ex-filter-field select {
+      width: 100%;
+      min-height: 36px;
+      height: 36px;
+      padding: 0 24px 0 9px;
+      border-radius: 7px;
+      border: 1px solid var(--background-modifier-border);
+      background: var(--background-secondary);
+      color: var(--text-normal);
+      font-size: 0.76rem;
+      font-weight: 600;
+    }
+    .dashboard-home .dh-dyn-stats-grid,
+    .dashboard-home .dh-ex-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
+      gap: 8px;
+    }
+    .dashboard-home .dh-dyn-stat-item,
+    .dashboard-home .dh-ex-stat-item {
+      padding: 6px 8px;
+      border-radius: 7px;
+      background: var(--background-secondary);
+      border: 1px solid var(--background-modifier-border);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .dashboard-home .dh-dyn-stat-k,
+    .dashboard-home .dh-ex-stat-k {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+    .dashboard-home .dh-dyn-stat-v,
+    .dashboard-home .dh-ex-stat-v {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text-normal);
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-home .dh-dyn-legend,
+    .dashboard-home .dh-ex-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      color: var(--text-muted);
+      font-size: 0.71rem;
+      padding-top: 4px;
+      border-top: 1px solid var(--background-modifier-border);
+    }
+    .dashboard-home .dh-dyn-legend span,
+    .dashboard-home .dh-ex-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dashboard-home .dh-dyn-legend i,
+    .dashboard-home .dh-ex-legend i {
+      width: 14px;
+      height: 3px;
+      border-radius: 3px;
+      display: inline-block;
+    }
+
+    /* График SVG, кроссфейд, линия и тултип */
+    .dashboard-home .dh-dyn-chart-wrap,
+    .dashboard-home .dh-ex-chart-wrap {
+      position: relative;
+      width: 100%;
+      padding: 6px 4px 2px;
+      border-radius: 10px;
+      background: var(--background-primary);
+      border: 1px solid var(--background-modifier-border);
+      overflow: visible;
+      transition: opacity 220ms var(--dh-ease-out);
+    }
+    .dashboard-home .dh-dyn-svg,
+    .dashboard-home .dh-ex-svg {
+      display: block;
+      width: 100%;
+      height: 235px;
+      overflow: visible;
+      touch-action: pan-y;
+      user-select: none;
+    }
+    .dashboard-home .dh-dyn-line-anim,
+    .dashboard-home .dh-ex-line-anim {
+      stroke-dasharray: var(--path-len, 1400);
+      stroke-dashoffset: var(--path-len, 1400);
+      animation: dh-chart-draw 540ms var(--dh-ease-out) forwards;
+    }
+    .dashboard-home .dh-dyn-area-anim,
+    .dashboard-home .dh-ex-area-anim {
+      opacity: 0;
+      animation: dh-chart-fade 420ms var(--dh-ease-out) 80ms forwards;
+    }
+    @keyframes dh-chart-draw {
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes dh-chart-fade {
+      to { opacity: 1; }
+    }
+    .dashboard-home .dh-dyn-guide,
+    .dashboard-home .dh-ex-guide {
+      stroke: color-mix(in srgb, var(--text-muted) 55%, transparent);
+      stroke-width: 1;
+      stroke-dasharray: 3 3;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 150ms var(--dh-ease-out), transform 120ms var(--dh-ease-out);
+    }
+    .dashboard-home .dh-dyn-active-dot,
+    .dashboard-home .dh-ex-active-dot {
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 150ms var(--dh-ease-out), transform 120ms var(--dh-ease-out);
+    }
+    .dashboard-home .dh-dyn-tooltip,
+    .dashboard-home .dh-ex-tooltip {
+      position: absolute;
+      z-index: 10;
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: var(--background-secondary);
+      border: 1px solid color-mix(in srgb, var(--dh-block-accent, var(--interactive-accent)) 55%, var(--background-modifier-border));
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+      pointer-events: none;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transform: translate(-50%, -112%);
+      transition: opacity 150ms var(--dh-ease-out), left 100ms var(--dh-ease-out), top 100ms var(--dh-ease-out), visibility 150ms;
+    }
+    .dashboard-home .dh-dyn-tooltip.is-visible,
+    .dashboard-home .dh-ex-tooltip.is-visible {
+      opacity: 1;
+      visibility: visible;
+    }
+    .dashboard-home .dh-dyn-tooltip-date,
+    .dashboard-home .dh-ex-tooltip-date {
+      display: block;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      line-height: 1.2;
+    }
+    .dashboard-home .dh-dyn-tooltip-val,
+    .dashboard-home .dh-ex-tooltip-val {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: var(--text-normal);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.25;
+    }
+    .dashboard-home .dh-dyn-empty,
+    .dashboard-home .dh-ex-empty {
+      min-height: 180px;
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    @media (max-width: 920px) {
+      .dashboard-home .dh-health-analytics-layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+    @media (max-width: 640px) {
+      .dashboard-home .dh-dyn-controls,
+      .dashboard-home .dh-ex-controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .dashboard-home .dh-dyn-seg,
+      .dashboard-home .dh-ex-seg {
+        width: 100%;
+      }
+      .dashboard-home button.dh-dyn-seg-btn,
+      .dashboard-home button.dh-ex-seg-btn {
+        padding: 0 6px;
+        font-size: 0.73rem;
+      }
+      .dashboard-home .dh-dyn-hero-val,
+      .dashboard-home .dh-ex-hero-val {
+        font-size: 1.45rem;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .dashboard-home .dh-dyn-panel,
+      .dashboard-home .dh-ex-panel,
+      .dashboard-home .dh-dyn-chevron,
+      .dashboard-home .dh-ex-chevron,
+      .dashboard-home .dh-dyn-seg-thumb,
+      .dashboard-home .dh-ex-seg-thumb,
+      .dashboard-home button.dh-dyn-seg-btn,
+      .dashboard-home button.dh-ex-seg-btn,
+      .dashboard-home .dh-dyn-drawer,
+      .dashboard-home .dh-ex-drawer,
+      .dashboard-home .dh-dyn-guide,
+      .dashboard-home .dh-ex-guide,
+      .dashboard-home .dh-dyn-active-dot,
+      .dashboard-home .dh-ex-active-dot,
+      .dashboard-home .dh-dyn-tooltip,
+      .dashboard-home .dh-ex-tooltip {
+        transition: none !important;
+      }
+      .dashboard-home .dh-dyn-line-anim,
+      .dashboard-home .dh-ex-line-anim,
+      .dashboard-home .dh-dyn-area-anim,
+      .dashboard-home .dh-ex-area-anim {
+        animation: none !important;
+        stroke-dashoffset: 0 !important;
+        opacity: 1 !important;
+      }
+    }
+
 /* --- Module Array CSS: study --- */
 .dashboard-home .dh-study-section { --dh-sp-s1: 4px; --dh-sp-s2: 8px; --dh-sp-s3: 12px; --dh-sp-s4: 16px; --dh-sp-fs-title: 1.02rem; --dh-sp-fs: 0.84rem; --dh-sp-fs-xs: 0.74rem; box-sizing: border-box; width: 100%; }
 .dashboard-home .dh-study-section * { box-sizing: border-box; }
