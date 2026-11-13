@@ -1,9 +1,9 @@
 {
-	"id": "my-dashboard-hubs",
-	"name": "Мои дашборды (Ускоритель)",
-	"version": "0.1.40",
-	"minAppVersion": "1.5.0",
-	"description": "Нативный движок для главных страниц и хабов системы без перерисовки DataviewJS",
-	"author": "Mersinho",
-	"isDesktopOnly": false
+    "id":  "my-dashboard-hubs",
+    "name":  "РњРѕРё РґР°С€Р±РѕСЂРґС‹ (РЈСЃРєРѕСЂРёС‚РµР»СЊ)",
+    "version":  "0.1.41",
+    "minAppVersion":  "1.5.0",
+    "description":  "РќР°С‚РёРІРЅС‹Р№ РґРІРёР¶РѕРє РґР»СЏ РіР»Р°РІРЅС‹С… СЃС‚СЂР°РЅРёС† Рё С…Р°Р±РѕРІ СЃРёСЃС‚РµРјС‹ Р±РµР· РїРµСЂРµСЂРёСЃРѕРІРєРё DataviewJS",
+    "author":  "Mersinho",
+    "isDesktopOnly":  false
 }
