@@ -1,5 +1,5 @@
 // ========================================================
-// ОБЩИЕ ДАННЫЕ, АВТОСИНХРОНИЗАЦИЯ И УТИЛИТЫ (ГЛАВНАЯ v2.4)
+// ОБЩИЕ ДАННЫЕ, АВТОСИНХРОНИЗАЦИЯ И УТИЛИТЫ (ГЛАВНАЯ v2.5: автообновление при старте и изменении файлов)
 // ========================================================
 const AUTO_SLEEP_MIN_HOURS = 6;   // Сон > 6 часов автоматически отмечает «Режим сна»
 const SOCIAL_LIMIT_MIN = 30;       // Лимит дофаминового скроллинга соцсетей (мин)
@@ -7,6 +7,39 @@ const BOOKS_FOLDER = "Знания/Книги";
 const SHARED_READING_STATE_KEY = "dh_shared_book_reading_v2";
 const MANUAL_HABITS_PREFIX = "dh_today_manual_habits_v1:";
 const MIN_VALID_DATE_ISO = "2000-01-01";
+
+const hostContainer = dv.container;
+let refreshDebounceTimer = null;
+let bootPollTimer = null;
+
+function isIndexReady() {
+  const dvApi = app.plugins?.plugins?.dataview?.api;
+  if (dvApi && dvApi.index && dvApi.index.initialized === false) return false;
+  try {
+    return dv.pages().length > 0 || app.vault.getMarkdownFiles().length === 0;
+  } catch {
+    return false;
+  }
+}
+
+function scheduleHomeRender(delay = 180) {
+  if (!hostContainer || !hostContainer.isConnected) return;
+  if (refreshDebounceTimer) clearTimeout(refreshDebounceTimer);
+  refreshDebounceTimer = setTimeout(() => {
+    refreshDebounceTimer = null;
+    if (!hostContainer.isConnected) return;
+    renderHomeDashboard();
+  }, delay);
+}
+
+function renderHomeDashboard() {
+  if (!hostContainer || !hostContainer.isConnected) return;
+
+  // Запоминаем позицию прокрутки контейнера вкладки, чтобы экран не дёргался при автообновлении
+  const scroller = hostContainer.closest(".cm-scroller, .markdown-preview-view, .view-content");
+  const prevScrollTop = scroller ? scroller.scrollTop : 0;
+
+  hostContainer.replaceChildren();
 
 const empty = v => v == null || v === "";
 function asDate(v) {
@@ -2219,11 +2252,70 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
     });
   }
 
-  details.ontoggle = () => {
+details.ontoggle = () => {
     uiState.isOpen = details.open;
     toggleHint.setText(details.open ? "Свернуть ▲" : "Развернуть ▾");
     if (details.open && !isRendered) renderList();
   };
 
   if (details.open) renderList();
+}
+
+  if (scroller) {
+    requestAnimationFrame(() => {
+      if (scroller.isConnected) scroller.scrollTop = prevScrollTop;
+    });
+  }
+}
+
+// Первый рендер
+renderHomeDashboard();
+
+// Если Obsidian только что запустился и Dataview/MetadataCache ещё не проиндексировали файлы — ждём готовности
+if (!isIndexReady()) {
+  let attempts = 0;
+  bootPollTimer = setInterval(() => {
+    attempts++;
+    if (!hostContainer || !hostContainer.isConnected) {
+      clearInterval(bootPollTimer);
+      return;
+    }
+    if (isIndexReady() || attempts >= 25) {
+      clearInterval(bootPollTimer);
+      renderHomeDashboard();
+    }
+  }, 250);
+}
+
+// Самоочищающаяся подписка на готовность кэша и изменения заметок (не требует перезахода на главную)
+if (!hostContainer.dataset.dhHomeBound) {
+  hostContainer.dataset.dhHomeBound = "1";
+
+  const onResolved = () => {
+    if (!hostContainer.isConnected) {
+      app.metadataCache.off("resolved", onResolved);
+      return;
+    }
+    scheduleHomeRender(100);
+  };
+
+  const onFileChanged = (file) => {
+    if (!hostContainer.isConnected) {
+      app.metadataCache.off("changed", onFileChanged);
+      app.vault.off("create", onFileChanged);
+      app.vault.off("delete", onFileChanged);
+      app.vault.off("rename", onFileChanged);
+      return;
+    }
+    if (file && file.extension && file.extension !== "md") return;
+    // Не перерисовываем во время активного ввода текста в поле главной
+    if (window.__dhTodayDrafts?.activeKey && document.activeElement?.closest?.(".dh-today")) return;
+    scheduleHomeRender(220);
+  };
+
+  app.metadataCache.on("resolved", onResolved);
+  app.metadataCache.on("changed", onFileChanged);
+  app.vault.on("create", onFileChanged);
+  app.vault.on("delete", onFileChanged);
+  app.vault.on("rename", onFileChanged);
 }
