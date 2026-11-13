@@ -218,6 +218,37 @@ function openEnglishTrainer(mode = "DUE_AND_NEW", bookPath = null) {
   }
 }
 
+function openGrammarTrainer(mode = "smart", topicId = undefined) {
+  const plugin = app.plugins?.plugins?.["my-grammar-trainer"];
+  if (plugin && typeof plugin.openTrainer === "function") {
+    try {
+      plugin.openTrainer(mode, topicId);
+      return;
+    } catch (error) {
+      notify("Не удалось открыть my-grammar-trainer: " + (error instanceof Error ? error.message : String(error)));
+      return;
+    }
+  }
+  const params = new URLSearchParams({ mode });
+  if (topicId) params.set("topicId", topicId);
+  window.open("obsidian://grammar-trainer?" + params.toString(), "_self");
+}
+
+function readGrammarSnapshot() {
+  const plugin = app.plugins?.plugins?.["my-grammar-trainer"];
+  if (plugin && typeof plugin.getDashboardSnapshot === "function") {
+    try {
+      return plugin.getDashboardSnapshot();
+    } catch {}
+  }
+  try {
+    const raw = window.localStorage?.getItem("my-grammar-trainer:dashboard-state");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 if (!window.__dhEnglishSaveQueue) {
   window.__dhEnglishSaveQueue = Promise.resolve();
 }
@@ -2024,7 +2055,7 @@ async function renderHub() {
         "интервал от 1 до " + (MATURE_DAYS - 1) + " дн.",
         "#e5a158"
       );
-      createMiniStat(
+createMiniStat(
         "Новые",
         wordsData.newDirections,
         wordsData.unscheduledDirections > 0
@@ -2032,6 +2063,78 @@ async function renderHub() {
           : "ждут первого показа",
         "#599ed6"
       );
+    }
+
+    // =====================================================================
+    // СЕКЦИЯ 1.5. ГРАММАТИКА (MY-GRAMMAR-TRAINER)
+    // =====================================================================
+    {
+      const gSnap = readGrammarSnapshot();
+      const grammarPanel = root.createDiv({ cls: "dhe-panel" });
+
+      const gHead = grammarPanel.createDiv({
+        cls: "dhe-section-head",
+        attr: { style: "margin-bottom: 10px;" }
+      });
+
+      const gTitle = gHead.createDiv({ cls: "dhe-section-title" });
+      gTitle.createSpan({ text: "Грамматика" });
+      if (gSnap && typeof gSnap.overallMastery === "number") {
+        gTitle.createSpan({
+          cls: "dhe-section-sub",
+          text: "освоено " + gSnap.overallMastery + "% · сегодня: " + (gSnap.todayAnswered || 0)
+        });
+      }
+
+      const gActions = gHead.createDiv({
+        attr: { style: "display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" }
+      });
+
+      if (gSnap && gSnap.mistakesCount > 0) {
+        const gMistakesBtn = gActions.createEl("button", {
+          cls: "dh-chip",
+          text: "Ошибки (" + gSnap.mistakesCount + ")",
+          attr: {
+            type: "button",
+            title: "Разобрать ошибки в my-grammar-trainer",
+            style: "font-size: 0.76rem; height: 30px; padding: 0 11px; color: #e5a158; border-color: #e5a15855; cursor: pointer;"
+          }
+        });
+        gMistakesBtn.onclick = () => openGrammarTrainer("mistakes");
+      }
+
+      const gStartBtn = gActions.createEl("button", {
+        cls: "dh-btn mod-cta",
+        text: "▶ Грамматика",
+        attr: {
+          type: "button",
+          title: "Открыть адаптивную сессию в my-grammar-trainer",
+          style: "font-size: 0.8rem; height: 30px; padding: 0 14px; cursor: pointer;"
+        }
+      });
+      gStartBtn.onclick = () => openGrammarTrainer("smart");
+
+      if (gSnap && Array.isArray(gSnap.weakestTopics) && gSnap.weakestTopics.length > 0) {
+        const weakRow = grammarPanel.createDiv({
+          attr: { style: "display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" }
+        });
+        weakRow.createSpan({
+          text: "Фокус:",
+          attr: { style: "font-size: 0.72rem; color: var(--text-muted);" }
+        });
+        gSnap.weakestTopics.forEach(t => {
+          const tBtn = weakRow.createEl("button", {
+            cls: "dh-chip",
+            text: t.level + " · " + t.title + (t.attempts > 0 ? " (" + t.mastery + "%)" : ""),
+            attr: {
+              type: "button",
+              title: "Запустить тренировку по теме «" + t.title + "»",
+              style: "font-size: 0.73rem; padding: 2px 9px; cursor: pointer;"
+            }
+          });
+          tBtn.onclick = () => openGrammarTrainer("topic", t.id);
+        });
+      }
     }
 
     // =====================================================================
