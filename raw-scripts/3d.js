@@ -189,12 +189,12 @@ function openSpatialHub() {
 }
 
 function openNodeInspector(noteFile) {
-  const plugin = app.plugins?.plugins?.["my-3d-node-inspector"] || window.__my3DNodeInspector;
+  const plugin = app.plugins?.plugins?.["my-3d-hub"];
   if (plugin && typeof plugin.openInspector === "function") {
     plugin.openInspector({ file: noteFile });
     return;
   }
-  notify("Включи плагин 3D Node Inspector (my-3d-node-inspector) в настройках Obsidian.");
+  notify("Включи плагин 3D Spatial Hub (my-3d-hub) в настройках Obsidian.");
 }
 
 function readNotes() {
@@ -324,7 +324,7 @@ function renderNoteRow(parentList, note, currentTopicContext = "", rootTopic = "
       e.stopPropagation();
       openNodeInspector(note.file);
     }, "d3n-inspect-btn");
-    inspectBtn.title = "Открыть схему нод в инспекторе (my-3d-node-inspector)";
+inspectBtn.title = "Открыть схему заметки в 3D Spatial Hub";
   }
 }
 
