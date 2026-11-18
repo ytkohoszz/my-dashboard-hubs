@@ -308,15 +308,15 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
     p.file.name !== "🎬Медиатека"
   ).length;
 
-  const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) || 0;
+const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) || 0;
   const pagesDoneToday = readingSync.effectivePages ?? parseNum(todayNote?.страниц_прочитано) ?? 0;
-  let englishBadge = "Карточки и книги";
+  let englishBadge = "";
   if (cardsDoneToday > 0 && pagesDoneToday > 0) {
     englishBadge = `${cardsDoneToday} карт. · ${pagesDoneToday} стр.`;
   } else if (cardsDoneToday > 0) {
-    englishBadge = `Сегодня: ${cardsDoneToday} карт.`;
+    englishBadge = `${cardsDoneToday} карт.`;
   } else if (pagesDoneToday > 0) {
-    englishBadge = `Чтение: ${pagesDoneToday} стр.`;
+    englishBadge = `${pagesDoneToday} стр.`;
   }
 
   const HUBS = [
@@ -325,21 +325,21 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
       file: "📓Дневник",
       icon: "📓",
       color: "#9c83e8",
-      badge: todayNote ? (todayNote.оценка_дня ? `Оценка: ${todayNote.оценка_дня}/10` : "Запись открыта") : "Нет записи"
+      badge: todayNote?.оценка_дня ? `${todayNote.оценка_дня}/10` : ""
     },
     {
       title: "Учёба",
       file: "🎓Учёба",
       icon: "🎓",
       color: "#e5a158",
-      badge: `В работе: ${studyActive}`
+      badge: studyActive > 0 ? String(studyActive) : ""
     },
     {
       title: "Здоровье",
       file: "💪Здоровье",
       icon: "💪",
       color: "#d69852",
-      badge: trainingsToday > 0 || todayNote?.тренировка === true ? "Тренировка ✓" : "Тренировки и вес"
+      badge: trainingsToday > 0 || todayNote?.тренировка === true ? "✓" : ""
     },
     {
       title: "Английский",
@@ -353,22 +353,22 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
       file: "🧊3D",
       icon: "🧊",
       color: "#599ed6",
-      badge: `Заметок: ${notes3D}`
+      badge: notes3D > 0 ? String(notes3D) : ""
     },
     {
       title: "Медиатека",
       file: "Знания/Медиа/🎬Медиатека",
       icon: "🎬",
       color: "#e06c75",
-      badge: `${mediaCount} позиций`
+      badge: mediaCount > 0 ? String(mediaCount) : ""
     }
   ];
 
-  const root = dv.container.createDiv({ cls: "dh dh-hub-nav", attr: { style: "margin: 6px 0 22px 0;" } });
+  const root = dv.container.createDiv({ cls: "dh dh-hub-nav", attr: { style: "margin: 4px 0 18px 0;" } });
 
   const grid = root.createDiv({
     attr: {
-      style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;"
+      style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 10px;"
     }
   });
 
@@ -378,31 +378,27 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
       attr: {
         style: `
           position: relative;
-          padding: 14px 16px;
-          background: var(--background-secondary);
-          border: 1px solid var(--background-modifier-border);
-          border-top: 3px solid ${hub.color};
-          border-radius: 10px;
+          padding: 13px 15px;
+          background: color-mix(in srgb, var(--background-secondary) 75%, transparent);
+          border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
+          border-radius: 14px;
           cursor: pointer;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          gap: 12px;
-          transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+          gap: 10px;
+          transition: transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
         `
       }
     });
 
     card.onmouseenter = () => {
-      card.style.transform = "translateY(-2px)";
-      card.style.borderColor = hub.color;
-      card.style.boxShadow = "0 6px 16px rgba(0, 0, 0, 0.22)";
+      card.style.transform = "translateY(-1px)";
+      card.style.borderColor = `${hub.color}55`;
     };
     card.onmouseleave = () => {
       card.style.transform = "translateY(0)";
-      card.style.borderColor = "var(--background-modifier-border)";
-      card.style.borderTop = `3px solid ${hub.color}`;
-      card.style.boxShadow = "none";
+      card.style.borderColor = "color-mix(in srgb, var(--text-normal) 8%, transparent)";
     };
 
     card.onclick = (e) => {
@@ -417,47 +413,39 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
       text: hub.icon,
       attr: {
         style: `
-          font-size: 1.3rem;
-          width: 34px;
-          height: 34px;
+          font-size: 1.15rem;
+          width: 30px;
+          height: 30px;
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 8px;
-          background: ${hub.color}18;
-          border: 1px solid ${hub.color}33;
+          border-radius: 9px;
+          background: ${hub.color}16;
         `
       }
     });
 
-    topRow.createSpan({
-      text: hub.badge,
-      attr: {
-        style: `
-          font-size: 0.7rem;
-          font-weight: 600;
-          padding: 2px 8px;
-          border-radius: 12px;
-          background: ${hub.color}18;
-          color: ${hub.color};
-          border: 1px solid ${hub.color}33;
-          white-space: nowrap;
-        `
-      }
-    });
+    if (hub.badge) {
+      topRow.createSpan({
+        text: hub.badge,
+        attr: {
+          style: `
+            font-size: 0.72rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            padding: 2px 8px;
+            border-radius: 99px;
+            background: ${hub.color}16;
+            color: ${hub.color};
+            white-space: nowrap;
+          `
+        }
+      });
+    }
 
-    const bottomRow = card.createDiv({
-      attr: { style: "display: flex; justify-content: space-between; align-items: center;" }
-    });
-
-    bottomRow.createDiv({
+    card.createDiv({
       text: hub.title,
-      attr: { style: "font-size: 1.05rem; font-weight: 700; color: var(--text-normal);" }
-    });
-
-    bottomRow.createSpan({
-      text: "→",
-      attr: { style: `font-size: 0.9rem; font-weight: 700; color: ${hub.color};` }
+      attr: { style: "font-size: 0.96rem; font-weight: 600; letter-spacing: -0.01em; color: var(--text-normal);" }
     });
   });
 }
@@ -502,17 +490,17 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
     return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
   }
 
-  const readingSubHint =
+const readingSubHint =
     readingSync.manualOverridePages !== null
-      ? (readingSync.autoBookPages > 0 ? `вручную (из книг: ${readingSync.autoBookPages} стр.)` : "введено вручную")
-      : (readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages} стр.` : "авто из читалки");
+      ? (readingSync.autoBookPages > 0 ? `вручную · из книг ${readingSync.autoBookPages}` : "вручную")
+      : (readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages}` : "");
 
   const INPUT_METRICS = [
     { label: "Вес", key: "вес_кг", unit: "кг", min: 20, max: 300, digits: 1, placeholder: "—" },
-    { label: "Сон", key: "сон_часов", unit: "ч", min: 0, max: 24, digits: 1, placeholder: "—", hint: `авто-режим >${AUTO_SLEEP_MIN_HOURS} ч` },
+    { label: "Сон", key: "сон_часов", unit: "ч", min: 0, max: 24, digits: 1, placeholder: "—" },
     { label: "Чтение", key: "страниц_прочитано", unit: "стр.", min: 0, max: 1500, digits: 0, placeholder: "—", hint: readingSubHint },
-    { label: "Соцсети", key: "соцсети_мин", unit: "мин", min: 0, max: 1440, digits: 0, placeholder: "—", hint: `лимит ≤${SOCIAL_LIMIT_MIN} мин` },
-    { label: "Шаги", key: "шаги", unit: "шаг", min: 0, max: 100000, digits: 0, placeholder: "—", hint: "активность за день" },
+    { label: "Соцсети", key: "соцсети_мин", unit: "мин", min: 0, max: 1440, digits: 0, placeholder: "—" },
+    { label: "Шаги", key: "шаги", unit: "шаг", min: 0, max: 100000, digits: 0, placeholder: "—" },
   ];
 
   function formatNumForInput(v, digits = 1) {
@@ -567,10 +555,10 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
 
   const styleEl = root.createEl("style");
   styleEl.textContent = `
-  .dashboard-home .dh-today {
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 10px;
+.dashboard-home .dh-today {
+    background: color-mix(in srgb, var(--background-secondary) 75%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
+    border-radius: 16px;
     padding: 16px 18px;
     margin: 0 0 20px 0;
     box-sizing: border-box;
@@ -634,10 +622,52 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
     gap: 14px;
     margin-top: 14px;
   }
-  .dashboard-home .dh-today-section {
+.dashboard-home .dh-today-section {
     display: flex;
     flex-direction: column;
     gap: 10px;
+  }
+  .dashboard-home .dh-ratings-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .dashboard-home button.dh-rating-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 99px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: color-mix(in srgb, var(--background-primary) 75%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
+    color: var(--text-muted);
+    box-shadow: none;
+    cursor: pointer;
+    transition: border-color 0.14s ease, color 0.14s ease;
+  }
+  .dashboard-home button.dh-rating-pill:hover,
+  .dashboard-home button.dh-rating-pill.is-open {
+    border-color: var(--interactive-accent);
+    color: var(--text-normal);
+  }
+  .dashboard-home .dh-rating-pill-val {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--pill-color, var(--text-normal));
+  }
+  .dashboard-home .dh-rating-drawer {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--background-primary) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
   }
   .dashboard-home .dh-today-row {
     display: grid;
@@ -725,22 +755,22 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
     opacity: 1;
     font-weight: 700;
   }
-  .dashboard-home .dh-metrics-grid {
+.dashboard-home .dh-metrics-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(135px, 1fr));
     gap: 10px;
     padding-top: 12px;
-    border-top: 1px solid var(--background-modifier-border);
+    border-top: 1px solid color-mix(in srgb, var(--text-normal) 7%, transparent);
   }
   .dashboard-home .dh-metric-item {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    transition: border-color 0.15s ease;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--background-primary) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 7%, transparent);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
   }
   .dashboard-home .dh-metric-item.is-clickable {
     cursor: pointer;
@@ -789,23 +819,44 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
     color: var(--text-normal);
     line-height: 28px;
   }
-  .dashboard-home .dh-metric-input {
-    width: 78px !important;
+.dashboard-home .dh-metric-input {
+    width: 68px !important;
     max-width: 100%;
     height: 28px !important;
-    padding: 2px 8px !important;
-    font-size: 0.88rem !important;
-    font-weight: 600;
+    padding: 0 4px !important;
+    font-size: 1rem !important;
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
-    text-align: right;
-    border-radius: 6px !important;
-    border: 1px solid var(--background-modifier-border) !important;
-    background: var(--background-secondary) !important;
+    text-align: left;
+    border-radius: 7px !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
     color: var(--text-normal) !important;
+    transition: background-color 0.14s ease, border-color 0.14s ease;
+  }
+  .dashboard-home .dh-metric-input:hover {
+    background: color-mix(in srgb, var(--text-normal) 5%, transparent) !important;
   }
   .dashboard-home .dh-metric-input:focus {
     outline: none !important;
+    background: var(--background-secondary) !important;
     border-color: #599ed6 !important;
+  }
+  .dashboard-home .dh-sleep-pair {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 28px;
+  }
+  .dashboard-home .dh-sleep-sep {
+    font-size: 0.78rem;
+    color: var(--text-faint);
+  }
+  .dashboard-home .dh-time-input {
+    width: 54px !important;
+    text-align: center !important;
+    font-size: 0.94rem !important;
   }
   .dashboard-home .dh-metric-unit {
     font-size: 0.78rem;
@@ -832,11 +883,11 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
     padding-top: 12px;
     border-top: 1px solid var(--background-modifier-border);
   }
-  .dashboard-home .dh-plan-box {
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
+.dashboard-home .dh-plan-box {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--background-primary) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 7%, transparent);
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -869,15 +920,15 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
     grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
     gap: 6px;
   }
-  .dashboard-home .dh-plan-item {
+.dashboard-home .dh-plan-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 5px 8px;
-    border-radius: 6px;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
+    padding: 6px 10px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--background-secondary) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 6%, transparent);
     font-size: 0.8rem;
     cursor: pointer;
     user-select: none;
@@ -901,19 +952,29 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
     gap: 6px;
     flex-shrink: 0;
   }
-  .dashboard-home .dh-plan-focus-btn {
+.dashboard-home .dh-plan-focus-btn {
     height: 22px !important;
     min-height: 22px !important;
-    padding: 0 6px !important;
-    border-radius: 5px !important;
+    padding: 0 7px !important;
+    border-radius: 99px !important;
     font-size: 0.68rem !important;
     font-weight: 600 !important;
     font-variant-numeric: tabular-nums;
     background: color-mix(in srgb, #9c83e8 14%, var(--background-primary)) !important;
-    border: 1px solid color-mix(in srgb, #9c83e8 35%, var(--background-modifier-border)) !important;
+    border: 1px solid color-mix(in srgb, #9c83e8 28%, transparent) !important;
     color: #9c83e8 !important;
     cursor: pointer;
     box-shadow: none !important;
+    transition: opacity 0.14s ease, background-color 0.14s ease;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .dashboard-home .dh-plan-focus-btn.is-empty {
+      opacity: 0;
+    }
+    .dashboard-home .dh-plan-item:hover .dh-plan-focus-btn.is-empty,
+    .dashboard-home .dh-plan-item:focus-within .dh-plan-focus-btn.is-empty {
+      opacity: 1;
+    }
   }
   .dashboard-home .dh-plan-focus-btn:hover {
     background: color-mix(in srgb, #9c83e8 24%, var(--background-primary)) !important;
@@ -966,19 +1027,21 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
     gap: 8px;
     width: 100%;
   }
-  .dashboard-home .dh-event-input {
+.dashboard-home .dh-event-input {
     flex: 1;
     width: 100% !important;
-    height: 30px !important;
-    padding: 4px 10px !important;
+    height: 32px !important;
+    padding: 4px 12px !important;
     font-size: 0.84rem !important;
-    border-radius: 7px !important;
-    border: 1px solid var(--background-modifier-border) !important;
-    background: var(--background-primary) !important;
+    border-radius: 10px !important;
+    border: 1px solid color-mix(in srgb, var(--text-normal) 6%, transparent) !important;
+    background: color-mix(in srgb, var(--background-primary) 55%, transparent) !important;
     color: var(--text-normal) !important;
+    transition: border-color 0.14s ease, background-color 0.14s ease;
   }
   .dashboard-home .dh-event-input:focus {
     outline: none !important;
+    background: var(--background-primary) !important;
     border-color: #599ed6 !important;
   }
   .dashboard-home .dh-today-footer {
@@ -1182,73 +1245,81 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
       return { totalG, doneG, avgPct };
     };
 
-    const planHeadPill = badgesWrap.createSpan({ cls: "dh-status-pill" });
-    const updatePlanHeadPill = () => {
-      const { totalG, doneG, avgPct } = calcPlanSummary();
-      if (totalG > 0) {
-        const color = avgPct === 100 ? "#4aab80" : avgPct >= 60 ? "#599ed6" : "#e5a158";
-        const icon = avgPct === 100 ? "✓" : "⚡";
-        planHeadPill.setText(`${icon} План дня: ${avgPct}% (${doneG}/${totalG})`);
-        planHeadPill.style.color = color;
-        planHeadPill.style.borderColor = `${color}55`;
-        planHeadPill.style.background = `${color}14`;
-      } else {
-        planHeadPill.setText("План дня не задан");
-        planHeadPill.style.color = "var(--text-muted)";
-        planHeadPill.style.borderColor = "var(--background-modifier-border)";
-        planHeadPill.style.background = "var(--background-primary)";
-      }
-    };
-    updatePlanHeadPill();
-
-    const habitsHeadPill = badgesWrap.createSpan({ cls: "dh-status-pill" });
+const updatePlanHeadPill = () => {};
 
     const body = root.createDiv({ cls: "dh-today-body" });
     const stateSection = body.createDiv({ cls: "dh-today-section" });
 
-    function renderScaleRow(label, key) {
-      const r = stateSection.createDiv({ cls: "dh-today-row" });
-      const lblWrap = r.createDiv({ cls: "dh-today-row-label" });
-      lblWrap.createSpan({ text: label });
-      const valBadge = lblWrap.createSpan({ cls: "dh-today-row-sub" });
+    const ratingsBar = stateSection.createDiv({ cls: "dh-ratings-bar" });
+    const scaleDrawer = stateSection.createDiv({ cls: "dh-rating-drawer" });
+    scaleDrawer.style.display = "none";
 
-      const chips = r.createDiv({ cls: "dh-today-chips" });
-      const parsedCurrent = parseNum(note[key]);
-      let current = parsedCurrent !== null && parsedCurrent >= 1 && parsedCurrent <= 10 ? parsedCurrent : null;
-      const buttons = [];
+    const scaleDefs = [
+      { label: "Оценка дня", key: "оценка_дня" },
+      { label: "Энергия", key: "энергия" }
+    ];
+    const scaleCurrent = new Map();
+    const scalePills = new Map();
 
-      const paint = () => {
-        valBadge.setText(current !== null ? `${current}/10` : "—");
-        buttons.forEach((b, idx) => {
-          const isAct = current === idx + 1;
-          b.classList.toggle("is-active", isAct);
-          b.setAttribute("aria-pressed", String(isAct));
-        });
+    for (const sc of scaleDefs) {
+      const parsed = parseNum(note[sc.key]);
+      scaleCurrent.set(sc.key, parsed !== null && parsed >= 1 && parsed <= 10 ? parsed : null);
+
+      const pill = ratingsBar.createEl("button", {
+        cls: "dh-rating-pill",
+        attr: { type: "button" }
+      });
+      pill.onmousedown = e => e.preventDefault();
+      pill.createSpan({ text: sc.label });
+      const valEl = pill.createSpan({ cls: "dh-rating-pill-val" });
+      scalePills.set(sc.key, { pill, valEl });
+
+      pill.onclick = () => {
+        uiDrafts.openScaleKey = uiDrafts.openScaleKey === sc.key ? null : sc.key;
+        renderScaleDrawer();
       };
-
-      for (let n = 1; n <= 10; n++) {
-        const b = actionButton(chips, String(n), async () => {
-          const prev = current;
-          const next = current === n ? null : n;
-          current = next;
-          paint();
-          try {
-            await saveField(key, next);
-          } catch (err) {
-            current = prev;
-            paint();
-            throw err;
-          }
-        }, "dh-chip dh-score");
-        b.style.setProperty("--chip-color", COLORS[n - 1]);
-        b.setAttribute("aria-label", `${label}: ${n}`);
-        buttons.push(b);
-      }
-      paint();
     }
 
-    renderScaleRow("Оценка дня", "оценка_дня");
-    renderScaleRow("Энергия", "энергия");
+    function paintScalePills() {
+      for (const sc of scaleDefs) {
+        const cur = scaleCurrent.get(sc.key);
+        const { pill, valEl } = scalePills.get(sc.key);
+        valEl.setText(cur !== null ? `${cur}/10` : "—");
+        pill.style.setProperty("--pill-color", cur !== null ? COLORS[Math.round(cur) - 1] : "var(--text-muted)");
+        pill.classList.toggle("is-open", uiDrafts.openScaleKey === sc.key);
+      }
+    }
+
+    function renderScaleDrawer() {
+      paintScalePills();
+      scaleDrawer.replaceChildren();
+      const activeSc = scaleDefs.find(s => s.key === uiDrafts.openScaleKey);
+      if (!activeSc) {
+        scaleDrawer.style.display = "none";
+        return;
+      }
+      scaleDrawer.style.display = "flex";
+      const cur = scaleCurrent.get(activeSc.key);
+      for (let n = 1; n <= 10; n++) {
+        const b = actionButton(scaleDrawer, String(n), async () => {
+          const prev = scaleCurrent.get(activeSc.key);
+          const next = prev === n ? null : n;
+          scaleCurrent.set(activeSc.key, next);
+          uiDrafts.openScaleKey = null;
+          renderScaleDrawer();
+          try {
+            await saveField(activeSc.key, next);
+          } catch (err) {
+            scaleCurrent.set(activeSc.key, prev);
+            renderScaleDrawer();
+            throw err;
+          }
+        }, "dh-chip dh-score" + (cur === n ? " is-active" : ""));
+        b.style.setProperty("--chip-color", COLORS[n - 1]);
+        b.setAttribute("aria-label", `${activeSc.label}: ${n}`);
+      }
+    }
+    renderScaleDrawer();
 
     const habitsRow = stateSection.createDiv({ cls: "dh-today-row" });
     const habitsLabelWrap = habitsRow.createDiv({ cls: "dh-today-row-label" });
@@ -1260,11 +1331,6 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
     const updateHabitsSummary = () => {
       const done = [...states.values()].filter(v => v === true).length;
       habitsCountSub.setText(`${done}/${HABITS.length}`);
-      habitsHeadPill.setText(`Привычки: ${done}/${HABITS.length}`);
-      const isAllDone = done === HABITS.length;
-      habitsHeadPill.style.color = isAllDone ? "#4aab80" : "var(--text-muted)";
-      habitsHeadPill.style.borderColor = isAllDone ? "#4aab8055" : "var(--background-modifier-border)";
-      habitsHeadPill.style.background = isAllDone ? "#4aab8014" : "var(--background-primary)";
     };
 
     for (const h of HABITS) {
@@ -1498,157 +1564,153 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
       inputRefs.set(m.key, input);
     };
 
-    const renderTimeMetricCard = (label, key, placeholder, hint) => {
-      const card = metricsGrid.createEl("label", { cls: "dh-metric-item" });
+const renderSleepScheduleCard = () => {
+      const card = metricsGrid.createDiv({ cls: "dh-metric-item" });
       const top = card.createDiv({ cls: "dh-metric-top" });
-      top.createSpan({ cls: "dh-metric-label", text: label });
+      top.createSpan({ cls: "dh-metric-label", text: "Режим" });
       const statusSpan = top.createSpan({ cls: "dh-metric-status" });
 
-      const control = card.createDiv({ cls: "dh-metric-control" });
-      const input = control.createEl("input", {
-        cls: "dh-metric-input",
-        attr: {
-          type: "text",
-          placeholder,
-          "aria-label": label,
-          style: "width: 72px !important; text-align: center !important;"
-        }
-      });
-      control.createSpan({ cls: "dh-metric-unit", text: "" });
-
-      if (hint) {
-        card.createDiv({ cls: "dh-metric-subhint", text: hint });
-      }
-
+      const pair = card.createDiv({ cls: "dh-sleep-pair" });
       const errorEl = card.createDiv({ cls: "dh-metric-error" });
       errorEl.style.display = "none";
 
-      const savedVal = typeof note[key] === "string" ? note[key].trim() : "";
-      const hasDraft = Object.prototype.hasOwnProperty.call(uiDrafts.inputs, key);
-      input.value = hasDraft ? uiDrafts.inputs[key] : savedVal;
+      const mountTimeField = (key, label, placeholder) => {
+        const input = pair.createEl("input", {
+          cls: "dh-metric-input dh-time-input",
+          attr: { type: "text", placeholder, "aria-label": label }
+        });
 
-      if (uiDrafts.errors[key]) {
-        card.classList.add("is-invalid");
-        errorEl.setText(uiDrafts.errors[key]);
-        errorEl.style.display = "block";
-      } else if (uiDrafts.savedStamp[key] && Date.now() - uiDrafts.savedStamp[key] < 2200) {
-        statusSpan.setText("✓");
-        setTimeout(() => { if (statusSpan.isConnected) statusSpan.setText(""); }, 1800);
-      }
+        const savedVal = typeof note[key] === "string" ? note[key].trim() : "";
+        const hasDraft = Object.prototype.hasOwnProperty.call(uiDrafts.inputs, key);
+        input.value = hasDraft ? uiDrafts.inputs[key] : savedVal;
 
-      input.onfocus = () => { uiDrafts.activeKey = key; };
-      input.oninput = () => {
-        uiDrafts.inputs[key] = input.value;
         if (uiDrafts.errors[key]) {
-          delete uiDrafts.errors[key];
-          card.classList.remove("is-invalid");
-          errorEl.style.display = "none";
+          card.classList.add("is-invalid");
+          errorEl.setText(uiDrafts.errors[key]);
+          errorEl.style.display = "block";
+        } else if (uiDrafts.savedStamp[key] && Date.now() - uiDrafts.savedStamp[key] < 2200) {
+          statusSpan.setText("✓");
+          setTimeout(() => { if (statusSpan.isConnected) statusSpan.setText(""); }, 1800);
         }
-      };
 
-      input.onkeydown = e => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          input.blur();
-        } else if (e.key === "Escape") {
-          e.preventDefault();
+        input.onfocus = () => { uiDrafts.activeKey = key; };
+        input.oninput = () => {
+          uiDrafts.inputs[key] = input.value;
+          if (uiDrafts.errors[key]) {
+            delete uiDrafts.errors[key];
+            card.classList.remove("is-invalid");
+            errorEl.style.display = "none";
+          }
+        };
+
+        input.onkeydown = e => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            input.blur();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            delete uiDrafts.inputs[key];
+            delete uiDrafts.errors[key];
+            card.classList.remove("is-invalid");
+            errorEl.style.display = "none";
+            input.value = savedVal;
+            input.blur();
+          }
+        };
+
+        let isSavingTime = false;
+        const commitTime = async () => {
+          if (isSavingTime) return;
+          if (uiDrafts.activeKey === key) uiDrafts.activeKey = null;
+
+          const raw = input.value.trim();
+          if (raw === "") {
+            delete uiDrafts.inputs[key];
+            delete uiDrafts.errors[key];
+            card.classList.remove("is-invalid");
+            errorEl.style.display = "none";
+            if (savedVal === "") return;
+            isSavingTime = true;
+            try {
+              await saveField(key, null);
+              uiDrafts.savedStamp[key] = Date.now();
+              statusSpan.setText("✓");
+            } catch (err) {
+              notify(`Ошибка очистки «${label}»: ${err?.message ?? err}`);
+            } finally {
+              isSavingTime = false;
+            }
+            return;
+          }
+
+          const normalized = normalizeTimeString(raw);
+          if (!normalized) {
+            const msg = "Формат ЧЧ:ММ";
+            uiDrafts.errors[key] = msg;
+            card.classList.add("is-invalid");
+            errorEl.setText(msg);
+            errorEl.style.display = "block";
+            return;
+          }
+
+          input.value = normalized;
           delete uiDrafts.inputs[key];
           delete uiDrafts.errors[key];
           card.classList.remove("is-invalid");
           errorEl.style.display = "none";
-          input.value = savedVal;
-          input.blur();
-        }
-      };
 
-      let isSavingTime = false;
-      const commitTime = async () => {
-        if (isSavingTime) return;
-        if (uiDrafts.activeKey === key) uiDrafts.activeKey = null;
+          if (normalized === savedVal) return;
 
-        const raw = input.value.trim();
-        if (raw === "") {
-          delete uiDrafts.inputs[key];
-          delete uiDrafts.errors[key];
-          card.classList.remove("is-invalid");
-          errorEl.style.display = "none";
-          if (savedVal === "") return;
           isSavingTime = true;
           try {
-            await saveField(key, null);
+            const counterpartKey = key === "отбой" ? "подъём" : "отбой";
+            const counterpartVal = typeof note[counterpartKey] === "string" ? note[counterpartKey].trim() : "";
+            const otboy = key === "отбой" ? normalized : counterpartVal;
+            const podjom = key === "подъём" ? normalized : counterpartVal;
+            const autoSleep = computeSleepDurationHours(otboy, podjom);
+
+            let autoSleepHabit = null;
+            if (autoSleep !== null) {
+              autoSleepHabit = autoSleep > AUTO_SLEEP_MIN_HOURS;
+              if (manualOverrides.режим_сна === undefined) {
+                states.set("режим_сна", autoSleepHabit);
+                habitPainters.get("режим_сна")?.();
+                updateHabitsSummary();
+              }
+            }
+
+            await enqueueFrontMatterSave(file, fm => {
+              fm[key] = normalized;
+              if (autoSleep !== null) {
+                fm["сон_часов"] = autoSleep;
+                if (autoSleepHabit !== null && manualOverrides.режим_сна === undefined) {
+                  fm["режим_сна"] = autoSleepHabit;
+                }
+              }
+            });
+
+            if (autoSleep !== null && inputRefs.has("сон_часов")) {
+              inputRefs.get("сон_часов").value = formatNumForInput(autoSleep, 1);
+            }
+
             uiDrafts.savedStamp[key] = Date.now();
             statusSpan.setText("✓");
           } catch (err) {
-            notify(`Ошибка очистки «${label}»: ${err?.message ?? err}`);
+            uiDrafts.inputs[key] = raw;
+            notify(`Ошибка сохранения «${label}»: ${err?.message ?? err}`);
           } finally {
             isSavingTime = false;
           }
-          return;
-        }
+        };
 
-        const normalized = normalizeTimeString(raw);
-        if (!normalized) {
-          const msg = "Формат: ЧЧ:ММ (напр. 23:30)";
-          uiDrafts.errors[key] = msg;
-          card.classList.add("is-invalid");
-          errorEl.setText(msg);
-          errorEl.style.display = "block";
-          return;
-        }
-
-        input.value = normalized;
-        delete uiDrafts.inputs[key];
-        delete uiDrafts.errors[key];
-        card.classList.remove("is-invalid");
-        errorEl.style.display = "none";
-
-        if (normalized === savedVal) return;
-
-        isSavingTime = true;
-        try {
-          const counterpartKey = key === "отбой" ? "подъём" : "отбой";
-          const counterpartVal = typeof note[counterpartKey] === "string" ? note[counterpartKey].trim() : "";
-          const otboy = key === "отбой" ? normalized : counterpartVal;
-          const podjom = key === "подъём" ? normalized : counterpartVal;
-          const autoSleep = computeSleepDurationHours(otboy, podjom);
-
-          let autoSleepHabit = null;
-          if (autoSleep !== null) {
-            autoSleepHabit = autoSleep > AUTO_SLEEP_MIN_HOURS;
-            if (manualOverrides.режим_сна === undefined) {
-              states.set("режим_сна", autoSleepHabit);
-              habitPainters.get("режим_сна")?.();
-              updateHabitsSummary();
-            }
-          }
-
-          await enqueueFrontMatterSave(file, fm => {
-            fm[key] = normalized;
-            if (autoSleep !== null) {
-              fm["сон_часов"] = autoSleep;
-              if (autoSleepHabit !== null && manualOverrides.режим_сна === undefined) {
-                fm["режим_сна"] = autoSleepHabit;
-              }
-            }
-          });
-
-          if (autoSleep !== null && inputRefs.has("сон_часов")) {
-            inputRefs.get("сон_часов").value = formatNumForInput(autoSleep, 1);
-          }
-
-          uiDrafts.savedStamp[key] = Date.now();
-          statusSpan.setText("✓");
-        } catch (err) {
-          uiDrafts.inputs[key] = raw;
-          notify(`Ошибка сохранения «${label}»: ${err?.message ?? err}`);
-        } finally {
-          isSavingTime = false;
-        }
+        input.onchange = commitTime;
+        input.onblur = commitTime;
+        inputRefs.set(key, input);
       };
 
-      input.onchange = commitTime;
-      input.onblur = commitTime;
-      inputRefs.set(key, input);
+      mountTimeField("отбой", "Отбой", "23:30");
+      pair.createSpan({ cls: "dh-sleep-sep", text: "→" });
+      mountTimeField("подъём", "Подъём", "07:15");
     };
 
     // РЯД 1: Вес, Калории, Сон (авто/ручной), Чтение
@@ -1666,10 +1728,10 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
       });
       const top = calCard.createDiv({ cls: "dh-metric-top" });
       top.createSpan({ cls: "dh-metric-label", text: "Калории" });
-      top.createSpan({
+top.createSpan({
         cls: "dh-metric-status",
-        text: "🥗 ＋",
-        attr: { style: "color: var(--interactive-accent);" }
+        text: "+",
+        attr: { style: "color: var(--interactive-accent); font-size: 0.9rem;" }
       });
 
       const control = calCard.createDiv({ cls: "dh-metric-control" });
@@ -1679,16 +1741,15 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
       });
       control.createSpan({
         cls: "dh-metric-unit",
-        text: calorieGoal !== null ? `/ ${calorieGoal} ккал` : "ккал"
+        text: calorieGoal !== null ? `/ ${calorieGoal}` : "ккал"
       });
 
-      let calHint = "нажми, чтобы внести еду";
       if (savedProtein !== null || savedFat !== null || savedCarbs !== null) {
-        calHint = `Б:${Math.round(savedProtein || 0)} · Ж:${Math.round(savedFat || 0)} · У:${Math.round(savedCarbs || 0)} г`;
-      } else if (calorieGoal !== null) {
-        calHint = `авто-диета ≥${calorieGoal} ккал`;
+        calCard.createDiv({
+          cls: "dh-metric-subhint",
+          text: `Б ${Math.round(savedProtein || 0)} · Ж ${Math.round(savedFat || 0)} · У ${Math.round(savedCarbs || 0)}`
+        });
       }
-      calCard.createDiv({ cls: "dh-metric-subhint", text: calHint });
 
       calCard.onclick = () => openNutritionFromHome();
       calCard.onkeydown = e => {
@@ -1717,11 +1778,11 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
         }
       });
       const top = focusCard.createDiv({ cls: "dh-metric-top" });
-      top.createSpan({ cls: "dh-metric-label", text: "Фокус" });
+top.createSpan({ cls: "dh-metric-label", text: "Фокус" });
       const statusBadgeEl = top.createSpan({
         cls: "dh-metric-status",
-        text: isRunningNow ? "🔥 Идёт" : "⏱️ ＋",
-        attr: { style: "color: #9c83e8;" }
+        text: isRunningNow ? "● Идёт" : "+",
+        attr: { style: "color: #9c83e8; font-size: " + (isRunningNow ? "0.72rem;" : "0.9rem;") }
       });
 
       const control = focusCard.createDiv({ cls: "dh-metric-control" });
@@ -1739,17 +1800,17 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
         .filter(([, v]) => v > 0)
         .sort((a, b) => b[1] - a[1]);
 
-      let defaultHint = "выбрать цель дня и запустить";
-      if (goalEntries.length > 0) {
-        defaultHint = goalEntries.slice(0, 2).map(([k, v]) => `${k}: ${v}м`).join(" · ");
-      } else if (savedFocus !== null && savedFocus > 0) {
-        defaultHint = "сессии записаны";
-      }
+      const defaultHint = goalEntries.length > 0
+        ? goalEntries.slice(0, 2).map(([k, v]) => `${k}: ${v}м`).join(" · ")
+        : "";
 
       const hintEl = focusCard.createDiv({
         cls: "dh-metric-subhint",
         text: defaultHint,
-        attr: { title: goalEntries.map(([k, v]) => `${k}: ${v} мин`).join(", ") }
+        attr: {
+          title: goalEntries.map(([k, v]) => `${k}: ${v} мин`).join(", "),
+          style: defaultHint ? "" : "display: none;"
+        }
       });
 
       if (window.__dhHomeFocusTicker) {
@@ -1797,17 +1858,16 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
       };
     }
 
-    renderTimeMetricCard("Отбой", "отбой", "23:30", "время засыпания");
-    renderTimeMetricCard("Подъём", "подъём", "07:15", "время пробуждения");
+renderSleepScheduleCard(); // Отбой → Подъём
     renderInputMetricCard(INPUT_METRICS[3]); // Соцсети (мин)
     renderInputMetricCard(INPUT_METRICS[4]); // Шаги
 
     const bottomGrid = body.createDiv({ cls: "dh-today-bottom-grid" });
 
     if (goalsState.length > 0) {
-      const planBox = bottomGrid.createDiv({ cls: "dh-plan-box" });
+const planBox = bottomGrid.createDiv({ cls: "dh-plan-box" });
       const planHead = planBox.createDiv({ cls: "dh-plan-head" });
-      planHead.createSpan({ cls: "dh-plan-title", text: "План дня (задачи из ежедневника)" });
+      planHead.createSpan({ cls: "dh-plan-title", text: "План дня" });
       const planMeta = planHead.createSpan({ cls: "dh-today-row-sub" });
 
       const barTrack = planBox.createDiv({ cls: "dh-plan-bar-track" });
@@ -1838,10 +1898,10 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
           text: goal.category ? `${goal.text} (${goal.category})` : goal.text
         });
 
-        const right = item.createDiv({ cls: "dh-plan-item-right" });
+const right = item.createDiv({ cls: "dh-plan-item-right" });
         const focusBtn = right.createEl("button", {
-          cls: "dh-plan-focus-btn",
-          text: goal.focusMinutes > 0 ? `⏱️ ${goal.focusMinutes}м` : "⏱️",
+          cls: "dh-plan-focus-btn" + (goal.focusMinutes > 0 ? "" : " is-empty"),
+          text: goal.focusMinutes > 0 ? `${goal.focusMinutes}м` : "⏱",
           attr: {
             type: "button",
             title: `Запустить фокус-сессию по цели «${goal.text}»`
@@ -1858,7 +1918,12 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
           const isDone = goal.progress >= 100;
           item.classList.toggle("is-done", isDone);
           check.setText(isDone ? "✓" : "");
-          pctSpan.setText(`${goal.progress}%`);
+          if (goal.progress > 0 && goal.progress < 100) {
+            pctSpan.style.display = "";
+            pctSpan.setText(`${goal.progress}%`);
+          } else {
+            pctSpan.style.display = "none";
+          }
         };
         itemPainters.push(paintGoalItem);
 
@@ -1990,42 +2055,38 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
       });
     }
 
-    const footer = body.createDiv({ cls: "dh-today-footer" });
-    const trLeft = footer.createDiv({ cls: "dh-footer-trainings" });
+if (trainings.length > 0 || (savedFocus !== null && savedFocus > 0)) {
+      const footer = body.createDiv({ cls: "dh-today-footer" });
+      const trLeft = footer.createDiv({ cls: "dh-footer-trainings" });
 
-    trLeft.createSpan({
-      text: `Тренировок сегодня: ${trainings.length}`,
-      attr: { style: "font-weight: 600; color: var(--text-normal);" }
-    });
-
-    if (savedFocus !== null && savedFocus > 0) {
-      const fPill = trLeft.createEl("button", {
-        cls: "dh-training-pill",
-        text: `⏱️ Фокус: ${String(savedFocus).replace(".", ",")} ч`,
-        attr: { type: "button", title: "Открыть таймер глубокой работы", style: "cursor: pointer; color: #9c83e8; border-color: rgba(156, 131, 232, 0.4);" }
-      });
-      fPill.onclick = () => openFocusTrackerFromHome();
-    }
-
-    if (trainings.length > 0) {
-      trainings.forEach(p => {
-        const a = trLeft.createEl("a", {
-          cls: "internal-link dh-training-pill",
-          text: p.название_тренировки || p.file.name,
-          attr: { href: p.file.path }
+      if (trainings.length > 0) {
+        trLeft.createSpan({
+          text: `Тренировки (${trainings.length}):`,
+          attr: { style: "font-weight: 600; color: var(--text-normal);" }
         });
-        a.onclick = e => {
-          e.preventDefault();
-          app.workspace.openLinkText(p.file.path, dv.currentFilePath, e.ctrlKey || e.metaKey);
-        };
-      });
-
-      if (states.get("тренировка") === true) {
-        footer.createSpan({
-          text: "✓ Отмечено в дневнике автоматически",
-          attr: { style: "font-size: 0.74rem; color: #4aab80; font-weight: 600;" }
+        trainings.forEach(p => {
+          const a = trLeft.createEl("a", {
+            cls: "internal-link dh-training-pill",
+            text: p.название_тренировки || p.file.name,
+            attr: { href: p.file.path }
+          });
+          a.onclick = e => {
+            e.preventDefault();
+            app.workspace.openLinkText(p.file.path, dv.currentFilePath, e.ctrlKey || e.metaKey);
+          };
         });
-      } else {
+      }
+
+      if (savedFocus !== null && savedFocus > 0) {
+        const fPill = trLeft.createEl("button", {
+          cls: "dh-training-pill",
+          text: `Фокус: ${String(savedFocus).replace(".", ",")} ч`,
+          attr: { type: "button", title: "Открыть таймер глубокой работы", style: "cursor: pointer; color: #9c83e8; border-color: rgba(156, 131, 232, 0.35);" }
+        });
+        fPill.onclick = () => openFocusTrackerFromHome();
+      }
+
+      if (trainings.length > 0 && states.get("тренировка") !== true) {
         const syncBtn = actionButton(footer, "Вернуть отметку тренировки", async () => {
           setManualHabitOverride("тренировка", true);
           await saveField("тренировка", true);
@@ -2035,8 +2096,6 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
           syncBtn.remove();
         }, "dh-link-btn");
       }
-    } else {
-      trLeft.createSpan({ text: "· записей тренировок за сегодня пока нет" });
     }
   }
 }
@@ -2118,10 +2177,10 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
   }
   `;
 
-  const details = root.createEl("details", {
+const details = root.createEl("details", {
     cls: "dh-panel dh-recent-details",
     attr: {
-      style: "padding: 14px 16px; background: var(--background-secondary); border-radius: 8px; border: 1px solid var(--background-modifier-border);"
+      style: "padding: 14px 18px; background: color-mix(in srgb, var(--background-secondary) 75%, transparent); border-radius: 16px; border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);"
     }
   });
   details.open = Boolean(uiState.isOpen);

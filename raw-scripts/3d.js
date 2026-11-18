@@ -275,17 +275,496 @@ style.textContent = [
   ".dashboard-home .d3n .d3n-tree-folder[open] > summary .d3n-tree-sum-left::before { transform: rotate(90deg); }",
   ".dashboard-home .d3n .d3n-tree-name { font-weight: 650; color: var(--text-normal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
   ".dashboard-home .d3n .d3n-tree-content { min-width: 0; padding: 2px 4px 6px 6px; }",
-  ".dashboard-home .d3n .d3n-empty { padding: 16px 12px; border: 1px dashed var(--background-modifier-border); border-radius: 9px; color: var(--text-muted); font-size: 0.82em; text-align: center; }"
+".dashboard-home .d3n .d3n-empty { padding: 16px 12px; border: 1px dashed var(--background-modifier-border); border-radius: 9px; color: var(--text-muted); font-size: 0.82em; text-align: center; }",
+  ".dashboard-home .d3n .d3n-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }",
+  ".d3n-ref-overlay { position: fixed; inset: 0; z-index: 9999; background-color: var(--background-primary); background-image: radial-gradient(rgba(160, 170, 195, 0.14) 1px, transparent 1px); background-size: 24px 24px; overflow: hidden; user-select: none; -webkit-user-select: none; }",
+  ".d3n-ref-top { position: absolute; top: 14px; left: 16px; z-index: 20; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--background-modifier-border); background: color-mix(in srgb, var(--background-secondary) 84%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 6px 24px rgba(0, 0, 0, 0.32); }",
+  ".d3n-ref-pill-btn { height: 26px; padding: 0 10px; border-radius: 999px; border: 1px solid transparent; background: transparent; color: var(--text-normal); font-size: 12px; font-weight: 600; cursor: pointer; box-shadow: none; display: inline-flex; align-items: center; gap: 5px; }",
+  ".d3n-ref-pill-btn:hover { background: var(--background-modifier-hover); }",
+  ".d3n-ref-pill-btn.is-primary { background: #9c83e8; color: #141619; font-weight: 700; }",
+  ".d3n-ref-pill-btn.is-primary:hover { background: #ad97f0; }",
+  ".d3n-ref-pill-btn.is-danger:hover { color: #e06c75; background: rgba(224, 108, 117, 0.16); }",
+  ".d3n-ref-pill-btn:disabled { opacity: 0.32; cursor: default; pointer-events: none; }",
+  ".d3n-ref-title { font-size: 12px; font-weight: 700; color: var(--text-muted); padding: 0 4px; }",
+  ".d3n-ref-viewport { position: absolute; inset: 0; overflow: hidden; cursor: grab; }",
+  ".d3n-ref-viewport.is-panning { cursor: grabbing; }",
+  ".d3n-ref-viewport.is-drag-over { outline: 2px dashed #9c83e8; outline-offset: -6px; background: rgba(156, 131, 232, 0.06); }",
+  ".d3n-ref-layer { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; }",
+  ".d3n-ref-item { position: absolute; border-radius: 8px; box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45); cursor: move; }",
+  ".d3n-ref-item img { display: block; width: 100%; height: 100%; object-fit: fill; border-radius: 8px; pointer-events: none; -webkit-user-drag: none; }",
+  ".d3n-ref-item.is-selected { outline: 2px solid #9c83e8; outline-offset: 2px; }",
+  ".d3n-ref-handle { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #ffffff; border: 2px solid #9c83e8; display: none; z-index: 5; }",
+  ".d3n-ref-item.is-selected .d3n-ref-handle { display: block; }",
+  ".d3n-ref-handle[data-h='nw'] { top: -5px; left: -5px; cursor: nwse-resize; }",
+  ".d3n-ref-handle[data-h='ne'] { top: -5px; right: -5px; cursor: nesw-resize; }",
+  ".d3n-ref-handle[data-h='sw'] { bottom: -5px; left: -5px; cursor: nesw-resize; }",
+  ".d3n-ref-handle[data-h='se'] { bottom: -5px; right: -5px; cursor: nwse-resize; }",
+  ".d3n-ref-guide { position: absolute; pointer-events: none; z-index: 15; background: rgba(156, 131, 232, 0.78); }",
+  ".d3n-ref-dock { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 20; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--background-modifier-border); background: color-mix(in srgb, var(--background-secondary) 84%, transparent); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.34); }",
+  ".d3n-ref-empty { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 12px 20px; border-radius: 999px; border: 1px solid var(--background-modifier-border); background: color-mix(in srgb, var(--background-secondary) 86%, transparent); color: var(--text-muted); font-size: 13px; pointer-events: none; }"
 ].join("\n");
 
-// --- ВЕРХНЯЯ ШАПКА С ГЛАВНОЙ КНОПКОЙ ПЕРЕХОДА В 3D SPATIAL HUB ---
+// --- ВЕРХНЯЯ ШАПКА С КНОПКАМИ ПЕРЕХОДА ---
 const header = el("div", root, "d3n-header");
 const headerLeft = el("div", header, "d3n-header-left");
 el("div", headerLeft, "d3n-title", "🧊 3D и графика");
 const totalLabel = el("span", headerLeft, "d3n-muted");
 
-button(header, "🫧 Открыть 3D Spatial Hub", openSpatialHub, "d3n-primary").title =
+const headerActions = el("div", header, "d3n-header-actions");
+button(headerActions, "🫧 Открыть 3D Spatial Hub", openSpatialHub, "d3n-primary").title =
   "Перейти на интерактивный холст плавающих пузырей (my-3d-hub)";
+button(headerActions, "🖼 Референсы", openReferenceBoard).title =
+  "Открыть бесконечный холст референсов (Ctrl+V, перетаскивание, выравнивание)";
+
+function getCurrentDashboardFile() {
+  const f = app.vault.getAbstractFileByPath(CURRENT);
+  return f && typeof f.extension === "string" ? f : null;
+}
+
+function loadRefItems() {
+  const file = getCurrentDashboardFile();
+  if (!file) return [];
+  const raw = app.metadataCache.getFileCache(file)?.frontmatter?.["референсы_холст"];
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(it => it && typeof it.path === "string")
+    .map((it, idx) => ({
+      id: typeof it.id === "string" ? it.id : "ref_" + idx + "_" + Date.now(),
+      path: it.path,
+      x: Number.isFinite(Number(it.x)) ? Math.round(Number(it.x)) : 0,
+      y: Number.isFinite(Number(it.y)) ? Math.round(Number(it.y)) : 0,
+      w: Math.max(40, Number.isFinite(Number(it.w)) ? Math.round(Number(it.w)) : 320),
+      h: Math.max(40, Number.isFinite(Number(it.h)) ? Math.round(Number(it.h)) : 240)
+    }));
+}
+
+let refSaveTimer = null;
+function saveRefItems(items) {
+  const file = getCurrentDashboardFile();
+  if (!file) return;
+  if (refSaveTimer) window.clearTimeout(refSaveTimer);
+  refSaveTimer = window.setTimeout(() => {
+    refSaveTimer = null;
+    const clean = items.map(it => ({
+      id: it.id,
+      path: it.path,
+      x: Math.round(it.x),
+      y: Math.round(it.y),
+      w: Math.round(it.w),
+      h: Math.round(it.h)
+    }));
+    app.fileManager.processFrontMatter(file, fm => {
+      if (clean.length === 0) delete fm["референсы_холст"];
+      else fm["референсы_холст"] = clean;
+    }).catch(err => notify("Ошибка сохранения референсов: " + (err?.message || err)));
+  }, 300);
+}
+
+function openReferenceBoard() {
+  document.querySelectorAll(".d3n-ref-overlay").forEach(n => n.remove());
+
+  const overlay = el("div", document.body, "d3n-ref-overlay");
+  const top = el("div", overlay, "d3n-ref-top");
+  const viewport = el("div", overlay, "d3n-ref-viewport");
+  const layer = el("div", viewport, "d3n-ref-layer");
+  const guidesLayer = el("div", layer);
+  const emptyHint = el("div", overlay, "d3n-ref-empty", "Вставь референс через Ctrl+V, перетащи файл или нажми «+ Картинка»");
+  const dock = el("div", overlay, "d3n-ref-dock");
+
+  const items = loadRefItems();
+  let selectedId = null;
+  let scale = 1;
+  let panX = Math.round(window.innerWidth / 2);
+  let panY = Math.round(window.innerHeight / 2);
+
+  const applyTransform = () => {
+    layer.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${scale})`;
+  };
+
+  const fitToAll = () => {
+    const rect = viewport.getBoundingClientRect();
+    if (items.length === 0) {
+      scale = 1;
+      panX = Math.round(rect.width / 2);
+      panY = Math.round(rect.height / 2);
+      applyTransform();
+      return;
+    }
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const it of items) {
+      minX = Math.min(minX, it.x);
+      minY = Math.min(minY, it.y);
+      maxX = Math.max(maxX, it.x + it.w);
+      maxY = Math.max(maxY, it.y + it.h);
+    }
+    const w = Math.max(1, maxX - minX);
+    const h = Math.max(1, maxY - minY);
+    const pad = 80;
+    scale = Math.max(0.1, Math.min(1.5, (rect.width - pad * 2) / w, (rect.height - pad * 2) / h));
+    panX = Math.round((rect.width - w * scale) / 2 - minX * scale);
+    panY = Math.round((rect.height - h * scale) / 2 - minY * scale);
+    applyTransform();
+  };
+
+const pickerPop = el("div", overlay);
+  pickerPop.style.cssText = "position:absolute;bottom:68px;left:50%;transform:translateX(-50%);z-index:25;width:min(320px,calc(100vw - 32px));padding:10px;border-radius:14px;border:1px solid var(--background-modifier-border);background:color-mix(in srgb,var(--background-secondary) 92%,transparent);backdrop-filter:blur(16px);box-shadow:0 12px 32px rgba(0,0,0,0.45);display:none;flex-direction:column;gap:8px;";
+
+  const closeOverlay = () => {
+    window.removeEventListener("keydown", onKeyDown);
+    document.removeEventListener("paste", onPaste, true);
+    overlay.remove();
+  };
+
+  const backBtn = el("button", top, "d3n-ref-pill-btn", "← Назад");
+  backBtn.addEventListener("click", closeOverlay);
+  el("span", top, "d3n-ref-title", "🖼 Референсы");
+  const fitBtn = el("button", top, "d3n-ref-pill-btn", "⌖ Вписать");
+  fitBtn.addEventListener("click", fitToAll);
+
+  const addBtn = el("button", dock, "d3n-ref-pill-btn is-primary", "+ Картинка");
+  const delBtn = el("button", dock, "d3n-ref-pill-btn is-danger", "🗑 Удалить");
+  delBtn.disabled = true;
+
+  const updateDockState = () => {
+    delBtn.disabled = !selectedId;
+  };
+
+  const clearGuides = () => {
+    guidesLayer.replaceChildren();
+  };
+
+  const showGuide = (isVert, pos, from, to) => {
+    const g = el("div", guidesLayer, "d3n-ref-guide");
+    const thick = Math.max(1, 1.2 / scale);
+    if (isVert) {
+      g.style.left = pos + "px";
+      g.style.top = from + "px";
+      g.style.width = thick + "px";
+      g.style.height = Math.max(1, to - from) + "px";
+    } else {
+      g.style.left = from + "px";
+      g.style.top = pos + "px";
+      g.style.width = Math.max(1, to - from) + "px";
+      g.style.height = thick + "px";
+    }
+  };
+
+  const renderItems = () => {
+    layer.querySelectorAll(".d3n-ref-item").forEach(n => n.remove());
+    emptyHint.style.display = items.length === 0 ? "block" : "none";
+    for (const it of items) {
+      const box = el("div", layer, "d3n-ref-item" + (it.id === selectedId ? " is-selected" : ""));
+      box.dataset.id = it.id;
+      box.style.left = it.x + "px";
+      box.style.top = it.y + "px";
+      box.style.width = it.w + "px";
+      box.style.height = it.h + "px";
+
+      const img = el("img", box);
+      img.src = app.vault.adapter.getResourcePath(it.path);
+
+      for (const h of ["nw", "ne", "sw", "se"]) {
+        const handle = el("div", box, "d3n-ref-handle");
+        handle.dataset.h = h;
+      }
+    }
+    updateDockState();
+  };
+
+  const deleteSelected = () => {
+    if (!selectedId) return;
+    const idx = items.findIndex(it => it.id === selectedId);
+    if (idx !== -1) {
+      items.splice(idx, 1);
+      selectedId = null;
+      renderItems();
+      saveRefItems(items);
+    }
+  };
+  delBtn.addEventListener("click", deleteSelected);
+
+  const screenToWorld = (cx, cy) => {
+    const rect = viewport.getBoundingClientRect();
+    return { x: (cx - rect.left - panX) / scale, y: (cy - rect.top - panY) / scale };
+  };
+
+  const addImageByPath = async (vaultPath, worldPt = null) => {
+    const resUrl = app.vault.adapter.getResourcePath(vaultPath);
+    const probe = new Image();
+    await new Promise(resolve => {
+      probe.onload = resolve;
+      probe.onerror = resolve;
+      probe.src = resUrl;
+    });
+    const nw = probe.naturalWidth || 480;
+    const nh = probe.naturalHeight || 320;
+    const w = nw > 460 ? 460 : nw;
+    const h = Math.max(40, Math.round(w * (nh / Math.max(1, nw))));
+
+    const rect = viewport.getBoundingClientRect();
+    const center = worldPt || screenToWorld(rect.left + rect.width / 2, rect.top + rect.height / 2);
+    const newItem = {
+      id: "ref_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+      path: vaultPath,
+      x: Math.round(center.x - w / 2),
+      y: Math.round(center.y - h / 2),
+      w,
+      h
+    };
+    items.push(newItem);
+    selectedId = newItem.id;
+    renderItems();
+    saveRefItems(items);
+  };
+
+  const saveBinaryImage = async file => {
+    const dashFile = getCurrentDashboardFile();
+    const folder = dashFile?.parent?.path ? dashFile.parent.path + "/" : "";
+    const ext = (file.name?.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+    const targetPath = normalizePath(folder + "ref-" + Date.now() + "." + ext);
+    await app.vault.createBinary(targetPath, await file.arrayBuffer());
+    return targetPath;
+  };
+
+  // Поповер выбора картинки из хранилища
+  addBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    const isOpen = pickerPop.style.display === "flex";
+    if (isOpen) {
+      pickerPop.style.display = "none";
+      return;
+    }
+    pickerPop.replaceChildren();
+    const search = el("input", pickerPop);
+    search.type = "text";
+    search.placeholder = "Поиск картинки (или Ctrl+V)…";
+    search.style.cssText = "width:100%;height:30px;padding:4px 8px;border-radius:8px;border:1px solid var(--background-modifier-border);background:var(--background-primary);color:var(--text-normal);font-size:12px;";
+    const listWrap = el("div", pickerPop);
+    listWrap.style.cssText = "display:flex;flex-direction:column;gap:4px;max-height:210px;overflow-y:auto;scrollbar-width:none;";
+
+    const allImgs = app.vault.getFiles().filter(f => IMAGE_EXTENSIONS.has(f.extension.toLowerCase()));
+    const drawList = q => {
+      listWrap.replaceChildren();
+      const needle = q.trim().toLowerCase();
+      const filtered = (needle ? allImgs.filter(f => f.path.toLowerCase().includes(needle)) : allImgs).slice(0, 30);
+      for (const f of filtered) {
+        const row = el("button", listWrap);
+        row.type = "button";
+        row.style.cssText = "display:flex;align-items:center;gap:8px;width:100%;padding:5px 8px;border-radius:8px;border:none;background:rgba(255,255,255,0.03);color:var(--text-normal);cursor:pointer;text-align:left;font-size:12px;";
+        const th = el("img", row);
+        th.src = app.vault.adapter.getResourcePath(f.path);
+        th.style.cssText = "width:30px;height:24px;object-fit:cover;border-radius:4px;flex-shrink:0;";
+        const lbl = el("span", row, "", f.basename);
+        lbl.style.cssText = "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+        row.addEventListener("click", () => {
+          pickerPop.style.display = "none";
+          void addImageByPath(f.path);
+        });
+      }
+    };
+    search.addEventListener("input", () => drawList(search.value));
+    drawList("");
+    pickerPop.style.display = "flex";
+    window.setTimeout(() => search.focus(), 10);
+  });
+
+  // Взаимодействие с холстом: панорама, перетаскивание + элайнмент, угловой ресайз
+  let mode = "none";
+  let panStart = { x: 0, y: 0, px: 0, py: 0 };
+  let dragStart = { wx: 0, wy: 0, x: 0, y: 0, w: 0, h: 0, handle: "" };
+
+  viewport.addEventListener("pointerdown", e => {
+    pickerPop.style.display = "none";
+    const handleEl = e.target.closest(".d3n-ref-handle");
+    const itemEl = e.target.closest(".d3n-ref-item");
+
+    if (handleEl && itemEl) {
+      e.preventDefault();
+      viewport.setPointerCapture(e.pointerId);
+      const it = items.find(x => x.id === itemEl.dataset.id);
+      if (!it) return;
+      selectedId = it.id;
+      mode = "resize";
+      const w = screenToWorld(e.clientX, e.clientY);
+      dragStart = { wx: w.x, wy: w.y, x: it.x, y: it.y, w: it.w, h: it.h, handle: handleEl.dataset.h || "se" };
+      return;
+    }
+
+    if (itemEl && e.button === 0) {
+      e.preventDefault();
+      viewport.setPointerCapture(e.pointerId);
+      const it = items.find(x => x.id === itemEl.dataset.id);
+      if (!it) return;
+      selectedId = it.id;
+      // Поднимаем выбранную картинку наверх
+      const idx = items.indexOf(it);
+      if (idx !== items.length - 1) {
+        items.splice(idx, 1);
+        items.push(it);
+      }
+      renderItems();
+      mode = "move";
+      const w = screenToWorld(e.clientX, e.clientY);
+      dragStart = { wx: w.x, wy: w.y, x: it.x, y: it.y, w: it.w, h: it.h, handle: "" };
+      return;
+    }
+
+    selectedId = null;
+    renderItems();
+    if (e.button !== 0 && e.button !== 1) return;
+    viewport.setPointerCapture(e.pointerId);
+    mode = "pan";
+    viewport.classList.add("is-panning");
+    panStart = { x: e.clientX, y: e.clientY, px: panX, py: panY };
+  });
+
+  viewport.addEventListener("pointermove", e => {
+    if (mode === "pan") {
+      panX = panStart.px + (e.clientX - panStart.x);
+      panY = panStart.py + (e.clientY - panStart.y);
+      applyTransform();
+      return;
+    }
+
+    const it = items.find(x => x.id === selectedId);
+    if (!it) return;
+    const box = layer.querySelector(`.d3n-ref-item[data-id="${it.id}"]`);
+    if (!box) return;
+    const w = screenToWorld(e.clientX, e.clientY);
+    const dx = w.x - dragStart.wx;
+    const dy = w.y - dragStart.wy;
+
+    if (mode === "move") {
+      let nx = dragStart.x + dx;
+      let ny = dragStart.y + dy;
+      clearGuides();
+
+      const snapTol = 7 / Math.max(0.15, scale);
+      let bestDx = snapTol, bestDy = snapTol;
+      let gx = null, gy = null;
+      const myXs = [nx, nx + it.w / 2, nx + it.w];
+      const myYs = [ny, ny + it.h / 2, ny + it.h];
+
+      for (const other of items) {
+        if (other.id === it.id) continue;
+        for (const mx of myXs) {
+          for (const tx of [other.x, other.x + other.w / 2, other.x + other.w]) {
+            const d = tx - mx;
+            if (Math.abs(d) < Math.abs(bestDx)) {
+              bestDx = d;
+              gx = { pos: tx, from: Math.min(ny, other.y) - 16, to: Math.max(ny + it.h, other.y + other.h) + 16 };
+            }
+          }
+        }
+        for (const my of myYs) {
+          for (const ty of [other.y, other.y + other.h / 2, other.y + other.h]) {
+            const d = ty - my;
+            if (Math.abs(d) < Math.abs(bestDy)) {
+              bestDy = d;
+              gy = { pos: ty, from: Math.min(nx, other.x) - 16, to: Math.max(nx + it.w, other.x + other.w) + 16 };
+            }
+          }
+        }
+      }
+      if (gx) { nx += bestDx; showGuide(true, gx.pos, gx.from, gx.to); }
+      if (gy) { ny += bestDy; showGuide(false, gy.pos, gy.from, gy.to); }
+
+      it.x = Math.round(nx);
+      it.y = Math.round(ny);
+      box.style.left = it.x + "px";
+      box.style.top = it.y + "px";
+      return;
+    }
+
+    if (mode === "resize") {
+      const hName = dragStart.handle;
+      const ratio = dragStart.w / Math.max(1, dragStart.h);
+      let nextW = hName.includes("e") ? dragStart.w + dx : dragStart.w - dx;
+      nextW = Math.max(60, nextW);
+      const nextH = Math.max(40, Math.round(nextW / ratio));
+      nextW = Math.round(nextH * ratio);
+
+      it.x = hName.includes("w") ? Math.round(dragStart.x + dragStart.w - nextW) : dragStart.x;
+      it.y = hName.includes("n") ? Math.round(dragStart.y + dragStart.h - nextH) : dragStart.y;
+      it.w = nextW;
+      it.h = nextH;
+      box.style.left = it.x + "px";
+      box.style.top = it.y + "px";
+      box.style.width = it.w + "px";
+      box.style.height = it.h + "px";
+    }
+  });
+
+  const stopAction = () => {
+    if (mode === "move" || mode === "resize") {
+      clearGuides();
+      saveRefItems(items);
+    }
+    mode = "none";
+    viewport.classList.remove("is-panning");
+  };
+  viewport.addEventListener("pointerup", stopAction);
+  viewport.addEventListener("pointercancel", stopAction);
+
+  // Drag & Drop картинок прямо на холст
+  viewport.addEventListener("dragover", e => {
+    e.preventDefault();
+    viewport.classList.add("is-drag-over");
+  });
+  viewport.addEventListener("dragleave", () => viewport.classList.remove("is-drag-over"));
+  viewport.addEventListener("drop", e => {
+    e.preventDefault();
+    viewport.classList.remove("is-drag-over");
+    const pt = screenToWorld(e.clientX, e.clientY);
+    const files = Array.from(e.dataTransfer?.files || []).filter(f => f.type.startsWith("image/"));
+    files.forEach((f, i) => {
+      void saveBinaryImage(f).then(p => addImageByPath(p, { x: pt.x + i * 24, y: pt.y + i * 24 }));
+    });
+  });
+
+  // Вставка из буфера обмена Ctrl+V
+  const onPaste = e => {
+    if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName || "")) return;
+    const imgItem = Array.from(e.clipboardData?.items || []).find(it => it.kind === "file" && it.type.startsWith("image/"));
+    const file = imgItem?.getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    e.stopPropagation();
+    void saveBinaryImage(file)
+      .then(p => addImageByPath(p))
+      .catch(err => notify("Ошибка вставки: " + (err?.message || err)));
+  };
+  document.addEventListener("paste", onPaste, true);
+
+  viewport.addEventListener("wheel", e => {
+    e.preventDefault();
+    const rect = viewport.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+    const nextScale = Math.max(0.1, Math.min(6, scale * factor));
+    const ratio = nextScale / scale;
+    panX = sx - (sx - panX) * ratio;
+    panY = sy - (sy - panY) * ratio;
+    scale = nextScale;
+    applyTransform();
+  }, { passive: false });
+
+const onKeyDown = e => {
+    if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName || "")) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeOverlay();
+    } else if ((e.key === "Delete" || e.key === "Backspace") && selectedId) {
+      e.preventDefault();
+      deleteSelected();
+    }
+  };
+  window.addEventListener("keydown", onKeyDown);
+
+  renderItems();
+  fitToAll();
+}
 
 const results = el("div", root, "d3n-groups");
 

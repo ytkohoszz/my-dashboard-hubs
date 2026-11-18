@@ -4,9 +4,9 @@
 
 /* --- Module: home --- */
 .dashboard-home .dh-today {
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    border-radius: 10px;
+    background: color-mix(in srgb, var(--background-secondary) 75%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
+    border-radius: 16px;
     padding: 16px 18px;
     margin: 0 0 20px 0;
     box-sizing: border-box;
@@ -70,10 +70,52 @@
     gap: 14px;
     margin-top: 14px;
   }
-  .dashboard-home .dh-today-section {
+.dashboard-home .dh-today-section {
     display: flex;
     flex-direction: column;
     gap: 10px;
+  }
+  .dashboard-home .dh-ratings-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .dashboard-home button.dh-rating-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 99px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: color-mix(in srgb, var(--background-primary) 75%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
+    color: var(--text-muted);
+    box-shadow: none;
+    cursor: pointer;
+    transition: border-color 0.14s ease, color 0.14s ease;
+  }
+  .dashboard-home button.dh-rating-pill:hover,
+  .dashboard-home button.dh-rating-pill.is-open {
+    border-color: var(--interactive-accent);
+    color: var(--text-normal);
+  }
+  .dashboard-home .dh-rating-pill-val {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--pill-color, var(--text-normal));
+  }
+  .dashboard-home .dh-rating-drawer {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--background-primary) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
   }
   .dashboard-home .dh-today-row {
     display: grid;
@@ -161,22 +203,22 @@
     opacity: 1;
     font-weight: 700;
   }
-  .dashboard-home .dh-metrics-grid {
+.dashboard-home .dh-metrics-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(135px, 1fr));
     gap: 10px;
     padding-top: 12px;
-    border-top: 1px solid var(--background-modifier-border);
+    border-top: 1px solid color-mix(in srgb, var(--text-normal) 7%, transparent);
   }
   .dashboard-home .dh-metric-item {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    transition: border-color 0.15s ease;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--background-primary) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 7%, transparent);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
   }
   .dashboard-home .dh-metric-item.is-clickable {
     cursor: pointer;
@@ -225,23 +267,44 @@
     color: var(--text-normal);
     line-height: 28px;
   }
-  .dashboard-home .dh-metric-input {
-    width: 78px !important;
+.dashboard-home .dh-metric-input {
+    width: 68px !important;
     max-width: 100%;
     height: 28px !important;
-    padding: 2px 8px !important;
-    font-size: 0.88rem !important;
-    font-weight: 600;
+    padding: 0 4px !important;
+    font-size: 1rem !important;
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
-    text-align: right;
-    border-radius: 6px !important;
-    border: 1px solid var(--background-modifier-border) !important;
-    background: var(--background-secondary) !important;
+    text-align: left;
+    border-radius: 7px !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    box-shadow: none !important;
     color: var(--text-normal) !important;
+    transition: background-color 0.14s ease, border-color 0.14s ease;
+  }
+  .dashboard-home .dh-metric-input:hover {
+    background: color-mix(in srgb, var(--text-normal) 5%, transparent) !important;
   }
   .dashboard-home .dh-metric-input:focus {
     outline: none !important;
+    background: var(--background-secondary) !important;
     border-color: #599ed6 !important;
+  }
+  .dashboard-home .dh-sleep-pair {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 28px;
+  }
+  .dashboard-home .dh-sleep-sep {
+    font-size: 0.78rem;
+    color: var(--text-faint);
+  }
+  .dashboard-home .dh-time-input {
+    width: 54px !important;
+    text-align: center !important;
+    font-size: 0.94rem !important;
   }
   .dashboard-home .dh-metric-unit {
     font-size: 0.78rem;
@@ -268,11 +331,11 @@
     padding-top: 12px;
     border-top: 1px solid var(--background-modifier-border);
   }
-  .dashboard-home .dh-plan-box {
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
+.dashboard-home .dh-plan-box {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--background-primary) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 7%, transparent);
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -305,15 +368,15 @@
     grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
     gap: 6px;
   }
-  .dashboard-home .dh-plan-item {
+.dashboard-home .dh-plan-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 5px 8px;
-    border-radius: 6px;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
+    padding: 6px 10px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--background-secondary) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 6%, transparent);
     font-size: 0.8rem;
     cursor: pointer;
     user-select: none;
@@ -337,19 +400,29 @@
     gap: 6px;
     flex-shrink: 0;
   }
-  .dashboard-home .dh-plan-focus-btn {
+.dashboard-home .dh-plan-focus-btn {
     height: 22px !important;
     min-height: 22px !important;
-    padding: 0 6px !important;
-    border-radius: 5px !important;
+    padding: 0 7px !important;
+    border-radius: 99px !important;
     font-size: 0.68rem !important;
     font-weight: 600 !important;
     font-variant-numeric: tabular-nums;
     background: color-mix(in srgb, #9c83e8 14%, var(--background-primary)) !important;
-    border: 1px solid color-mix(in srgb, #9c83e8 35%, var(--background-modifier-border)) !important;
+    border: 1px solid color-mix(in srgb, #9c83e8 28%, transparent) !important;
     color: #9c83e8 !important;
     cursor: pointer;
     box-shadow: none !important;
+    transition: opacity 0.14s ease, background-color 0.14s ease;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .dashboard-home .dh-plan-focus-btn.is-empty {
+      opacity: 0;
+    }
+    .dashboard-home .dh-plan-item:hover .dh-plan-focus-btn.is-empty,
+    .dashboard-home .dh-plan-item:focus-within .dh-plan-focus-btn.is-empty {
+      opacity: 1;
+    }
   }
   .dashboard-home .dh-plan-focus-btn:hover {
     background: color-mix(in srgb, #9c83e8 24%, var(--background-primary)) !important;
@@ -402,19 +475,21 @@
     gap: 8px;
     width: 100%;
   }
-  .dashboard-home .dh-event-input {
+.dashboard-home .dh-event-input {
     flex: 1;
     width: 100% !important;
-    height: 30px !important;
-    padding: 4px 10px !important;
+    height: 32px !important;
+    padding: 4px 12px !important;
     font-size: 0.84rem !important;
-    border-radius: 7px !important;
-    border: 1px solid var(--background-modifier-border) !important;
-    background: var(--background-primary) !important;
+    border-radius: 10px !important;
+    border: 1px solid color-mix(in srgb, var(--text-normal) 6%, transparent) !important;
+    background: color-mix(in srgb, var(--background-primary) 55%, transparent) !important;
     color: var(--text-normal) !important;
+    transition: border-color 0.14s ease, background-color 0.14s ease;
   }
   .dashboard-home .dh-event-input:focus {
     outline: none !important;
+    background: var(--background-primary) !important;
     border-color: #599ed6 !important;
   }
   .dashboard-home .dh-today-footer {
