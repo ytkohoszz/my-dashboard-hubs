@@ -1796,29 +1796,10 @@ async function renderWorkoutsHub() {
     }
   }
 
-  function formatLoadTextForSummary(loadType, w) {
+function formatLoadTextForSummary(loadType, w) {
     if (loadType === "bw") return "(свой вес)";
     if (loadType === "weighted" && w != null) return "(+" + fmt(w) + " кг)";
     return "(вес не указан)";
-  }
-
-  function renderDeltaSpan(container, v, unit = "повт.") {
-    if (v > 0) {
-      container.createSpan({
-        text: "+" + fmt(v) + " " + unit,
-        attr: { style: "color:var(--color-green); font-weight:600;" }
-      });
-    } else if (v < 0) {
-      container.createSpan({
-        text: "−" + fmt(-v) + " " + unit,
-        attr: { style: "color:var(--color-red); font-weight:600;" }
-      });
-    } else {
-      container.createSpan({
-        text: "0 " + unit,
-        attr: { style: "color:var(--text-muted);" }
-      });
-    }
   }
 
   const UI_STORAGE_KEY = "dh_workout_hub_ui_v2";
@@ -2121,9 +2102,7 @@ async function renderWorkoutsHub() {
     }
   }
 
-  const newest = (a, b) => b.order - a.order || a.path.localeCompare(b.path, "ru");
-  const previousOf = (latest, list) => !latest.date ? null : [...list].sort(newest).find(g => g !== latest && g.date &&
-    (g.date < latest.date || (+g.date === +latest.date && g.timeKnown && latest.timeKnown && g.order < latest.order))) || null;
+const newest = (a, b) => b.order - a.order || a.path.localeCompare(b.path, "ru");
 
   const from = today.minus({ days: 29 });
   const recent = all.filter(g => g.date && g.date >= from && g.date <= today);
@@ -2905,60 +2884,45 @@ const summarySection = root.createDiv({
       attr: { style: "font-size: 0.76rem; color: var(--text-muted); margin-top: 3px;" }
     });
 
-    const tableEl = recordsPanel.createEl("table", { cls: "dh-table", attr: { style: "width: 100%; border-collapse: collapse; font-size: 0.86rem;" } });
+const tableEl = recordsPanel.createEl("table", { cls: "dh-table", attr: { style: "width: 100%; border-collapse: collapse; font-size: 0.86rem;" } });
     const thead = tableEl.createEl("thead");
     const trH = thead.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border); text-align: left; color: var(--text-muted); font-size: 0.74rem; text-transform: uppercase;" } });
     trH.createEl("th", { text: "Упражнение", attr: { style: "padding: 8px 6px;" } });
     trH.createEl("th", { text: "Нагрузка", attr: { style: "padding: 8px 6px;" } });
     trH.createEl("th", { text: "Рекорд", attr: { style: "padding: 8px 6px;" } });
-    trH.createEl("th", { text: "Последний результат", attr: { style: "padding: 8px 6px;" } });
-    trH.createEl("th", { text: "К предыдущей", attr: { style: "padding: 8px 6px;" } });
-    trH.createEl("th", { text: "Последняя тренировка", attr: { style: "padding: 8px 6px; text-align: right;" } });
+    trH.createEl("th", { text: "Дата рекорда", attr: { style: "padding: 8px 6px; text-align: right;" } });
 
     const tbody = tableEl.createEl("tbody");
 
     dynamicRecords.forEach(list => {
       const sorted = [...list].sort(newest);
-      const latest = sorted[0];
-      const previous = previousOf(latest, list);
-      const best = Math.max(...list.map(g => g.best));
+      const recordSession = sorted.reduce((acc, g) => (g.best > acc.best ? g : acc), sorted[0]);
 
       const tr = tbody.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border);" } });
 
       const tdName = tr.createEl("td", { attr: { style: "padding: 8px 6px; font-weight: 500;" } });
-      tdName.createEl("strong", { text: latest.name });
-      if (latest.variant !== "Основной") {
+      tdName.createEl("strong", { text: recordSession.name });
+      if (recordSession.variant !== "Основной") {
         tdName.createSpan({
-          text: " (" + latest.variant + ")",
+          text: " (" + recordSession.variant + ")",
           attr: { style: "font-size:0.75rem; color:var(--text-muted);" }
         });
       }
 
       const tdLoad = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
-      renderLoadBadge(tdLoad, latest.loadType, latest.weight);
+      renderLoadBadge(tdLoad, recordSession.loadType, recordSession.weight);
 
-      const tdBest = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
-      tdBest.createSpan({ text: "🥇 " + fmt(best), attr: { style: "font-weight:700; color:var(--text-normal);" } });
-      tdBest.createSpan({ text: " " + latest.unit, attr: { style: "font-size:0.75rem; color:var(--text-muted);" } });
+      const tdBest = tr.createEl("td", { attr: { style: "padding: 8px 6px; font-variant-numeric: tabular-nums;" } });
+      tdBest.createSpan({ text: "🥇 " + fmt(recordSession.best), attr: { style: "font-weight:700; color:var(--text-normal);" } });
+      tdBest.createSpan({ text: " " + recordSession.unit, attr: { style: "font-size:0.75rem; color:var(--text-muted);" } });
 
-      const tdCur = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
-      tdCur.createSpan({ text: fmt(latest.best) });
-      tdCur.createSpan({ text: " " + latest.unit, attr: { style: "font-size:0.75rem; color:var(--text-muted);" } });
-
-      const tdDelta = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
-      if (previous) {
-        renderDeltaSpan(tdDelta, latest.best - previous.best, latest.unit);
-      } else {
-        tdDelta.createSpan({ text: "—", attr: { style: "color:var(--text-muted);" } });
-      }
-
-      const tdDate = tr.createEl("td", { attr: { style: "padding: 8px 6px; text-align: right;" } });
+      const tdDate = tr.createEl("td", { attr: { style: "padding: 8px 6px; text-align: right; font-variant-numeric: tabular-nums;" } });
       const aLink = tdDate.createEl("a", {
         cls: "internal-link",
-        text: latest.date ? latest.date.toFormat("dd.MM.yyyy") : "—",
-        attr: { href: latest.path, style: "font-size:0.8rem; color:var(--text-accent);" }
+        text: recordSession.date ? recordSession.date.toFormat("dd.MM.yyyy") : "—",
+        attr: { href: recordSession.path, style: "font-size:0.8rem; color:var(--text-accent);" }
       });
-      aLink.onclick = e => { e.preventDefault(); app.workspace.openLinkText(latest.path, dv.currentFilePath, false); };
+      aLink.onclick = e => { e.preventDefault(); app.workspace.openLinkText(recordSession.path, dv.currentFilePath, false); };
     });
   }
 
