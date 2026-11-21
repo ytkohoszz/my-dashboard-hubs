@@ -15,7 +15,6 @@ const FILES_MAP = {
   study: ["study.js"],
   "3d": ["3d.js"],
   english: ["english_2.js", "english2.js", "english.js"],
-  media: ["media.js"],
 };
 
 function findScript(fileNames) {

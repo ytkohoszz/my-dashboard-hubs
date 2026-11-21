@@ -296,16 +296,10 @@ window.__dhSyncTodayBookReading = syncTodayBookReading;
 
   const trainingsToday = trainingsTodayList.length;
 
-  const notes3D = allPages.filter(p =>
+const notes3D = allPages.filter(p =>
     !isTemplate(p) &&
     String(p.направление ?? "").trim() === "3D" &&
     p.file.name !== "🧊3D"
-  ).length;
-
-  const mediaCount = allPages.filter(p =>
-    !isTemplate(p) &&
-    p.file.path.startsWith("Знания/Медиа/") &&
-    p.file.name !== "🎬Медиатека"
   ).length;
 
 const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) || 0;
@@ -348,19 +342,12 @@ const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) ||
       color: "#4aab80",
       badge: englishBadge
     },
-    {
+{
       title: "3D",
       file: "🧊3D",
       icon: "🧊",
       color: "#599ed6",
       badge: notes3D > 0 ? String(notes3D) : ""
-    },
-    {
-      title: "Медиатека",
-      file: "Знания/Медиа/🎬Медиатека",
-      icon: "🎬",
-      color: "#e06c75",
-      badge: mediaCount > 0 ? String(mediaCount) : ""
     }
   ];
 
@@ -757,7 +744,7 @@ const readingSubHint =
   }
 .dashboard-home .dh-metrics-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(135px, 1fr));
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
     gap: 10px;
     padding-top: 12px;
     border-top: 1px solid color-mix(in srgb, var(--text-normal) 7%, transparent);
@@ -843,20 +830,28 @@ const readingSubHint =
     background: var(--background-secondary) !important;
     border-color: #599ed6 !important;
   }
-  .dashboard-home .dh-sleep-pair {
-    display: flex;
+.dashboard-home .dh-sleep-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
     gap: 4px;
+    width: 100%;
     min-height: 28px;
   }
   .dashboard-home .dh-sleep-sep {
-    font-size: 0.78rem;
+    font-size: 0.74rem;
     color: var(--text-faint);
+    line-height: 1;
+    user-select: none;
   }
   .dashboard-home .dh-time-input {
-    width: 54px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 2px !important;
     text-align: center !important;
-    font-size: 0.94rem !important;
+    font-size: 0.88rem !important;
+    letter-spacing: -0.02em;
+    background: color-mix(in srgb, var(--text-normal) 4%, transparent) !important;
   }
   .dashboard-home .dh-metric-unit {
     font-size: 0.78rem;
@@ -1574,10 +1569,10 @@ const renderSleepScheduleCard = () => {
       const errorEl = card.createDiv({ cls: "dh-metric-error" });
       errorEl.style.display = "none";
 
-      const mountTimeField = (key, label, placeholder) => {
+const mountTimeField = (key, label, placeholder) => {
         const input = pair.createEl("input", {
           cls: "dh-metric-input dh-time-input",
-          attr: { type: "text", placeholder, "aria-label": label }
+          attr: { type: "text", maxlength: "5", placeholder, "aria-label": label }
         });
 
         const savedVal = typeof note[key] === "string" ? note[key].trim() : "";

@@ -30,7 +30,6 @@ const MODULE_FILE_CANDIDATES: Record<string, string[]> = {
   study: ["study.js", "Scripts/study.js"],
   "3d": ["3d.js", "3D.js", "Scripts/3d.js"],
   english: ["english_2.js", "english2.js", "english.js", "Scripts/english.js"],
-  media: ["media.js", "Media.js", "Scripts/media.js"],
 };
 
 class HubBlockRenderer extends MarkdownRenderChild {
@@ -203,7 +202,7 @@ export default class MyDashboardHubsPlugin extends Plugin {
       ctx.addChild(child);
     });
 
-    const shortModules = ["home", "diary", "health", "study", "3d", "english", "media"];
+const shortModules = ["home", "diary", "health", "study", "3d", "english"];
     for (const modName of shortModules) {
       this.registerMarkdownCodeBlockProcessor(`my-${modName}`, (source, el, ctx) => {
         const trimmed = source.trim();
