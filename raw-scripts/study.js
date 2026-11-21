@@ -515,7 +515,7 @@ const { localOverrides, localCreatedNotes } = uiState;
 // --- Состояние тем, форм и списка карточек ---
 function ensureStudyCardsState() {
   const defaults = {
-    selectedDeckPath: "ALL",
+    selectedDeckPath: "",
     isNewDeckFormOpen: false,
     newDeckDraft: { title: "", parentProjectPath: "", discipline: "", defaultBi: false },
 
@@ -602,12 +602,12 @@ function openStudyTrainer(mode = "DUE_AND_NEW") {
     notify("Включи плагин my-sr-trainer версии 0.1.2 или совместимой в настройках Obsidian.");
     return;
   }
+  if (!ui.selectedDeckPath || !ui.selectedDeckPath.trim()) {
+    notify("Сначала выбери или создай тему карточек.");
+    return;
+  }
   try {
-    const params = { scope: "study", mode };
-    if (typeof ui.selectedDeckPath === "string" && ui.selectedDeckPath !== "ALL" && ui.selectedDeckPath.trim()) {
-      params.deckPath = ui.selectedDeckPath;
-    }
-    plugin.openTrainer(params);
+    plugin.openTrainer({ scope: "study", mode, deckPath: ui.selectedDeckPath });
   } catch (error) {
     notify("Не удалось открыть my-sr-trainer: " + (error instanceof Error ? error.message : String(error)));
   }
@@ -1663,7 +1663,8 @@ async function loadStudyDecks(activeProjects, todayISO) {
   let sumMature = 0;
   let sumReviewedToday = 0;
 
-  for (const [path, p] of deckPagesMap.entries()) {
+for (const [path, p] of deckPagesMap.entries()) {
+    if (localOverrides.get(path)?.deleted) continue;
     const fileObj = app.vault.getAbstractFileByPath(path);
     if (!fileObj) continue;
 
@@ -1945,10 +1946,10 @@ function renderStudyCardSideDraft(parent, side, cardsContainer, activeProjects) 
       attr: { style: "display:flex;align-items:center;justify-content:center;max-width:100%;" }
     });
 
-    if (draft[imagePathKey]) {
+if (draft[imagePathKey]) {
       const imageFile = app.metadataCache.getFirstLinkpathDest(
         draft[imagePathKey],
-        ui.selectedDeckPath === "ALL" ? "" : ui.selectedDeckPath
+        ui.selectedDeckPath || ""
       );
       if (imageFile) {
         const image = preview.createEl("img", {
@@ -2152,28 +2153,28 @@ async function renderCardsSection(cardsContainer, activeProjects) {
   const data = await loadStudyDecks(activeProjects, todayISO);
   const { decks, deckByPath, allCards, totals } = data;
 
-  if (ui.selectedDeckPath !== "ALL" && !deckByPath.has(ui.selectedDeckPath)) {
-    ui.selectedDeckPath = decks.length > 0 ? decks[0].path : "ALL";
+if (!ui.selectedDeckPath || !deckByPath.has(ui.selectedDeckPath)) {
+    ui.selectedDeckPath = decks.length > 0 ? decks[0].path : "";
   }
 
-  const activeDeck = ui.selectedDeckPath === "ALL" ? null : deckByPath.get(ui.selectedDeckPath);
-  const scopedCards = activeDeck ? activeDeck.cards : allCards;
+  const activeDeck = ui.selectedDeckPath ? (deckByPath.get(ui.selectedDeckPath) || null) : null;
+  const scopedCards = activeDeck ? activeDeck.cards : [];
 
-  let scopedDue = activeDeck ? activeDeck.dueDirections : totals.sumDue;
-  let scopedNew = activeDeck ? activeDeck.newDirections : totals.sumNew;
-  let scopedEntries = activeDeck ? activeDeck.totalEntries : totals.sumEntries;
-  let scopedDirections = activeDeck ? activeDeck.totalDirections : totals.sumDirections;
-  let scopedMature = activeDeck ? activeDeck.matureDirections : totals.sumMature;
-  let scopedReviewedToday = activeDeck ? activeDeck.reviewedTodayDirections : totals.sumReviewedToday;
+  let scopedDue = activeDeck ? activeDeck.dueDirections : 0;
+  let scopedNew = activeDeck ? activeDeck.newDirections : 0;
+  let scopedEntries = activeDeck ? activeDeck.totalEntries : 0;
+  let scopedDirections = activeDeck ? activeDeck.totalDirections : 0;
+  let scopedMature = activeDeck ? activeDeck.matureDirections : 0;
+  let scopedReviewedToday = activeDeck ? activeDeck.reviewedTodayDirections : 0;
 
   const panel = cardsContainer.createDiv({ cls: "dsc-panel" });
 
   // 1. Минималистичная шапка блока карточек
   const head = panel.createDiv({ cls: "dsc-head" });
   const titleWrap = head.createDiv({ cls: "dsc-title" });
-  titleWrap.createSpan({ text: "🧠 Карточки" });
+  titleWrap.createSpan({ text: "Карточки" });
   titleWrap.createSpan({
-    text: decks.length + " тем · " + totals.sumEntries + " вопр.",
+    text: decks.length + " " + plural(decks.length, ["тема", "темы", "тем"]) + " · " + totals.sumEntries + " вопр.",
     attr: { style: "font-size: 0.76rem; font-weight: 500; color: var(--text-muted);" }
   });
 
@@ -2273,23 +2274,13 @@ const headRight = head.createDiv({ attr: { style: "display: flex; align-items: c
     titleInp.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); doCreateDeck(); } };
   }
 
-  // 2. Панель выбора темы
+// 2. Панель выбора темы
   if (decks.length > 0) {
     const decksBar = panel.createDiv({ cls: "dsc-decks-bar" });
 
-    const allChip = decksBar.createEl("button", {
-      cls: "dsc-deck-chip" + (ui.selectedDeckPath === "ALL" ? " is-active" : ""),
-      text: "📚 Все темы (" + totals.sumEntries + ")",
-      attr: { type: "button" }
-    });
-    allChip.onclick = () => {
-      ui.selectedDeckPath = "ALL";
-      renderCardsSection(cardsContainer, activeProjects);
-    };
-
     decks.forEach(d => {
       const isAct = ui.selectedDeckPath === d.path;
-      const dueBadge = d.dueDirections > 0 ? " · 🔥" + d.dueDirections : "";
+      const dueBadge = d.dueDirections > 0 ? " · " + d.dueDirections : "";
       const chip = decksBar.createEl("button", {
         cls: "dsc-deck-chip" + (isAct ? " is-active" : ""),
         text: d.title + " (" + d.totalEntries + dueBadge + ")",
@@ -2307,17 +2298,63 @@ const headRight = head.createDiv({ attr: { style: "display: flex; align-items: c
     });
 
     if (activeDeck) {
-      const openDeckNoteLink = decksBar.createEl("a", {
+      const deckTools = decksBar.createDiv({
+        attr: { style: "margin-left: auto; display: inline-flex; align-items: center; gap: 6px;" }
+      });
+
+      const openDeckNoteLink = deckTools.createEl("a", {
         cls: "internal-link",
-        text: "📄 " + activeDeck.fileName,
+        text: activeDeck.fileName,
         attr: {
           href: activeDeck.path,
-          style: "margin-left: auto; font-size: 0.74rem; color: var(--text-muted); text-decoration: none;"
+          style: "font-size: 0.74rem; color: var(--text-muted); text-decoration: none;"
         }
       });
       openDeckNoteLink.onclick = e => {
         e.preventDefault();
         app.workspace.openLinkText(activeDeck.path, dv.currentFilePath, e.ctrlKey || e.metaKey);
+      };
+
+      let confirmDeleteDeck = false;
+      const delDeckBtn = deckTools.createEl("button", {
+        cls: "dh-sp-icon-action",
+        text: "✕",
+        attr: {
+          type: "button",
+          title: "Удалить тему в корзину",
+          "aria-label": "Удалить тему в корзину",
+          style: "opacity: 0.8;"
+        }
+      });
+      delDeckBtn.onclick = async e => {
+        e.stopPropagation();
+        if (delDeckBtn.disabled) return;
+        if (!confirmDeleteDeck) {
+          confirmDeleteDeck = true;
+          delDeckBtn.textContent = "Удалить?";
+          delDeckBtn.classList.add("is-danger");
+          setTimeout(() => {
+            if (delDeckBtn.disabled || !delDeckBtn.isConnected) return;
+            confirmDeleteDeck = false;
+            delDeckBtn.textContent = "✕";
+            delDeckBtn.classList.remove("is-danger");
+          }, 3000);
+          return;
+        }
+        delDeckBtn.disabled = true;
+        try {
+          await app.vault.trash(activeDeck.fileObj, true);
+          localOverrides.set(activeDeck.path, { deleted: true });
+          const localIdx = ui.localCreatedDecks.findIndex(item => item.path === activeDeck.path);
+          if (localIdx !== -1) ui.localCreatedDecks.splice(localIdx, 1);
+          ui.selectedDeckPath = "";
+          ui.isListManageOpen = false;
+          notify("Тема «" + activeDeck.title + "» удалена в корзину.");
+          await renderCardsSection(cardsContainer, activeProjects);
+        } catch (err) {
+          delDeckBtn.disabled = false;
+          notify("Ошибка удаления темы: " + (err instanceof Error ? err.message : String(err)));
+        }
       };
     }
   } else {
@@ -2397,10 +2434,10 @@ const dueBox = summaryGrid.createDiv({ cls: "dsc-stat-box" });
     renderCardsSection(cardsContainer, activeProjects);
   };
 
-  if (scopedEntries > 0) {
+if (scopedEntries > 0) {
     const listManageBtn = actRow.createEl("button", {
       cls: "dsc-btn-sec" + (ui.isListManageOpen ? " is-active" : ""),
-      text: ui.isListManageOpen ? "✕ Список" : "📋 (" + scopedEntries + ")",
+      text: ui.isListManageOpen ? "✕ Список" : "Список (" + scopedEntries + ")",
       attr: { type: "button", title: "Показать все вопросы темы для просмотра и правки" }
     });
     listManageBtn.onclick = () => {
@@ -2424,7 +2461,7 @@ const dueBox = summaryGrid.createDiv({ cls: "dsc-stat-box" });
       cls: "dropdown",
       attr: { style: "font-size: 0.82rem; height: 30px; font-weight: 600;" }
     });
-    const effectiveTargetDeckPath = ui.selectedDeckPath !== "ALL" ? ui.selectedDeckPath : decks[0].path;
+const effectiveTargetDeckPath = activeDeck ? activeDeck.path : decks[0].path;
     decks.forEach(d => {
       const o = targetDeckSel.createEl("option", { text: d.title, value: d.path });
       if (d.path === effectiveTargetDeckPath) o.selected = true;
@@ -2798,13 +2835,7 @@ const toggleBiBtn = leftText.createEl("button", {
         leftText.createSpan({ text: " (" + c.hint + ")", attr: { style: "font-size: 0.73rem; color: var(--text-muted); font-style: italic;" } });
       }
 
-      const rightBtns = mainLine.createDiv({ attr: { style: "display: flex; align-items: center; gap: 4px; flex-shrink: 0;" } });
-      if (ui.selectedDeckPath === "ALL") {
-        rightBtns.createSpan({
-          text: c.deckTitle,
-          attr: { style: "font-size: 0.68rem; color: var(--text-faint); margin-right: 4px;" }
-        });
-      }
+const rightBtns = mainLine.createDiv({ attr: { style: "display: flex; align-items: center; gap: 4px; flex-shrink: 0;" } });
 
       const edBtn = rightBtns.createEl("button", {
         cls: "dh-chip",
