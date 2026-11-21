@@ -32,11 +32,74 @@
     letter-spacing: 0.06em;
     color: var(--text-muted);
   }
-  .dashboard-home .dh-today-date-row {
+.dashboard-home .dh-today-date-row {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
+  }
+  .dashboard-home .dh-date-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .dashboard-home button.dh-date-nav-btn {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    padding: 0;
+    border-radius: 8px;
+    font-size: 1rem;
+    line-height: 1;
+    background: color-mix(in srgb, var(--background-primary) 75%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
+    color: var(--text-muted);
+    cursor: pointer;
+    box-shadow: none;
+    transition: border-color 0.14s ease, color 0.14s ease;
+  }
+  .dashboard-home button.dh-date-nav-btn:hover:not(:disabled) {
+    border-color: var(--interactive-accent);
+    color: var(--text-normal);
+  }
+  .dashboard-home button.dh-date-nav-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .dashboard-home .dh-date-picker-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.14s ease;
+  }
+  .dashboard-home .dh-date-picker-wrap:hover {
+    background: color-mix(in srgb, var(--text-normal) 6%, transparent);
+  }
+  .dashboard-home input.dh-date-picker-native {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+  .dashboard-home button.dh-date-today-btn {
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 99px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--interactive-accent) 40%, transparent);
+    color: var(--interactive-accent);
+    cursor: pointer;
+    box-shadow: none;
   }
   .dashboard-home .dh-today .dh-today-date {
     font-size: 1.2rem;

@@ -104,21 +104,21 @@ const trainingsTodayList = knowledgePages.filter(
   p => p.тип === "Тренировка" && asDate(p.дата)?.toISODate() === todayISO
 );
 
-// --- Чтение/запись ручных переопределений привычек за сегодня ---
-function getManualHabitOverrides() {
+// --- Чтение/запись ручных переопределений привычек за дату ---
+function getManualHabitOverrides(dateISO = todayISO) {
   try {
-    const raw = window.localStorage?.getItem(MANUAL_HABITS_PREFIX + todayISO);
+    const raw = window.localStorage?.getItem(MANUAL_HABITS_PREFIX + dateISO);
     return raw ? JSON.parse(raw) : {};
   } catch {
     return {};
   }
 }
-function setManualHabitOverride(key, val) {
+function setManualHabitOverride(key, val, dateISO = todayISO) {
   try {
-    const cur = getManualHabitOverrides();
+    const cur = getManualHabitOverrides(dateISO);
     if (val === undefined) delete cur[key];
     else cur[key] = val;
-    window.localStorage?.setItem(MANUAL_HABITS_PREFIX + todayISO, JSON.stringify(cur));
+    window.localStorage?.setItem(MANUAL_HABITS_PREFIX + dateISO, JSON.stringify(cur));
   } catch {}
 }
 
@@ -477,10 +477,32 @@ const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) ||
     return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
   }
 
-const readingSubHint =
-    readingSync.manualOverridePages !== null
-      ? (readingSync.autoBookPages > 0 ? `вручную · из книг ${readingSync.autoBookPages}` : "вручную")
-      : (readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages}` : "");
+let selectedISO =
+    typeof window.__dhHomeSelectedDateISO === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(window.__dhHomeSelectedDateISO) &&
+    window.__dhHomeSelectedDateISO >= MIN_VALID_DATE_ISO &&
+    window.__dhHomeSelectedDateISO <= todayISO
+      ? window.__dhHomeSelectedDateISO
+      : todayISO;
+  window.__dhHomeSelectedDateISO = selectedISO;
+
+  const selectedDate = dv.date(selectedISO).startOf("day");
+  const isToday = selectedISO === todayISO;
+  const isYesterday = selectedISO === yesterdayISO;
+
+  const setSelectedDateISO = (nextISO) => {
+    if (!nextISO || !/^\d{4}-\d{2}-\d{2}$/.test(nextISO)) return;
+    const clamped = nextISO > todayISO ? todayISO : nextISO < MIN_VALID_DATE_ISO ? MIN_VALID_DATE_ISO : nextISO;
+    if (clamped === window.__dhHomeSelectedDateISO) return;
+    window.__dhHomeSelectedDateISO = clamped;
+    renderHomeDashboard();
+  };
+
+  const readingSubHint = isToday
+    ? (readingSync.manualOverridePages !== null
+        ? (readingSync.autoBookPages > 0 ? `вручную · из книг ${readingSync.autoBookPages}` : "вручную")
+        : (readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages}` : ""))
+    : "";
 
   const INPUT_METRICS = [
     { label: "Вес", key: "вес_кг", unit: "кг", min: 20, max: 300, digits: 1, placeholder: "—" },
@@ -504,15 +526,49 @@ const readingSubHint =
       return;
     }
     try {
-      plugin.openNutrition({ dateISO: todayISO });
+      plugin.openNutrition({ dateISO: selectedISO });
     } catch (err) {
       notify("Не удалось открыть дневник питания: " + (err instanceof Error ? err.message : String(err)));
     }
   }
 
-  if (!window.__dhTodayDrafts || window.__dhTodayDrafts.dateISO !== todayISO) {
+  async function createDiaryNoteForDate(targetISO) {
+    const MONTHS_RU = [
+      "январь", "февраль", "март", "апрель", "май", "июнь",
+      "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"
+    ];
+    const baseFolder = "Ежедневник";
+    const prefix = `${baseFolder}/`;
+    const usesNested = app.vault
+      .getMarkdownFiles()
+      .some(f => f.path.startsWith(prefix) && /\/\d{4}\/\d{2}\s*-\s*[^/]+\/\d{4}-\d{2}-\d{2}\.md$/i.test(f.path));
+
+    let targetFolder = baseFolder;
+    const [yyyy, mm] = targetISO.split("-");
+    const mIdx = Number(mm) - 1;
+    if (usesNested && yyyy && mm && mIdx >= 0 && mIdx < MONTHS_RU.length) {
+      targetFolder = `${baseFolder}/${yyyy}/${mm} - ${MONTHS_RU[mIdx]}`;
+    }
+
+    let acc = "";
+    for (const part of targetFolder.split("/").filter(Boolean)) {
+      acc = acc ? `${acc}/${part}` : part;
+      if (!app.vault.getAbstractFileByPath(acc)) {
+        try { await app.vault.createFolder(acc); } catch {}
+      }
+    }
+
+    const targetPath = `${targetFolder}/${targetISO}.md`;
+    const existing = app.vault.getAbstractFileByPath(targetPath);
+    if (existing) return existing;
+
+    const content = `---\nдата: "${targetISO}"\n---\n\n`;
+    return await app.vault.create(targetPath, content);
+  }
+
+  if (!window.__dhTodayDrafts || window.__dhTodayDrafts.dateISO !== selectedISO) {
     window.__dhTodayDrafts = {
-      dateISO: todayISO,
+      dateISO: selectedISO,
       inputs: {},
       errors: {},
       savedStamp: {},
@@ -535,8 +591,20 @@ const readingSubHint =
     return nextTask;
   }
 
-  const note = todayNote;
-  const trainings = trainingsTodayList;
+  const note = isToday
+    ? todayNote
+    : dv.pages('"Ежедневник"').array()
+        .filter(p => {
+          const d = asDate(p.дата) || asDate(p.file.name);
+          if (!d) return false;
+          const iso = d.toISODate();
+          return iso >= MIN_VALID_DATE_ISO && iso === selectedISO;
+        })
+        .sort((a, b) => mtime(b) - mtime(a) || a.file.path.localeCompare(b.file.path, "ru"))[0] || null;
+
+  const trainings = isToday
+    ? trainingsTodayList
+    : knowledgePages.filter(p => p.тип === "Тренировка" && asDate(p.дата)?.toISODate() === selectedISO);
 
   const root = dv.container.createDiv({ cls: "dh dh-today" });
 
@@ -571,11 +639,74 @@ const readingSubHint =
     letter-spacing: 0.06em;
     color: var(--text-muted);
   }
-  .dashboard-home .dh-today-date-row {
+.dashboard-home .dh-today-date-row {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
+  }
+  .dashboard-home .dh-date-nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .dashboard-home button.dh-date-nav-btn {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    padding: 0;
+    border-radius: 8px;
+    font-size: 1rem;
+    line-height: 1;
+    background: color-mix(in srgb, var(--background-primary) 75%, transparent);
+    border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
+    color: var(--text-muted);
+    cursor: pointer;
+    box-shadow: none;
+    transition: border-color 0.14s ease, color 0.14s ease;
+  }
+  .dashboard-home button.dh-date-nav-btn:hover:not(:disabled) {
+    border-color: var(--interactive-accent);
+    color: var(--text-normal);
+  }
+  .dashboard-home button.dh-date-nav-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .dashboard-home .dh-date-picker-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.14s ease;
+  }
+  .dashboard-home .dh-date-picker-wrap:hover {
+    background: color-mix(in srgb, var(--text-normal) 6%, transparent);
+  }
+  .dashboard-home input.dh-date-picker-native {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+  .dashboard-home button.dh-date-today-btn {
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 99px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--interactive-accent) 40%, transparent);
+    color: var(--interactive-accent);
+    cursor: pointer;
+    box-shadow: none;
   }
   .dashboard-home .dh-today .dh-today-date {
     font-size: 1.2rem;
@@ -1103,22 +1234,84 @@ const readingSubHint =
     return b;
   }
 
-  const openToday = () => {
+const openOrCreateDay = async () => {
     if (note) {
       app.workspace.openLinkText(note.file.path, dv.currentFilePath, false);
       return;
     }
-    if (!app.commands.executeCommandById("daily-notes")) {
-      notify("Включи основной плагин «Ежедневные заметки».");
+    if (isToday) {
+      if (!app.commands.executeCommandById("daily-notes")) {
+        await createDiaryNoteForDate(selectedISO);
+        scheduleHomeRender(120);
+      }
+      return;
     }
+    await createDiaryNoteForDate(selectedISO);
+    notify(`Создана запись за ${selectedDate.toFormat("dd.MM.yyyy")}`);
+    scheduleHomeRender(120);
   };
 
   const head = root.createDiv({ cls: "dh-today-head" });
   const titles = head.createDiv({ cls: "dh-today-titles" });
-  titles.createDiv({ cls: "dh-kicker", text: "Сегодня" });
+  titles.createDiv({
+    cls: "dh-kicker",
+    text: isToday ? "Сегодня" : isYesterday ? "Вчера" : selectedDate.toFormat("dd.MM.yyyy")
+  });
 
   const dateRow = titles.createDiv({ cls: "dh-today-date-row" });
-  dateRow.createDiv({ cls: "dh-today-date", text: today.setLocale("ru").toFormat("cccc, d MMMM") });
+  const navWrap = dateRow.createDiv({ cls: "dh-date-nav" });
+
+  const prevDayBtn = navWrap.createEl("button", {
+    cls: "dh-date-nav-btn",
+    text: "‹",
+    attr: { type: "button", title: "Предыдущий день", "aria-label": "Предыдущий день" }
+  });
+  prevDayBtn.onmousedown = e => e.preventDefault();
+  prevDayBtn.onclick = () => setSelectedDateISO(selectedDate.minus({ days: 1 }).toISODate());
+
+  const pickerWrap = navWrap.createDiv({
+    cls: "dh-date-picker-wrap",
+    attr: { title: "Нажми, чтобы выбрать любую дату" }
+  });
+  pickerWrap.createDiv({
+    cls: "dh-today-date",
+    text: selectedDate.setLocale("ru").toFormat("cccc, d MMMM")
+  });
+  const pickerInput = pickerWrap.createEl("input", {
+    cls: "dh-date-picker-native",
+    attr: {
+      type: "date",
+      value: selectedISO,
+      min: MIN_VALID_DATE_ISO,
+      max: todayISO,
+      "aria-label": "Выбрать дату"
+    }
+  });
+  pickerInput.onclick = () => {
+    try { pickerInput.showPicker?.(); } catch {}
+  };
+  pickerInput.onchange = () => {
+    if (pickerInput.value) setSelectedDateISO(pickerInput.value);
+  };
+
+  const nextDayBtn = navWrap.createEl("button", {
+    cls: "dh-date-nav-btn",
+    text: "›",
+    attr: { type: "button", title: "Следующий день", "aria-label": "Следующий день" }
+  });
+  nextDayBtn.disabled = isToday;
+  nextDayBtn.onmousedown = e => e.preventDefault();
+  nextDayBtn.onclick = () => setSelectedDateISO(selectedDate.plus({ days: 1 }).toISODate());
+
+  if (!isToday) {
+    const backTodayBtn = dateRow.createEl("button", {
+      cls: "dh-date-today-btn",
+      text: "Сегодня",
+      attr: { type: "button", title: "Вернуться к сегодняшнему дню" }
+    });
+    backTodayBtn.onmousedown = e => e.preventDefault();
+    backTodayBtn.onclick = () => setSelectedDateISO(todayISO);
+  }
 
   const badgesWrap = dateRow.createDiv({ cls: "dh-today-badges" });
 
@@ -1126,20 +1319,22 @@ const readingSubHint =
   actionButton(
     actions,
     note ? "Открыть запись дня" : "Создать запись дня",
-    openToday,
+    openOrCreateDay,
     note ? "dh-btn" : "dh-btn mod-cta"
   );
 
   if (!note) {
     root.createDiv({
       cls: "dh-muted",
-      text: "Записи за сегодня пока нет. Нажми «Создать запись дня», чтобы отмечать оценку, энергию, привычки, показатели и главное событие прямо с главной.",
+      text: isToday
+        ? "Записи за сегодня пока нет. Нажми «Создать запись дня», чтобы отмечать оценку, энергию, привычки, показатели и главное событие прямо с главной."
+        : `Записи за ${selectedDate.toFormat("dd.MM.yyyy")} нет. Нажми «Создать запись дня», чтобы сразу заполнить все показатели прямо здесь.`,
       attr: { style: "margin-top: 12px; font-size: 0.84rem;" }
     });
   } else {
     const file = app.vault.getAbstractFileByPath(note.file.path);
     const fmCache = file ? (app.metadataCache.getFileCache(file)?.frontmatter || {}) : {};
-    const manualOverrides = getManualHabitOverrides();
+    const manualOverrides = getManualHabitOverrides(selectedISO);
 
     const saveField = (key, value) => enqueueFrontMatterSave(file, fm => {
       fm[key] = value;
@@ -1159,11 +1354,13 @@ const readingSubHint =
     // 2) Иначе если есть автоматические страницы из книг (autoBookPages > 0) — берём ТОЧНОЕ число autoBookPages
     //    (даже если в заметке ранее застряло завышенное число).
     // 3) Иначе оставляем текущее значение из заметки (или null, если пусто).
-    let effectivePages = savedPages;
-    if (readingSync.manualOverridePages !== null) {
-      effectivePages = readingSync.manualOverridePages;
-    } else if (readingSync.autoBookPages > 0) {
-      effectivePages = readingSync.autoBookPages;
+let effectivePages = savedPages;
+    if (isToday) {
+      if (readingSync.manualOverridePages !== null) {
+        effectivePages = readingSync.manualOverridePages;
+      } else if (readingSync.autoBookPages > 0) {
+        effectivePages = readingSync.autoBookPages;
+      }
     }
 
     const focusByGoalsMap = (fmCache.фокус_по_целям && typeof fmCache.фокус_по_целям === "object")
@@ -1173,48 +1370,50 @@ const readingSubHint =
     const states = new Map(HABITS.map(h => [h.key, typeof note[h.key] === "boolean" ? note[h.key] : null]));
     const pendingPatch = {};
 
-    // 1. Автосинхронизация страниц чтения из книг и привычки «Чтение»
-    if (effectivePages !== null && effectivePages !== savedPages) {
-      pendingPatch.страниц_прочитано = effectivePages;
-    }
-    if ((effectivePages !== null && effectivePages > 0) || readingSync.readBookTitles.length > 0) {
-      if (manualOverrides.чтение === undefined && states.get("чтение") !== true) {
-        states.set("чтение", true);
-        pendingPatch.чтение = true;
+    if (isToday) {
+      // 1. Автосинхронизация страниц чтения из книг и привычки «Чтение»
+      if (effectivePages !== null && effectivePages !== savedPages) {
+        pendingPatch.страниц_прочитано = effectivePages;
       }
-    }
-
-    // 2. Автосинхронизация привычки «Тренировка» при наличии сессии за сегодня
-    if (trainings.length > 0 && manualOverrides.тренировка === undefined && states.get("тренировка") !== true) {
-      states.set("тренировка", true);
-      pendingPatch.тренировка = true;
-    }
-
-    // 3. Автосинхронизация привычки «Диета»
-    if (calorieGoal !== null && savedCalories !== null && savedCalories >= calorieGoal && manualOverrides.диета === undefined && states.get("диета") !== true) {
-      states.set("диета", true);
-      pendingPatch.диета = true;
-    }
-
-    // 4. Автосинхронизация привычки «Режим сна» при сне > 6 часов
-    if (savedSleep !== null && savedSleep > AUTO_SLEEP_MIN_HOURS && manualOverrides.режим_сна === undefined && states.get("режим_сна") !== true) {
-      states.set("режим_сна", true);
-      pendingPatch.режим_сна = true;
-    }
-
-    // 5. Автосинхронизация привычки «Без соцсетей» при соцсети_мин <= SOCIAL_LIMIT_MIN
-    if (savedSocialMin !== null && manualOverrides.без_соцсетей === undefined) {
-      const withinLimit = savedSocialMin <= SOCIAL_LIMIT_MIN;
-      if (states.get("без_соцсетей") !== withinLimit) {
-        states.set("без_соцсетей", withinLimit);
-        pendingPatch.без_соцсетей = withinLimit;
+      if ((effectivePages !== null && effectivePages > 0) || readingSync.readBookTitles.length > 0) {
+        if (manualOverrides.чтение === undefined && states.get("чтение") !== true) {
+          states.set("чтение", true);
+          pendingPatch.чтение = true;
+        }
       }
-    }
 
-    if (Object.keys(pendingPatch).length > 0) {
-      enqueueFrontMatterSave(file, fm => {
-        Object.assign(fm, pendingPatch);
-      }).catch(e => console.log("Auto-sync error:", e));
+      // 2. Автосинхронизация привычки «Тренировка» при наличии сессии за сегодня
+      if (trainings.length > 0 && manualOverrides.тренировка === undefined && states.get("тренировка") !== true) {
+        states.set("тренировка", true);
+        pendingPatch.тренировка = true;
+      }
+
+      // 3. Автосинхронизация привычки «Диета»
+      if (calorieGoal !== null && savedCalories !== null && savedCalories >= calorieGoal && manualOverrides.диета === undefined && states.get("диета") !== true) {
+        states.set("диета", true);
+        pendingPatch.диета = true;
+      }
+
+      // 4. Автосинхронизация привычки «Режим сна» при сне > 6 часов
+      if (savedSleep !== null && savedSleep > AUTO_SLEEP_MIN_HOURS && manualOverrides.режим_сна === undefined && states.get("режим_сна") !== true) {
+        states.set("режим_сна", true);
+        pendingPatch.режим_сна = true;
+      }
+
+      // 5. Автосинхронизация привычки «Без соцсетей» при соцсети_мин <= SOCIAL_LIMIT_MIN
+      if (savedSocialMin !== null && manualOverrides.без_соцсетей === undefined) {
+        const withinLimit = savedSocialMin <= SOCIAL_LIMIT_MIN;
+        if (states.get("без_соцсетей") !== withinLimit) {
+          states.set("без_соцсетей", withinLimit);
+          pendingPatch.без_соцсетей = withinLimit;
+        }
+      }
+
+      if (Object.keys(pendingPatch).length > 0) {
+        enqueueFrontMatterSave(file, fm => {
+          Object.assign(fm, pendingPatch);
+        }).catch(e => console.log("Auto-sync error:", e));
+      }
     }
 
     const rawGoals = Array.isArray(note.цели_дня) ? note.цели_дня : [];
@@ -1328,12 +1527,12 @@ const updatePlanHeadPill = () => {};
       habitsCountSub.setText(`${done}/${HABITS.length}`);
     };
 
-    for (const h of HABITS) {
+for (const h of HABITS) {
       const b = actionButton(habitChips, "", async () => {
         const prev = states.get(h.key);
         const next = prev !== true;
         states.set(h.key, next);
-        setManualHabitOverride(h.key, next);
+        setManualHabitOverride(h.key, next, selectedISO);
         paintHabit();
         updateHabitsSummary();
         try {
@@ -1449,17 +1648,17 @@ const updatePlanHeadPill = () => {};
         const rawTrimmed = input.value.trim();
         const normalized = rawTrimmed.replace(",", ".");
 
-        // Очистка поля: сбрасываем ручное переопределение и возвращаемся к авто-значению из книг (или null)
+// Очистка поля
         if (normalized === "") {
           delete uiDrafts.inputs[m.key];
           delete uiDrafts.errors[m.key];
           card.classList.remove("is-invalid");
           errorEl.style.display = "none";
-          if (savedFormatted === "" && (m.key !== "страниц_прочитано" || readingSync.manualOverridePages === null)) return;
+          if (savedFormatted === "" && (!isToday || m.key !== "страниц_прочитано" || readingSync.manualOverridePages === null)) return;
 
           isSavingMetric = true;
           try {
-            if (m.key === "страниц_прочитано") {
+            if (isToday && m.key === "страниц_прочитано") {
               setManualReadingOverride(null);
               const fallbackPages = readingSync.autoBookPages > 0 ? readingSync.autoBookPages : null;
               input.value = fallbackPages !== null ? formatNumForInput(fallbackPages, 0) : "";
@@ -1504,19 +1703,20 @@ const updatePlanHeadPill = () => {};
         if (m.key === "сон_часов") {
           autoHabitKey = "режим_сна";
           autoHabitVal = finalValue > AUTO_SLEEP_MIN_HOURS;
-        } else if (m.key === "страниц_прочитано") {
-          // Если введённое число совпадает с autoBookPages — снимаем ручной флаг, иначе фиксируем ручной ввод
-          if (readingSync.autoBookPages > 0 && finalValue === readingSync.autoBookPages) {
-            setManualReadingOverride(null);
-            if (subHintEl) subHintEl.setText(`из книг: ${readingSync.autoBookPages} стр.`);
-          } else if (finalValue !== savedRaw) {
-            setManualReadingOverride(finalValue);
-            if (subHintEl) {
-              subHintEl.setText(
-                readingSync.autoBookPages > 0
-                  ? `вручную (из книг: ${readingSync.autoBookPages} стр.)`
-                  : "введено вручную"
-              );
+} else if (m.key === "страниц_прочитано") {
+          if (isToday) {
+            if (readingSync.autoBookPages > 0 && finalValue === readingSync.autoBookPages) {
+              setManualReadingOverride(null);
+              if (subHintEl) subHintEl.setText(`из книг: ${readingSync.autoBookPages} стр.`);
+            } else if (finalValue !== savedRaw) {
+              setManualReadingOverride(finalValue);
+              if (subHintEl) {
+                subHintEl.setText(
+                  readingSync.autoBookPages > 0
+                    ? `вручную (из книг: ${readingSync.autoBookPages} стр.)`
+                    : "введено вручную"
+                );
+              }
             }
           }
           autoHabitKey = "чтение";
@@ -1530,9 +1730,9 @@ const updatePlanHeadPill = () => {};
         if (finalFormatted === savedFormatted && typeof savedRaw === "number" && !habitNeedsUpdate) return;
 
         isSavingMetric = true;
-        try {
+try {
           if (autoHabitKey !== null) {
-            setManualHabitOverride(autoHabitKey, undefined);
+            setManualHabitOverride(autoHabitKey, undefined, selectedISO);
             states.set(autoHabitKey, autoHabitVal);
             habitPainters.get(autoHabitKey)?.();
             updateHabitsSummary();
@@ -1760,9 +1960,9 @@ top.createSpan({
 
     // РЯД 2: Фокус (my-focus-tracker), Отбой, Подъём, Соцсети (мин), Шаги
     {
-      const focusPlugin = getFocusPlugin();
+const focusPlugin = getFocusPlugin();
       const activeSession = focusPlugin?.session;
-      const isRunningNow = Boolean(activeSession && activeSession.isRunning);
+      const isRunningNow = isToday && Boolean(activeSession && activeSession.isRunning);
 
       const focusCard = metricsGrid.createDiv({
         cls: "dh-metric-item is-clickable" + (isRunningNow ? " is-running" : ""),
@@ -2081,9 +2281,9 @@ if (trainings.length > 0 || (savedFocus !== null && savedFocus > 0)) {
         fPill.onclick = () => openFocusTrackerFromHome();
       }
 
-      if (trainings.length > 0 && states.get("тренировка") !== true) {
+if (trainings.length > 0 && states.get("тренировка") !== true) {
         const syncBtn = actionButton(footer, "Вернуть отметку тренировки", async () => {
-          setManualHabitOverride("тренировка", true);
+          setManualHabitOverride("тренировка", true, selectedISO);
           await saveField("тренировка", true);
           states.set("тренировка", true);
           habitPainters.get("тренировка")?.();
