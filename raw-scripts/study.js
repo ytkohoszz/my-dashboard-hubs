@@ -374,71 +374,49 @@ function hasMediaOrAnnotations(path) {
   return false;
 }
 
-const HASH_PALETTE = [
-  "var(--color-blue, #599ed6)",
-  "var(--color-green, #4aab80)",
-  "var(--color-purple, #9c83e8)",
-  "var(--color-orange, #e5a158)",
-  "var(--color-cyan, #4fb3d9)",
-  "var(--color-pink, #d882b6)",
-  "var(--color-yellow, #d4c05a)",
-  "var(--color-red, #e06c75)"
-];
-
-function pickStableHashColor(str) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  const idx = Math.abs(h) % HASH_PALETTE.length;
-  return HASH_PALETTE[idx] || "var(--color-blue, #599ed6)";
-}
-
 function getWorkMeta(typeStr, customIcon) {
   const raw = normalizeSpaces(typeStr);
   const low = raw.toLowerCase();
   let icon = "📌";
-  let color = raw ? pickStableHashColor(low) : "var(--text-muted)";
   const shortLabel = raw === "Лабораторная работа" ? "Лабораторная" : (raw || "без типа");
 
   if (low.includes("лаб") || low.includes("лр") || low.includes("опыт") || low.includes("эксперим")) {
-    icon = "🧪"; color = "var(--color-green, #4aab80)";
+    icon = "🧪";
   } else if (low.includes("конф") || low.includes("доклад") || low.includes("выступ") || low.includes("семинар")) {
-    icon = "🎤"; color = "var(--color-red, #e06c75)";
+    icon = "🎤";
   } else if (low.includes("диплом") || low.includes("диссер") || low.includes("магист") || low.includes("вкр")) {
-    icon = "🎓"; color = "var(--color-orange, #e5a158)";
+    icon = "🎓";
   } else if (low.includes("стать") || low.includes("публик") || low.includes("тезис") || low.includes("нир")) {
-    icon = "📄"; color = "var(--color-purple, #9c83e8)";
+    icon = "📄";
   } else if (low.includes("курс") || low.includes("рефер") || low.includes("чертеж")) {
-    icon = "📐"; color = "var(--color-orange, #d69852)";
+    icon = "📐";
   } else if (low.includes("экзам") || low.includes("зачет") || low.includes("зачёт") || low.includes("коллок") || low.includes("тест")) {
-    icon = "⚡"; color = "var(--color-orange, #e5a158)";
+    icon = "⚡";
   } else if (low.includes("практ") || low.includes("стажир")) {
-    icon = "🔬"; color = "var(--color-cyan, #69b5aa)";
+    icon = "🔬";
   } else if (low.includes("проект")) {
-    icon = "📁"; color = "var(--color-blue, #599ed6)";
+    icon = "📁";
   } else if (low.includes("термин")) {
-    icon = "🔤"; color = "var(--color-cyan, #4fb3d9)";
+    icon = "🔤";
   } else if (low.includes("источник") || low.includes("книг") || low.includes("литерат")) {
-    icon = "📚"; color = "var(--color-yellow, #d4c05a)";
+    icon = "📚";
   } else if (low.includes("конспект") || low.includes("лекц")) {
-    icon = "📝"; color = "var(--color-green, #8bac5e)";
+    icon = "📝";
   } else if (low.includes("рисунок") || low.includes("схема") || low.includes("граф")) {
-    icon = "🖼"; color = "var(--color-cyan, #69b5aa)";
+    icon = "🖼";
   } else if (low.includes("таблица")) {
-    icon = "📊"; color = "var(--color-blue, #5c8df6)";
+    icon = "📊";
   } else if (low.includes("расчёт") || low.includes("расчет") || low.includes("формул")) {
-    icon = "🧮"; color = "var(--color-red, #e06c75)";
+    icon = "🧮";
   } else if (low.includes("алгоритм") || low.includes("метод")) {
-    icon = "⚙️"; color = "var(--color-purple, #9c83e8)";
+    icon = "⚙️";
   }
 
   if (customIcon && String(customIcon).trim()) {
     icon = String(customIcon).trim();
   }
 
-  return { icon, color, label: icon + " " + shortLabel };
+  return { icon, label: icon + " " + shortLabel };
 }
 
 function daysUntilISO(iso) {
@@ -1038,17 +1016,17 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-sp-icons-bar { display: flex; gap: var(--dh-sp-s1); align-items: center; flex-wrap: wrap; padding-top: var(--dh-sp-s2); border-top: 1px solid var(--background-modifier-border); }",
   ".dashboard-home .dh-sp-grid { display: grid; width: 100%; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--dh-sp-s4); margin-bottom: var(--dh-sp-s4); align-items: stretch; }",
   ".dashboard-home .dh-sp-grid[data-count='1'] { grid-template-columns: minmax(0, 520px); }",
-  ".dashboard-home .dh-sp-card { position: relative; width: 100%; min-width: 0; overflow: hidden; padding: var(--dh-sp-s4) !important; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-top: 3px solid var(--card-accent, var(--interactive-accent)); border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: var(--dh-sp-s3); transition: border-color 0.16s ease, background-color 0.16s ease; }",
-  ".dashboard-home .dh-sp-card:hover { border-color: color-mix(in srgb, var(--card-accent, var(--interactive-accent)) 50%, var(--background-modifier-border)); border-top-color: var(--card-accent, var(--interactive-accent)); }",
+".dashboard-home .dh-sp-card { position: relative; width: 100%; min-width: 0; overflow: hidden; padding: var(--dh-sp-s4) !important; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: var(--dh-sp-s3); transition: border-color 0.16s ease, background-color 0.16s ease; }",
+  ".dashboard-home .dh-sp-card:hover { border-color: color-mix(in srgb, var(--text-muted) 45%, var(--background-modifier-border)); }",
   ".dashboard-home .dh-sp-card-top { display: flex; flex-direction: column; gap: var(--dh-sp-s2); min-width: 0; width: 100%; }",
   ".dashboard-home .dh-sp-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--dh-sp-s2); min-width: 0; width: 100%; }",
   ".dashboard-home .dh-sp-card-badges { display: flex; align-items: center; gap: var(--dh-sp-s2); min-width: 0; flex: 1 1 auto; flex-wrap: wrap; }",
-  ".dashboard-home .dh-sp-type-pill { font-size: var(--dh-sp-fs-xs); font-weight: 600; padding: 2px var(--dh-sp-s2); border-radius: 6px; background: color-mix(in srgb, var(--card-accent, #599ed6) 15%, transparent); color: color-mix(in srgb, var(--card-accent, #599ed6) 90%, var(--text-normal)); white-space: nowrap; flex-shrink: 0; line-height: 1.4; }",
+  ".dashboard-home .dh-sp-type-pill { font-size: var(--dh-sp-fs-xs); font-weight: 600; padding: 2px var(--dh-sp-s2); border-radius: 6px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); color: var(--text-muted); white-space: nowrap; flex-shrink: 0; line-height: 1.4; }",
   ".dashboard-home .dh-sp-discipline { font-size: var(--dh-sp-fs-xs); color: var(--text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
-  ".dashboard-home .dh-sp-deadline { height: 24px !important; min-height: 24px !important; padding: 0 var(--dh-sp-s2) !important; border-radius: 6px !important; font-size: var(--dh-sp-fs-xs) !important; font-weight: 500 !important; border: 1px solid transparent !important; box-shadow: none !important; cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums; flex-shrink: 0; display: inline-flex !important; align-items: center !important; justify-content: center !important; transition: background-color 0.15s ease, border-color 0.15s ease; }",
-  ".dashboard-home .dh-sp-deadline.is-far { color: var(--color-green, #4aab80) !important; background: color-mix(in srgb, var(--color-green, #4aab80) 13%, transparent) !important; }",
-  ".dashboard-home .dh-sp-deadline.is-soon { color: var(--color-orange, #e5a158) !important; background: color-mix(in srgb, var(--color-orange, #e5a158) 15%, transparent) !important; }",
-  ".dashboard-home .dh-sp-deadline.is-overdue { color: var(--text-error, #e06c75) !important; background: color-mix(in srgb, var(--text-error, #e06c75) 15%, transparent) !important; }",
+  ".dashboard-home .dh-sp-deadline { height: 24px !important; min-height: 24px !important; padding: 0 var(--dh-sp-s2) !important; border-radius: 6px !important; font-size: var(--dh-sp-fs-xs) !important; font-weight: 500 !important; border: 1px solid var(--background-modifier-border) !important; box-shadow: none !important; cursor: pointer; white-space: nowrap; font-variant-numeric: tabular-nums; flex-shrink: 0; display: inline-flex !important; align-items: center !important; justify-content: center !important; transition: background-color 0.15s ease, border-color 0.15s ease; }",
+  ".dashboard-home .dh-sp-deadline.is-far { color: var(--text-muted) !important; background: var(--background-primary) !important; }",
+  ".dashboard-home .dh-sp-deadline.is-soon { color: var(--text-normal) !important; background: var(--background-primary) !important; border-color: color-mix(in srgb, var(--text-muted) 45%, var(--background-modifier-border)) !important; }",
+  ".dashboard-home .dh-sp-deadline.is-overdue { color: var(--text-error, #e06c75) !important; background: color-mix(in srgb, var(--text-error, #e06c75) 12%, var(--background-primary)) !important; border-color: color-mix(in srgb, var(--text-error, #e06c75) 35%, var(--background-modifier-border)) !important; }",
   ".dashboard-home .dh-sp-deadline.is-empty { color: var(--text-muted) !important; background: var(--background-primary) !important; border-color: var(--background-modifier-border) !important; }",
   ".dashboard-home .dh-sp-deadline:hover { border-color: color-mix(in srgb, currentColor 40%, transparent) !important; }",
   ".dashboard-home .dh-sp-title-link { font-size: var(--dh-sp-fs-title); font-weight: 600; color: var(--text-normal); text-decoration: none; line-height: 1.38; overflow-wrap: anywhere; word-break: break-word; margin: 2px 0; display: block; }",
@@ -1065,12 +1043,11 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-sp-icon-action.is-danger { width: auto !important; padding: 0 var(--dh-sp-s2) !important; opacity: 1 !important; color: var(--text-error, #e06c75) !important; background: color-mix(in srgb, var(--text-error, #e06c75) 14%, var(--background-primary)) !important; border-color: color-mix(in srgb, var(--text-error, #e06c75) 45%, var(--background-modifier-border)) !important; font-size: var(--dh-sp-fs-xs) !important; }",
   ".dashboard-home .dh-sp-date-popover { padding: var(--dh-sp-s2); background: var(--background-primary); border-radius: 8px; border: 1px solid var(--background-modifier-border); display: flex; flex-wrap: wrap; gap: var(--dh-sp-s1); align-items: center; justify-content: space-between; width: 100%; min-width: 0; animation: dh-sp-fade-in 0.16s ease-out; }",
   ".dashboard-home .dh-sp-card-footer { display: flex; align-items: center; gap: var(--dh-sp-s2); width: 100%; min-width: 0; }",
-  ".dashboard-home .dh-sp-open-btn { flex: 1 1 0%; min-width: 0 !important; height: 32px !important; min-height: 32px !important; padding: 0 var(--dh-sp-s3) !important; border-radius: 8px !important; font-size: var(--dh-sp-fs) !important; font-weight: 500 !important; color: var(--interactive-accent) !important; background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary)) !important; border: 1px solid color-mix(in srgb, var(--interactive-accent) 32%, var(--background-modifier-border)) !important; box-shadow: none !important; cursor: pointer; display: inline-flex !important; align-items: center !important; justify-content: center !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease; }",
-  ".dashboard-home .dh-sp-open-btn:hover { background: color-mix(in srgb, var(--interactive-accent) 20%, var(--background-primary)) !important; }",
+".dashboard-home .dh-sp-open-btn { flex: 1 1 0%; min-width: 0 !important; height: 32px !important; min-height: 32px !important; padding: 0 var(--dh-sp-s3) !important; border-radius: 8px !important; font-size: var(--dh-sp-fs) !important; font-weight: 500 !important; color: var(--text-normal) !important; background: var(--background-primary) !important; border: 1px solid var(--background-modifier-border) !important; box-shadow: none !important; cursor: pointer; display: inline-flex !important; align-items: center !important; justify-content: center !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.12s ease; }",
+  ".dashboard-home .dh-sp-open-btn:hover { background: var(--background-modifier-hover) !important; border-color: color-mix(in srgb, var(--text-muted) 45%, var(--background-modifier-border)) !important; }",
   ".dashboard-home .dh-sp-open-btn:active { transform: scale(0.98); }",
-  ".dashboard-home .dh-sp-plus-btn { flex: 0 0 32px !important; width: 32px !important; min-width: 32px !important; height: 32px !important; min-height: 32px !important; padding: 0 !important; border-radius: 8px !important; font-size: 1rem !important; font-weight: 500 !important; line-height: 1 !important; color: var(--text-normal) !important; background: var(--background-primary) !important; border: 1px solid var(--background-modifier-border) !important; box-shadow: none !important; cursor: pointer; display: inline-flex !important; align-items: center !important; justify-content: center !important; transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease; }",
-  ".dashboard-home .dh-sp-plus-btn:hover { color: var(--interactive-accent) !important; border-color: var(--interactive-accent) !important; background: var(--background-modifier-hover) !important; }",
-  ".dashboard-home .dh-sp-plus-btn.is-schema:hover { color: #e5a158 !important; border-color: #e5a158 !important; }",
+  ".dashboard-home .dh-sp-plus-btn { flex: 0 0 32px !important; width: 32px !important; min-width: 32px !important; height: 32px !important; min-height: 32px !important; padding: 0 !important; border-radius: 8px !important; font-size: 1rem !important; font-weight: 500 !important; line-height: 1 !important; color: var(--text-muted) !important; background: var(--background-primary) !important; border: 1px solid var(--background-modifier-border) !important; box-shadow: none !important; cursor: pointer; display: inline-flex !important; align-items: center !important; justify-content: center !important; transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease; }",
+  ".dashboard-home .dh-sp-plus-btn:hover { color: var(--text-normal) !important; border-color: color-mix(in srgb, var(--text-muted) 45%, var(--background-modifier-border)) !important; background: var(--background-modifier-hover) !important; }",
   ".dashboard-home .dh-sp-plus-btn:active { transform: scale(0.94); }",
   ".dashboard-home .dh-sp-orphans { padding: var(--dh-sp-s4); margin-bottom: var(--dh-sp-s4); background: var(--background-secondary); border-radius: 12px; border: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: var(--dh-sp-s2); }",
   ".dashboard-home .dh-sp-orphan-row { display: flex; gap: var(--dh-sp-s2); align-items: center; padding: var(--dh-sp-s1) 0; border-top: 1px solid var(--background-modifier-border); flex-wrap: wrap; }",
@@ -1082,8 +1059,8 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-study-cards-hub .dsc-title { font-size: 1rem; font-weight: 700; color: var(--text-normal); display: inline-flex; align-items: baseline; gap: 8px; }",
   ".dashboard-home .dh-study-cards-hub .dsc-decks-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--background-modifier-border); }",
   ".dashboard-home .dh-study-cards-hub .dsc-deck-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; height: 28px; border-radius: 999px; font-size: 0.77rem; font-weight: 600; background: var(--background-primary); border: 1px solid var(--background-modifier-border); color: var(--text-muted); cursor: pointer; transition: all 0.14s ease; }",
-  ".dashboard-home .dh-study-cards-hub .dsc-deck-chip:hover { border-color: #9c83e8; color: var(--text-normal); }",
-  ".dashboard-home .dh-study-cards-hub .dsc-deck-chip.is-active { background: color-mix(in srgb, #9c83e8 18%, var(--background-primary)); border-color: #9c83e8; color: var(--text-normal); }",
+".dashboard-home .dh-study-cards-hub .dsc-deck-chip:hover { border-color: color-mix(in srgb, var(--text-muted) 50%, var(--background-modifier-border)); color: var(--text-normal); }",
+  ".dashboard-home .dh-study-cards-hub .dsc-deck-chip.is-active { background: var(--background-modifier-hover); border-color: color-mix(in srgb, var(--text-normal) 35%, var(--background-modifier-border)); color: var(--text-normal); }",
   ".dashboard-home .dh-study-cards-hub .dsc-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 10px; align-items: stretch; }",
   ".dashboard-home .dh-study-cards-hub .dsc-stat-box { padding: 10px 12px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; }",
   ".dashboard-home .dh-study-cards-hub .dsc-stat-label { font-size: 0.73rem; font-weight: 600; color: var(--text-muted); }",
@@ -1109,8 +1086,8 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-study-cards-hub .dsc-card-edit-input { width: 100%; min-height: 54px; resize: vertical; font-size: 0.82rem; line-height: 1.4; }",
   ".dashboard-home .dh-study-cards-hub .dsc-btn-cta { flex: 1.3; min-width: 120px; height: 34px; font-size: 0.8rem; font-weight: 650; padding: 0 10px; border-radius: 7px; cursor: pointer; }",
   ".dashboard-home .dh-study-cards-hub .dsc-btn-sec { flex: 1; min-width: 100px; height: 34px; font-size: 0.78rem; font-weight: 600; padding: 0 10px; border-radius: 7px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: var(--text-normal); cursor: pointer; }",
-  ".dashboard-home .dh-study-cards-hub .dsc-btn-sec.is-active { border-color: #599ed6; color: #599ed6; }",
-  ".dashboard-home .dh-study-cards-hub .dsc-drawer { margin-top: 12px; padding: 12px 14px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-top: 2px solid #9c83e8; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }",
+".dashboard-home .dh-study-cards-hub .dsc-btn-sec.is-active { border-color: color-mix(in srgb, var(--text-normal) 40%, var(--background-modifier-border)); color: var(--text-normal); background: var(--background-modifier-hover); }",
+  ".dashboard-home .dh-study-cards-hub .dsc-drawer { margin-top: 12px; padding: 12px 14px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 8px; display: flex; flex-direction: column; gap: 10px; }",
   "@media (pointer: coarse), (any-pointer: coarse), (hover: none) {",
   "  .dashboard-home .dh-study-cards-hub .dsc-side-type-row .dh-chip, .dashboard-home .dh-study-cards-hub .dsc-image-dropzone .dh-chip { min-height: 40px; padding-top: 6px !important; padding-bottom: 6px !important; }",
   "  .dashboard-home .dh-sp-btn { height: 40px !important; min-height: 40px !important; }",
@@ -2200,30 +2177,12 @@ async function renderCardsSection(cardsContainer, activeProjects) {
     attr: { style: "font-size: 0.76rem; font-weight: 500; color: var(--text-muted);" }
   });
 
-  const headRight = head.createDiv({ attr: { style: "display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" } });
-
-  if (scopedEntries > 0) {
-    const cramBtn = headRight.createEl("button", {
-      cls: "dh-chip",
-      text: "🎯 Краш-тест",
-      attr: {
-        type: "button",
-        title: "Прогнать все карточки выбранной темы подряд",
-        style: "font-size: 0.74rem; font-weight: 600; padding: 3px 10px; color: #e5a158; border-color: #e5a15855; cursor: pointer;"
-      }
-    });
-    cramBtn.onclick = () => {
-      openStudyTrainer("CRAM_ALL");
-    };
-  }
+const headRight = head.createDiv({ attr: { style: "display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" } });
 
   const newDeckBtn = headRight.createEl("button", {
-    cls: "dh-chip" + (ui.isNewDeckFormOpen ? " is-active" : ""),
-    text: ui.isNewDeckFormOpen ? "✕ Отмена" : "+ Тема",
-    attr: {
-      type: "button",
-      style: "font-size: 0.75rem; font-weight: 600; padding: 3px 11px; cursor: pointer; border-color: #9c83e866; color: #9c83e8;"
-    }
+    cls: "dh-sp-btn" + (ui.isNewDeckFormOpen ? " is-active" : ""),
+    text: ui.isNewDeckFormOpen ? "✕ Отмена" : "＋ Тема",
+    attr: { type: "button" }
   });
   newDeckBtn.onclick = () => {
     ui.isNewDeckFormOpen = !ui.isNewDeckFormOpen;
@@ -2373,16 +2332,12 @@ async function renderCardsSection(cardsContainer, activeProjects) {
   // 3. Сводные плитки и действия
   const summaryGrid = panel.createDiv({ cls: "dsc-summary-grid" });
 
-  const dueBox = summaryGrid.createDiv({
-    cls: "dsc-stat-box",
-    attr: { style: "border-top: 2px solid " + (scopedDue > 0 ? "#e5a158" : "#4aab80") + ";" }
-  });
+const dueBox = summaryGrid.createDiv({ cls: "dsc-stat-box" });
   dueBox.createDiv({ cls: "dsc-stat-label", text: activeDeck ? "К повторению · " + activeDeck.title : "К повторению" });
   const dueValRow = dueBox.createDiv({ cls: "dsc-stat-val-row" });
   dueValRow.createSpan({
     cls: "dsc-stat-val",
-    text: String(scopedDue),
-    attr: { style: "color: " + (scopedDue > 0 ? "#e5a158" : "#4aab80") + ";" }
+    text: String(scopedDue)
   });
   dueValRow.createSpan({
     text: scopedDue === 0 ? "Очередь закрыта ✓" : "карт. по расписанию",
@@ -2394,10 +2349,7 @@ async function renderCardsSection(cardsContainer, activeProjects) {
   });
 
   const masteryPct = scopedDirections > 0 ? Math.round((scopedMature / scopedDirections) * 100) : 0;
-  const mastBox = summaryGrid.createDiv({
-    cls: "dsc-stat-box",
-    attr: { style: "border-top: 2px solid #9c83e8;" }
-  });
+  const mastBox = summaryGrid.createDiv({ cls: "dsc-stat-box" });
   mastBox.createDiv({ cls: "dsc-stat-label", text: "Усвоение и база" });
   const mastValRow = mastBox.createDiv({ cls: "dsc-stat-val-row" });
   mastValRow.createSpan({
@@ -2406,7 +2358,7 @@ async function renderCardsSection(cardsContainer, activeProjects) {
   });
   mastValRow.createSpan({
     text: "закреплено " + masteryPct + "%",
-    attr: { style: "font-size: 0.72rem; font-weight: 600; color: #4aab80;" }
+    attr: { style: "font-size: 0.72rem; font-weight: 600; color: var(--text-muted);" }
   });
   mastBox.createDiv({
     cls: "dsc-stat-hint",
@@ -2821,12 +2773,12 @@ async function renderCardsSection(cardsContainer, activeProjects) {
         attr: { style: "flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; font-size: 0.81rem; line-height: 1.35;" }
       });
 
-      const toggleBiBtn = leftText.createEl("button", {
+const toggleBiBtn = leftText.createEl("button", {
         cls: "dh-chip",
         text: c.isBidirectional ? "⇄ :::" : "→ ::",
         attr: {
           type: "button",
-          style: "font-size: 0.68rem; font-weight: 700; padding: 1px 6px; margin-right: 6px; height: 20px; color: " + (c.isBidirectional ? "#9c83e8" : "#599ed6") + "; cursor: pointer;"
+          style: "font-size: 0.68rem; font-weight: 600; padding: 1px 6px; margin-right: 6px; height: 20px; color: var(--text-muted); cursor: pointer;"
         }
       });
       toggleBiBtn.onclick = async () => {
@@ -2843,7 +2795,7 @@ async function renderCardsSection(cardsContainer, activeProjects) {
       renderStudyCardListSide(leftText, c.question, c.deckPath, true);
       renderStudyCardListSide(leftText, c.answer, c.deckPath, false);
       if (c.hint) {
-        leftText.createSpan({ text: " (" + c.hint + ")", attr: { style: "font-size: 0.73rem; color: #e5a158; font-style: italic;" } });
+        leftText.createSpan({ text: " (" + c.hint + ")", attr: { style: "font-size: 0.73rem; color: var(--text-muted); font-style: italic;" } });
       }
 
       const rightBtns = mainLine.createDiv({ attr: { style: "display: flex; align-items: center; gap: 4px; flex-shrink: 0;" } });
@@ -2913,17 +2865,7 @@ async function renderAll() {
         (doneWs.length ? " · " + doneWs.length + " завершено" : "")
     });
 
-    const topActions = topBar.createDiv({ cls: "dh-sp-topbar-actions" });
-
-    const openCompilerTopBtn = topActions.createEl("button", {
-      cls: "dh-sp-btn is-accent",
-      text: "Конструктор",
-      attr: {
-        type: "button",
-        title: "Открыть рабочее дерево, граф и схемы в плагине Конструктор учебных проектов"
-      }
-    });
-    openCompilerTopBtn.onclick = () => openStudyCompiler();
+const topActions = topBar.createDiv({ cls: "dh-sp-topbar-actions" });
 
     const toggleNewBtn = topActions.createEl("button", {
       cls: "dh-sp-btn" + (uiState.showNewWorkBar ? " is-active" : ""),
@@ -3071,9 +3013,8 @@ async function renderAll() {
         attr: { "data-count": String(ws.length) }
       });
 
-      ws.forEach(p => {
+ws.forEach(p => {
         const workMeta = getWorkMeta(typeOf(p), p[KEYS.icon]);
-        const accent = workMeta.color;
         const iso = getDeadlineISO(p);
         const startIso = getStartISO(p);
         const isEditingDate = uiState.openDeadlineFor === p.file.path;
@@ -3084,10 +3025,7 @@ async function renderAll() {
         const schemaNodesCount = [p.file.path, ...descPaths].filter(hasMediaOrAnnotations).length;
         const activeDays = startIso ? Math.max(1, Math.ceil(today.diff(dv.date(startIso), "days").days) + 1) : 1;
 
-        const card = grid.createDiv({
-          cls: "dh-sp-card",
-          attr: { style: "--card-accent: " + accent + ";" }
-        });
+        const card = grid.createDiv({ cls: "dh-sp-card" });
 
         const topWrap = card.createDiv({ cls: "dh-sp-card-top" });
         const headRow = topWrap.createDiv({ cls: "dh-sp-card-head" });
@@ -3420,11 +3358,10 @@ async function renderAll() {
         });
         openNote(a, p.file.path);
 
-        const mMeta = getWorkMeta(typeOf(p) || cfg.defaultAutoNoteType, p[KEYS.icon]);
+const mMeta = getWorkMeta(typeOf(p) || cfg.defaultAutoNoteType, p[KEYS.icon]);
         row.createSpan({
           cls: "dh-sp-type-pill",
-          text: mMeta.label,
-          attr: { style: "--card-accent: " + mMeta.color + ";" }
+          text: mMeta.label
         });
 
         const sel = row.createEl("select", {
@@ -3514,12 +3451,7 @@ async function renderAll() {
           }
         }
 
-        const statusColor = isOverdue ? "var(--text-error, #e06c75)" : "var(--color-green, #4aab80)";
-
-        const row = doneList.createDiv({
-          cls: "dh-sp-done-row",
-          attr: { style: "border-left: 3px solid " + statusColor + ";" }
-        });
+const row = doneList.createDiv({ cls: "dh-sp-done-row" });
 
         const leftPart = row.createDiv({ attr: { style: "display: flex; align-items: center; gap: 8px; min-width: 180px; flex: 1;" } });
         leftPart.createSpan({ text: workMeta.icon, attr: { style: "font-size: 0.85rem;" } });
@@ -3548,7 +3480,7 @@ async function renderAll() {
         rightPart.createSpan({
           text: daysTaken + " дн. · " + timingNote,
           attr: {
-            style: "font-size: 0.72rem; font-weight: 500; padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, " + statusColor + " 14%, transparent); color: " + statusColor + "; white-space: nowrap;"
+            style: "font-size: 0.72rem; font-weight: 500; padding: 2px 8px; border-radius: 6px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: " + (isOverdue ? "var(--text-error, #e06c75)" : "var(--text-muted)") + "; white-space: nowrap;"
           }
         });
 
