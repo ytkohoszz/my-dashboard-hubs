@@ -1162,17 +1162,21 @@
           width: 100%;
           padding-top: 2px;
         }
-        .dh-period-summaries .dhps-bar-col {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
+.dh-period-summaries .dhps-bar-col,
+        .dh-period-summaries button.dhps-bar-col {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
           gap: 4px;
-          min-width: 0;
-          padding: 0;
-          margin: 0;
-          border: none;
-          background: transparent;
-          box-shadow: none;
+          width: 100% !important;
+          min-width: 0 !important;
+          height: auto !important;
+          min-height: 0 !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          border: none !important;
+          background: transparent !important;
+          box-shadow: none !important;
           font-family: inherit;
           cursor: default;
         }
@@ -1183,6 +1187,7 @@
           position: relative;
           width: 100%;
           height: 76px;
+          flex: 0 0 76px;
           display: flex;
           flex-direction: column;
           justify-content: flex-end;
