@@ -1195,18 +1195,98 @@ let analyticsSectionEl = null;
           font-size: 0.7rem;
           color: var(--text-faint);
         }
-        .dh-period-summaries .dhps-chart-svg {
-          display: block;
+.dh-period-summaries .dhps-bars {
+          display: grid;
+          gap: 4px;
+          align-items: end;
           width: 100%;
-          height: 112px;
-          overflow: visible;
+          padding-top: 2px;
         }
-        .dh-period-summaries .dhps-chart-node {
+        .dh-period-summaries .dhps-bar-col {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          min-width: 0;
+          padding: 0;
+          margin: 0;
+          border: none;
+          background: transparent;
+          box-shadow: none;
+          font-family: inherit;
+          cursor: default;
+        }
+        .dh-period-summaries button.dhps-bar-col.is-clickable {
           cursor: pointer;
-          transition: r 0.12s ease;
         }
-        .dh-period-summaries .dhps-chart-node:hover {
-          r: 4.8px;
+        .dh-period-summaries .dhps-bar-track {
+          position: relative;
+          width: 100%;
+          height: 76px;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          align-items: center;
+          border-radius: 5px;
+          background: color-mix(in srgb, var(--text-normal) 4%, transparent);
+          overflow: hidden;
+          transition: background-color 0.14s ease;
+        }
+        .dh-period-summaries button.dhps-bar-col.is-clickable:hover .dhps-bar-track {
+          background: color-mix(in srgb, var(--text-normal) 9%, transparent);
+        }
+        .dh-period-summaries .dhps-bar-col.is-future .dhps-bar-track {
+          opacity: 0.35;
+        }
+        .dh-period-summaries .dhps-bar-fill {
+          width: 100%;
+          border-radius: 4px 4px 2px 2px;
+          background: var(--bar-color);
+          opacity: 0.86;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          padding-top: 2px;
+          transition: opacity 0.14s ease, transform 0.14s ease;
+        }
+        .dh-period-summaries button.dhps-bar-col.is-clickable:hover .dhps-bar-fill {
+          opacity: 1;
+        }
+        .dh-period-summaries .dhps-bar-val {
+          font-size: 0.62rem;
+          font-weight: 700;
+          line-height: 1;
+          color: #141619;
+          user-select: none;
+        }
+        .dh-period-summaries .dhps-bar-stub {
+          width: 55%;
+          height: 3px;
+          margin-bottom: 3px;
+          border-radius: 99px;
+          background: var(--text-faint);
+          opacity: 0.55;
+        }
+        .dh-period-summaries .dhps-bar-day {
+          font-size: 0.63rem;
+          line-height: 1;
+          color: var(--text-faint);
+          user-select: none;
+        }
+        .dh-period-summaries .dhps-bar-col.is-today .dhps-bar-day {
+          color: var(--interactive-accent);
+          font-weight: 700;
+        }
+        @media (max-width: 640px) {
+          .dh-period-summaries .dhps-bars {
+            gap: 2px;
+          }
+          .dh-period-summaries .dhps-bar-val {
+            display: none;
+          }
+          .dh-period-summaries .dhps-bar-day.is-minor {
+            visibility: hidden;
+          }
         }
         .dh-period-summaries .dhps-habits-grid {
           display: grid;
@@ -2008,124 +2088,65 @@ let analyticsSectionEl = null;
         }
       }
 
-      function renderMonthScoreChart(container, cur) {
+function renderMonthScoreChart(container, cur) {
         const box = container.createDiv({ cls: "dhps-subbox" });
         const head = box.createDiv({ cls: "dhps-subbox-head" });
-        head.createSpan({ cls: "dhps-subbox-title", text: "Динамика оценки дня по дням месяца" });
-        head.createSpan({
-          cls: "dhps-subbox-hint",
-          text: "Пропуски без оценки показаны разрывом линии · клик по точке открывает заметку"
-        });
+        head.createSpan({ cls: "dhps-subbox-title", text: "Оценки по дням" });
 
-        const svgNS = "http://www.w3.org/2000/svg";
-        const W = 620;
-        const H = 112;
-        const padL = 24;
-        const padR = 12;
-        const padT = 10;
-        const padB = 20;
-        const plotW = W - padL - padR;
-        const plotH = H - padT - padB;
         const nDays = cur.totalCalendarDays;
+        const bars = box.createDiv({ cls: "dhps-bars" });
+        bars.style.gridTemplateColumns = `repeat(${nDays}, minmax(0, 1fr))`;
 
-        const xForDay = d => padL + (nDays > 1 ? ((d - 1) / (nDays - 1)) * plotW : plotW / 2);
-        const yForScore = s => padT + ((10 - s) / 9) * plotH;
-
-        const svg = doc.createElementNS(svgNS, "svg");
-        svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-        svg.setAttribute("class", "dhps-chart-svg");
-        box.appendChild(svg);
-
-        for (const gVal of [2, 5, 8, 10]) {
-          const y = yForScore(gVal);
-          const line = doc.createElementNS(svgNS, "line");
-          line.setAttribute("x1", String(padL));
-          line.setAttribute("x2", String(W - padR));
-          line.setAttribute("y1", String(y));
-          line.setAttribute("y2", String(y));
-          line.setAttribute("stroke", "var(--background-modifier-border)");
-          line.setAttribute("stroke-dasharray", gVal === 5 ? "3 3" : "none");
-          line.setAttribute("stroke-width", "1");
-          svg.appendChild(line);
-
-          const lbl = doc.createElementNS(svgNS, "text");
-          lbl.setAttribute("x", String(padL - 6));
-          lbl.setAttribute("y", String(y + 3));
-          lbl.setAttribute("text-anchor", "end");
-          lbl.setAttribute("fill", "var(--text-faint)");
-          lbl.setAttribute("font-size", "9");
-          lbl.textContent = String(gVal);
-          svg.appendChild(lbl);
-        }
-
-        const tickDays = [1, 5, 10, 15, 20, 25, nDays];
-        for (const td of [...new Set(tickDays)]) {
-          if (td > nDays) continue;
-          const x = xForDay(td);
-          const t = doc.createElementNS(svgNS, "text");
-          t.setAttribute("x", String(x));
-          t.setAttribute("y", String(H - 4));
-          t.setAttribute("text-anchor", "middle");
-          t.setAttribute("fill", "var(--text-faint)");
-          t.setAttribute("font-size", "9");
-          t.textContent = String(td);
-          svg.appendChild(t);
-        }
-
-        const segments = [];
-        let curSeg = [];
         for (const slot of cur.daySlots) {
+          const isTodaySlot = slot.iso === todayISO;
+          const hasPage = Boolean(slot.page);
+          const col = bars.createEl(hasPage ? "button" : "div", {
+            cls: [
+              "dhps-bar-col",
+              hasPage ? "is-clickable" : "",
+              slot.isFuture ? "is-future" : "",
+              isTodaySlot ? "is-today" : ""
+            ].filter(Boolean).join(" "),
+            attr: hasPage ? { type: "button" } : {}
+          });
+
+          const ev = slot.page && typeof slot.page.главное_событие === "string"
+            ? slot.page.главное_событие.trim()
+            : "";
+          const statusStr = slot.isFuture
+            ? "Будущий день"
+            : slot.score !== null
+              ? `оценка ${fmt(slot.score)}/10`
+              : hasPage
+                ? "без оценки"
+                : "нет записи";
+          col.setAttribute("title", `${slot.date.toFormat("dd.MM.yyyy")} · ${statusStr}${ev ? " · " + ev : ""}`);
+
+          const track = col.createDiv({ cls: "dhps-bar-track" });
           if (slot.score !== null) {
-            curSeg.push(slot);
-          } else if (curSeg.length) {
-            segments.push(curSeg);
-            curSeg = [];
+            const color = COLORS[Math.min(9, Math.max(0, Math.round(slot.score) - 1))];
+            const pctH = Math.max(16, Math.round((slot.score / 10) * 100));
+            const fill = track.createDiv({ cls: "dhps-bar-fill" });
+            fill.style.height = `${pctH}%`;
+            fill.style.setProperty("--bar-color", color);
+            fill.createSpan({ cls: "dhps-bar-val", text: fmt(slot.score, 0, 0) });
+          } else if (hasPage) {
+            track.createDiv({ cls: "dhps-bar-stub" });
           }
-        }
-        if (curSeg.length) segments.push(curSeg);
 
-        for (const seg of segments) {
-          if (seg.length < 2) continue;
-          const dAttr = seg
-            .map((pt, i) => `${i === 0 ? "M" : "L"}${xForDay(pt.day).toFixed(1)},${yForScore(pt.score).toFixed(1)}`)
-            .join(" ");
-          const path = doc.createElementNS(svgNS, "path");
-          path.setAttribute("d", dAttr);
-          path.setAttribute("fill", "none");
-          path.setAttribute("stroke", "#e5a158");
-          path.setAttribute("stroke-width", "2");
-          path.setAttribute("stroke-linecap", "round");
-          path.setAttribute("stroke-linejoin", "round");
-          svg.appendChild(path);
-        }
+          const isMajorDay = slot.day === 1 || slot.day % 5 === 0 || slot.day === nDays || isTodaySlot;
+          col.createSpan({
+            cls: `dhps-bar-day${isMajorDay ? "" : " is-minor"}`,
+            text: String(slot.day)
+          });
 
-        for (const slot of cur.daySlots) {
-          if (slot.score === null) continue;
-          const cx = xForDay(slot.day);
-          const cy = yForScore(slot.score);
-          const color = COLORS[Math.min(9, Math.max(0, Math.round(slot.score) - 1))];
-
-          const circle = doc.createElementNS(svgNS, "circle");
-          circle.setAttribute("cx", cx.toFixed(1));
-          circle.setAttribute("cy", cy.toFixed(1));
-          circle.setAttribute("r", "3.4");
-          circle.setAttribute("fill", color);
-          circle.setAttribute("stroke", "var(--background-primary)");
-          circle.setAttribute("stroke-width", "1.2");
-          circle.setAttribute("class", "dhps-chart-node");
-
-          const title = doc.createElementNS(svgNS, "title");
-          const ev = slot.page && typeof slot.page.главное_событие === "string" ? slot.page.главное_событие.trim() : "";
-          title.textContent = `${slot.date.toFormat("dd.MM.yyyy")}: оценка ${fmt(slot.score)}/10${ev ? " · " + ev : ""}`;
-          circle.appendChild(title);
-
-          if (slot.page) {
-            circle.addEventListener("click", e => {
+          if (hasPage) {
+            col.onmousedown = e => e.preventDefault();
+            col.onclick = e => {
               e.stopPropagation();
               open(slot.page);
-            });
+            };
           }
-          svg.appendChild(circle);
         }
       }
 
@@ -2208,8 +2229,7 @@ let analyticsSectionEl = null;
         const prevMonthKey = dv.date(`${mk}-01`).minus({ months: 1 }).toFormat("yyyy-MM");
         const prev = getMonthStats(prevMonthKey);
 
-        const [yStr, mStr] = mk.split("-");
-        monthSubLabel.textContent = `${MONTHS_FULL[Number(mStr) - 1]} ${yStr} · записей: ${cur.recordsCount}/${cur.totalCalendarDays}`;
+monthSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
 
         monthBody.replaceChildren();
         renderSummaryCards(monthBody, cur, prev, "мес.");
@@ -2227,7 +2247,7 @@ let analyticsSectionEl = null;
         const cur = getYearStats(yNum);
         const prev = availableYears.includes(yNum - 1) ? getYearStats(yNum - 1) : null;
 
-        yearSubLabel.textContent = `${yNum} · записей: ${cur.recordsCount}/${cur.totalCalendarDays} дн.`;
+yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         yearBody.replaceChildren();
 
         renderSummaryCards(yearBody, cur, prev, "года");

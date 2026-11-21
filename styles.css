@@ -1155,18 +1155,98 @@
           font-size: 0.7rem;
           color: var(--text-faint);
         }
-        .dh-period-summaries .dhps-chart-svg {
-          display: block;
+.dh-period-summaries .dhps-bars {
+          display: grid;
+          gap: 4px;
+          align-items: end;
           width: 100%;
-          height: 112px;
-          overflow: visible;
+          padding-top: 2px;
         }
-        .dh-period-summaries .dhps-chart-node {
+        .dh-period-summaries .dhps-bar-col {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          min-width: 0;
+          padding: 0;
+          margin: 0;
+          border: none;
+          background: transparent;
+          box-shadow: none;
+          font-family: inherit;
+          cursor: default;
+        }
+        .dh-period-summaries button.dhps-bar-col.is-clickable {
           cursor: pointer;
-          transition: r 0.12s ease;
         }
-        .dh-period-summaries .dhps-chart-node:hover {
-          r: 4.8px;
+        .dh-period-summaries .dhps-bar-track {
+          position: relative;
+          width: 100%;
+          height: 76px;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          align-items: center;
+          border-radius: 5px;
+          background: color-mix(in srgb, var(--text-normal) 4%, transparent);
+          overflow: hidden;
+          transition: background-color 0.14s ease;
+        }
+        .dh-period-summaries button.dhps-bar-col.is-clickable:hover .dhps-bar-track {
+          background: color-mix(in srgb, var(--text-normal) 9%, transparent);
+        }
+        .dh-period-summaries .dhps-bar-col.is-future .dhps-bar-track {
+          opacity: 0.35;
+        }
+        .dh-period-summaries .dhps-bar-fill {
+          width: 100%;
+          border-radius: 4px 4px 2px 2px;
+          background: var(--bar-color);
+          opacity: 0.86;
+          display: flex;
+          align-items: flex-start;
+          justify-content: center;
+          padding-top: 2px;
+          transition: opacity 0.14s ease, transform 0.14s ease;
+        }
+        .dh-period-summaries button.dhps-bar-col.is-clickable:hover .dhps-bar-fill {
+          opacity: 1;
+        }
+        .dh-period-summaries .dhps-bar-val {
+          font-size: 0.62rem;
+          font-weight: 700;
+          line-height: 1;
+          color: #141619;
+          user-select: none;
+        }
+        .dh-period-summaries .dhps-bar-stub {
+          width: 55%;
+          height: 3px;
+          margin-bottom: 3px;
+          border-radius: 99px;
+          background: var(--text-faint);
+          opacity: 0.55;
+        }
+        .dh-period-summaries .dhps-bar-day {
+          font-size: 0.63rem;
+          line-height: 1;
+          color: var(--text-faint);
+          user-select: none;
+        }
+        .dh-period-summaries .dhps-bar-col.is-today .dhps-bar-day {
+          color: var(--interactive-accent);
+          font-weight: 700;
+        }
+        @media (max-width: 640px) {
+          .dh-period-summaries .dhps-bars {
+            gap: 2px;
+          }
+          .dh-period-summaries .dhps-bar-val {
+            display: none;
+          }
+          .dh-period-summaries .dhps-bar-day.is-minor {
+            visibility: hidden;
+          }
         }
         .dh-period-summaries .dhps-habits-grid {
           display: grid;
