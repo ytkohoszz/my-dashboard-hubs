@@ -1406,38 +1406,60 @@ let analyticsSectionEl = null;
           color: #d85b57;
           background: #d85b5722;
         }
-        .dh-period-summaries .dhps-year-heatmap {
+.dh-period-summaries .dhps-year-heatmap {
           display: flex;
           flex-direction: column;
-          gap: 3px;
+          gap: 4px;
           overflow-x: auto;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
           padding-bottom: 2px;
+        }
+        .dh-period-summaries .dhps-year-heatmap::-webkit-scrollbar {
+          display: none;
         }
         .dh-period-summaries .dhps-yh-row {
           display: grid;
-          grid-template-columns: 28px repeat(31, minmax(8px, 1fr));
-          gap: 2px;
+          grid-template-columns: 36px repeat(31, minmax(14px, 1fr));
+          gap: 3px;
           align-items: center;
-          min-width: 390px;
+          min-width: 520px;
+        }
+        .dh-period-summaries .dhps-yh-row.is-head {
+          margin-bottom: 2px;
+        }
+        .dh-period-summaries .dhps-yh-day-num {
+          font-size: 0.62rem;
+          line-height: 1;
+          text-align: center;
+          color: var(--text-faint);
+          user-select: none;
         }
         .dh-period-summaries .dhps-yh-label {
-          font-size: 0.66rem;
+          font-size: 0.7rem;
+          font-weight: 600;
           color: var(--text-muted);
           text-transform: capitalize;
+          white-space: nowrap;
+          user-select: none;
         }
         .dh-period-summaries .dhps-yh-cell {
+          display: flex;
+          align-items: center;
+          justify-content: center;
           width: 100%;
-          height: 12px;
-          border-radius: 2px;
-          background: var(--background-secondary);
+          height: 18px;
+          border-radius: 4px;
+          background: color-mix(in srgb, var(--text-normal) 4%, transparent);
           border: 1px solid transparent;
           box-sizing: border-box;
+          transition: opacity 0.12s ease, transform 0.12s ease;
         }
         .dh-period-summaries .dhps-yh-cell.is-invalid {
           background: transparent;
         }
         .dh-period-summaries .dhps-yh-cell.is-future {
-          opacity: 0.25;
+          opacity: 0.28;
         }
         .dh-period-summaries .dhps-yh-cell.has-entry {
           cursor: pointer;
@@ -1448,11 +1470,28 @@ let analyticsSectionEl = null;
         .dh-period-summaries .dhps-yh-cell.has-score {
           cursor: pointer;
           border-style: solid;
-          border-color: var(--cell-color);
-          background: var(--cell-bg);
+          border-color: transparent;
+          background: var(--cell-color);
+          opacity: 0.86;
+        }
+        .dh-period-summaries .dhps-yh-cell.has-score:hover {
+          opacity: 1;
+        }
+        .dh-period-summaries .dhps-yh-val {
+          font-size: 0.62rem;
+          font-weight: 700;
+          line-height: 1;
+          color: #141619;
+          user-select: none;
         }
         .dh-period-summaries .dhps-yh-cell.is-today {
           outline: 1.5px solid var(--interactive-accent);
+          outline-offset: 1px;
+        }
+        @media (max-width: 680px) {
+          .dh-period-summaries .dhps-yh-val {
+            display: none;
+          }
         }
         @media (max-width: 820px) {
           .dh-period-summaries .dhps-months-strip {
@@ -2053,18 +2092,8 @@ let analyticsSectionEl = null;
         }
       }
 
-      function renderHabitsSummaryGrid(container, cur, prev, isYearMode = false) {
+function renderHabitsSummaryGrid(container, cur, prev, isYearMode = false) {
         const box = container.createDiv({ cls: "dhps-subbox" });
-        const head = box.createDiv({ cls: "dhps-subbox-head" });
-        head.createSpan({
-          cls: "dhps-subbox-title",
-          text: isYearMode ? "Привычки за год (выполнение и серии)" : "Привычки за месяц (выполнение и лучшая серия)"
-        });
-        head.createSpan({
-          cls: "dhps-subbox-hint",
-          text: `% от всех дней ${isYearMode ? "года" : "месяца"} (${cur.totalCalendarDays} дн.)`
-        });
-
         const hGrid = box.createDiv({ cls: "dhps-habits-grid" });
         const hasPrev = prev && prev.recordsCount > 0;
 
@@ -2257,16 +2286,9 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
 
         renderSummaryCards(yearBody, cur, prev, "года");
 
-        // Разбивка по 12 месяцам
+// Разбивка по 12 месяцам
         {
           const mBox = yearBody.createDiv({ cls: "dhps-subbox" });
-          const mHead = mBox.createDiv({ cls: "dhps-subbox-head" });
-          mHead.createSpan({ cls: "dhps-subbox-title", text: "Разбивка по 12 месяцам (оценка и энергия)" });
-          mHead.createSpan({
-            cls: "dhps-subbox-hint",
-            text: "Клик по месяцу открывает его в блоке «Итог за месяц»"
-          });
-
           const strip = mBox.createDiv({ cls: "dhps-months-strip" });
           for (const mItem of cur.monthsBreakdown) {
             const isBest = cur.bestMonth && cur.bestMonth.monthKey === mItem.monthKey;
@@ -2321,17 +2343,17 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
           }
         }
 
-        // Годовая тепловая карта оценок (12 месяцев × 31 день)
+// Годовая тепловая карта оценок (12 месяцев × 31 день)
         {
           const hmBox = yearBody.createDiv({ cls: "dhps-subbox" });
-          const hmHead = hmBox.createDiv({ cls: "dhps-subbox-head" });
-          hmHead.createSpan({ cls: "dhps-subbox-title", text: `Годовая тепловая карта оценок · ${yNum}` });
-          hmHead.createSpan({
-            cls: "dhps-subbox-hint",
-            text: "12 месяцев × 31 день · наведение — дата и оценка, клик — открыть заметку"
-          });
-
           const hmWrap = hmBox.createDiv({ cls: "dhps-year-heatmap" });
+
+          const headRow = hmWrap.createDiv({ cls: "dhps-yh-row is-head" });
+          headRow.createSpan({ cls: "dhps-yh-label", text: "" });
+          for (let d = 1; d <= 31; d++) {
+            headRow.createSpan({ cls: "dhps-yh-day-num", text: String(d) });
+          }
+
           for (const mItem of cur.monthsBreakdown) {
             const row = hmWrap.createDiv({ cls: "dhps-yh-row" });
             row.createSpan({ cls: "dhps-yh-label", text: mItem.label });
@@ -2356,7 +2378,7 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
               if (slot.score !== null) {
                 const c = COLORS[Math.min(9, Math.max(0, Math.round(slot.score) - 1))];
                 cell.style.setProperty("--cell-color", c);
-                cell.style.setProperty("--cell-bg", `${c}44`);
+                cell.createSpan({ cls: "dhps-yh-val", text: fmt(slot.score, 0, 0) });
               }
 
               const statusText = slot.isFuture
