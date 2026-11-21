@@ -938,10 +938,12 @@ let selectedISO =
     line-height: 28px;
   }
 .dashboard-home .dh-metric-input {
-    width: 68px !important;
+    width: var(--dh-in-w, 2.2ch) !important;
+    min-width: 2ch !important;
     max-width: 100%;
     height: 28px !important;
-    padding: 0 4px !important;
+    padding: 0 3px !important;
+    margin-left: -3px;
     font-size: 1rem !important;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
@@ -978,6 +980,7 @@ let selectedISO =
   .dashboard-home .dh-time-input {
     width: 100% !important;
     min-width: 0 !important;
+    margin-left: 0 !important;
     padding: 0 2px !important;
     text-align: center !important;
     font-size: 0.88rem !important;
@@ -1141,11 +1144,14 @@ let selectedISO =
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
   }
-  .dashboard-home .dh-event-row {
+.dashboard-home .dh-event-row {
     display: grid;
-    grid-template-columns: 112px 1fr;
+    grid-template-columns: auto 1fr;
     align-items: center;
     gap: 12px;
+  }
+  .dashboard-home .dh-event-row .dh-today-row-label {
+    white-space: nowrap;
   }
   .dashboard-home .dh-event-control {
     display: flex;
@@ -1564,8 +1570,15 @@ for (const h of HABITS) {
     }
     updateHabitsSummary();
 
-    const metricsGrid = body.createDiv({ cls: "dh-metrics-grid" });
+const metricsGrid = body.createDiv({ cls: "dh-metrics-grid" });
     const inputRefs = new Map();
+
+    const syncMetricInputWidth = (inp, fallback = "—") => {
+      const txt = (inp.value || fallback).trim() || fallback;
+      const sepCount = (txt.match(/[.,]/g) || []).length;
+      const ch = Math.max(2.0, txt.length - sepCount * 0.45 + 1.15);
+      inp.style.setProperty("--dh-in-w", `${ch.toFixed(2)}ch`);
+    };
 
     const renderInputMetricCard = (m) => {
       const card = metricsGrid.createEl("label", { cls: "dh-metric-item" });
@@ -1596,10 +1609,11 @@ for (const h of HABITS) {
       const errorEl = card.createDiv({ cls: "dh-metric-error" });
       errorEl.style.display = "none";
 
-      const savedRaw = m.key === "страниц_прочитано" ? effectivePages : note[m.key];
+const savedRaw = m.key === "страниц_прочитано" ? effectivePages : note[m.key];
       const savedFormatted = formatNumForInput(savedRaw, m.digits);
       const hasDraft = Object.prototype.hasOwnProperty.call(uiDrafts.inputs, m.key);
       input.value = hasDraft ? uiDrafts.inputs[m.key] : savedFormatted;
+      syncMetricInputWidth(input, m.placeholder);
 
       if (uiDrafts.errors[m.key]) {
         card.classList.add("is-invalid");
@@ -1615,6 +1629,7 @@ for (const h of HABITS) {
       };
 
       input.oninput = () => {
+        syncMetricInputWidth(input, m.placeholder);
         uiDrafts.inputs[m.key] = input.value;
         uiDrafts.selectionStart = input.selectionStart;
         uiDrafts.selectionEnd = input.selectionEnd;
@@ -1636,6 +1651,7 @@ for (const h of HABITS) {
           card.classList.remove("is-invalid");
           errorEl.style.display = "none";
           input.value = savedFormatted;
+          syncMetricInputWidth(input, m.placeholder);
           input.blur();
         }
       };
@@ -1658,15 +1674,17 @@ for (const h of HABITS) {
 
           isSavingMetric = true;
           try {
-            if (isToday && m.key === "страниц_прочитано") {
+if (isToday && m.key === "страниц_прочитано") {
               setManualReadingOverride(null);
               const fallbackPages = readingSync.autoBookPages > 0 ? readingSync.autoBookPages : null;
               input.value = fallbackPages !== null ? formatNumForInput(fallbackPages, 0) : "";
+              syncMetricInputWidth(input, m.placeholder);
               if (subHintEl) {
                 subHintEl.setText(readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages} стр.` : "авто из читалки");
               }
               await saveField(m.key, fallbackPages);
             } else {
+              syncMetricInputWidth(input, m.placeholder);
               await saveField(m.key, null);
             }
             uiDrafts.savedStamp[m.key] = Date.now();
@@ -1689,9 +1707,10 @@ for (const h of HABITS) {
           return;
         }
 
-        const finalValue = Math.round(numVal * 10 ** m.digits) / 10 ** m.digits;
+const finalValue = Math.round(numVal * 10 ** m.digits) / 10 ** m.digits;
         const finalFormatted = formatNumForInput(finalValue, m.digits);
         input.value = finalFormatted;
+        syncMetricInputWidth(input, m.placeholder);
         delete uiDrafts.inputs[m.key];
         delete uiDrafts.errors[m.key];
         card.classList.remove("is-invalid");
@@ -1884,8 +1903,10 @@ const mountTimeField = (key, label, placeholder) => {
               }
             });
 
-            if (autoSleep !== null && inputRefs.has("сон_часов")) {
-              inputRefs.get("сон_часов").value = formatNumForInput(autoSleep, 1);
+if (autoSleep !== null && inputRefs.has("сон_часов")) {
+              const sleepInput = inputRefs.get("сон_часов");
+              sleepInput.value = formatNumForInput(autoSleep, 1);
+              syncMetricInputWidth(sleepInput, "—");
             }
 
             uiDrafts.savedStamp[key] = Date.now();
