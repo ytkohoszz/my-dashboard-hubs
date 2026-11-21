@@ -525,14 +525,14 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
       margin-top: 0 !important;
     }
 
-    /* Карточки-аккордеоны обоих блоков */
+/* Карточки-аккордеоны обоих блоков */
     .dashboard-home .dh-dyn-panel,
     .dashboard-home .dh-ex-panel {
       border-radius: 12px;
       border: 1px solid var(--background-modifier-border);
       background: var(--background-secondary);
       overflow: hidden;
-      transition: border-color 220ms var(--dh-ease-out), box-shadow 220ms var(--dh-ease-out);
+      transition: border-color 220ms var(--dh-ease-out);
     }
     .dashboard-home .dh-dyn-panel[open],
     .dashboard-home .dh-ex-panel[open] {
@@ -547,7 +547,7 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      min-height: 46px;
+      min-height: 44px;
       padding: 10px 14px;
       color: var(--text-normal);
       transition: background-color 160ms var(--dh-ease-out);
@@ -572,9 +572,9 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     .dashboard-home .dh-dyn-chevron,
     .dashboard-home .dh-ex-chevron {
       display: inline-block;
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       color: var(--text-muted);
-      transition: transform 240ms var(--dh-ease-out);
+      transition: transform 220ms var(--dh-ease-out);
     }
     .dashboard-home .dh-dyn-panel[open] .dh-dyn-chevron,
     .dashboard-home .dh-ex-panel[open] .dh-ex-chevron {
@@ -582,7 +582,7 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     }
     .dashboard-home .dh-dyn-summary-meta,
     .dashboard-home .dh-ex-summary-meta {
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       font-weight: 600;
       color: var(--text-muted);
       font-variant-numeric: tabular-nums;
@@ -599,28 +599,27 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     /* Тело блоков */
     .dashboard-home .dh-dyn-body,
     .dashboard-home .dh-ex-body {
-      padding: 2px 14px 14px;
+      padding: 12px 14px 14px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
       border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 60%, transparent);
     }
 
-    /* Верхняя строка: Главное число + кнопка «⋯» */
+    /* Верхняя строка: Главное число + дельта */
     .dashboard-home .dh-dyn-hero,
     .dashboard-home .dh-ex-hero {
       display: flex;
       align-items: baseline;
       justify-content: space-between;
-      gap: 12px;
-      padding-top: 10px;
+      gap: 10px;
       flex-wrap: wrap;
     }
     .dashboard-home .dh-dyn-hero-left,
     .dashboard-home .dh-ex-hero-left {
       display: flex;
       align-items: baseline;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
       min-width: 0;
     }
@@ -628,7 +627,7 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     .dashboard-home .dh-ex-hero-val {
       font-size: 1.65rem;
       font-weight: 800;
-      line-height: 1.1;
+      line-height: 1.05;
       letter-spacing: -0.02em;
       color: var(--text-normal);
       font-variant-numeric: tabular-nums;
@@ -638,7 +637,6 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
       font-size: 0.84rem;
       font-weight: 600;
       color: var(--text-muted);
-      margin-left: 3px;
     }
     .dashboard-home .dh-dyn-hero-delta,
     .dashboard-home .dh-ex-hero-delta {
@@ -646,7 +644,7 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
       align-items: center;
       padding: 2px 8px;
       border-radius: 6px;
-      font-size: 0.76rem;
+      font-size: 0.75rem;
       font-weight: 650;
       font-variant-numeric: tabular-nums;
       background: var(--background-primary);
@@ -666,116 +664,118 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
       background: color-mix(in srgb, var(--dh-c-down) 13%, var(--background-primary));
       border-color: color-mix(in srgb, var(--dh-c-down) 35%, var(--background-modifier-border));
     }
-    .dashboard-home button.dh-dyn-more-btn,
-    .dashboard-home button.dh-ex-more-btn {
-      min-width: 36px;
-      min-height: 36px;
-      height: 36px;
-      padding: 0 10px;
-      border-radius: 8px;
-      border: 1px solid var(--background-modifier-border);
-      background: var(--background-primary);
-      color: var(--text-muted);
-      font-size: 0.95rem;
-      font-weight: 700;
-      line-height: 1;
-      cursor: pointer;
+
+    /* Пилюли выбора метрики в «Вес и БЖУ» */
+    .dashboard-home .dh-dyn-pills {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .dashboard-home button.dh-dyn-pill {
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      box-shadow: none;
+      gap: 6px;
+      height: 30px !important;
+      min-height: 30px !important;
+      padding: 0 10px !important;
+      border-radius: 8px;
+      border: 1px solid var(--background-modifier-border);
+      background: var(--background-primary) !important;
+      box-shadow: none !important;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
       touch-action: manipulation;
-      transition: color 160ms var(--dh-ease-out), border-color 160ms var(--dh-ease-out), background-color 160ms var(--dh-ease-out);
+      transition: border-color 160ms var(--dh-ease-out), color 160ms var(--dh-ease-out), background-color 160ms var(--dh-ease-out);
     }
-    .dashboard-home button.dh-dyn-more-btn:hover,
-    .dashboard-home button.dh-ex-more-btn:hover,
-    .dashboard-home button.dh-dyn-more-btn[aria-expanded="true"],
-    .dashboard-home button.dh-ex-more-btn[aria-expanded="true"] {
+    .dashboard-home button.dh-dyn-pill i {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--pill-color, var(--text-muted));
+      opacity: 0.65;
+    }
+    .dashboard-home button.dh-dyn-pill:hover {
       color: var(--text-normal);
-      border-color: var(--dh-block-accent, var(--interactive-accent));
-      background: color-mix(in srgb, var(--dh-block-accent, var(--interactive-accent)) 14%, var(--background-primary));
+      border-color: color-mix(in srgb, var(--pill-color, var(--interactive-accent)) 55%, var(--background-modifier-border));
+    }
+    .dashboard-home button.dh-dyn-pill.is-active {
+      color: var(--text-normal);
+      font-weight: 700;
+      border-color: color-mix(in srgb, var(--pill-color, var(--interactive-accent)) 70%, var(--background-modifier-border));
+      background: color-mix(in srgb, var(--pill-color, var(--interactive-accent)) 16%, var(--background-primary)) !important;
+    }
+    .dashboard-home button.dh-dyn-pill.is-active i {
+      opacity: 1;
     }
 
-    /* Панель управления: сегменты-таблетки со скользящим индикатором и select */
-    .dashboard-home .dh-dyn-controls,
-    .dashboard-home .dh-ex-controls {
+    /* Сегментированные кнопки (период и режим метрики) */
+    .dashboard-home .dh-seg-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 8px;
       flex-wrap: wrap;
     }
-    .dashboard-home .dh-dyn-seg,
-    .dashboard-home .dh-ex-seg {
-      position: relative;
-      display: inline-grid;
-      grid-auto-flow: column;
-      grid-auto-columns: 1fr;
+    .dashboard-home .dh-seg-group {
+      display: inline-flex;
       align-items: center;
-      padding: 3px;
-      border-radius: 10px;
+      padding: 2px;
+      border-radius: 8px;
       background: var(--background-primary);
       border: 1px solid var(--background-modifier-border);
-      isolation: isolate;
+      max-width: 100%;
       overflow-x: auto;
       scrollbar-width: none;
-      max-width: 100%;
     }
-    .dashboard-home .dh-dyn-seg::-webkit-scrollbar,
-    .dashboard-home .dh-ex-seg::-webkit-scrollbar {
+    .dashboard-home .dh-seg-group::-webkit-scrollbar {
       display: none;
     }
-    .dashboard-home .dh-dyn-seg-thumb,
-    .dashboard-home .dh-ex-seg-thumb {
-      position: absolute;
-      top: 3px;
-      bottom: 3px;
-      left: 3px;
-      width: calc((100% - 6px) / var(--seg-count, 5));
-      transform: translateX(calc(var(--seg-index, 0) * 100%));
-      border-radius: 7px;
-      background: color-mix(in srgb, var(--dh-block-accent, var(--interactive-accent)) 22%, var(--background-secondary));
-      border: 1px solid color-mix(in srgb, var(--dh-block-accent, var(--interactive-accent)) 55%, transparent);
-      z-index: 0;
-      pointer-events: none;
-      transition: transform 260ms var(--dh-ease-out), background-color 220ms var(--dh-ease-out), border-color 220ms var(--dh-ease-out);
-    }
-    .dashboard-home button.dh-dyn-seg-btn,
-    .dashboard-home button.dh-ex-seg-btn {
-      position: relative;
-      z-index: 1;
-      min-height: 36px;
-      height: 36px;
-      padding: 0 10px;
-      border: none;
-      border-radius: 7px;
+    .dashboard-home button.dh-seg-item {
+      height: 28px !important;
+      min-height: 28px !important;
+      padding: 0 9px !important;
+      border: 1px solid transparent !important;
+      border-radius: 6px;
       background: transparent !important;
       box-shadow: none !important;
       color: var(--text-muted);
-      font-size: 0.76rem;
+      font-size: 0.74rem;
       font-weight: 600;
       white-space: nowrap;
       cursor: pointer;
       touch-action: manipulation;
-      transition: color 180ms var(--dh-ease-out);
+      transition: color 150ms var(--dh-ease-out), background-color 150ms var(--dh-ease-out), border-color 150ms var(--dh-ease-out);
     }
-    .dashboard-home button.dh-dyn-seg-btn.is-active,
-    .dashboard-home button.dh-ex-seg-btn.is-active {
+    .dashboard-home button.dh-seg-item:hover {
+      color: var(--text-normal);
+    }
+    .dashboard-home button.dh-seg-item.is-active {
       color: var(--text-normal);
       font-weight: 700;
+      background: color-mix(in srgb, var(--dh-block-accent, var(--interactive-accent)) 18%, var(--background-secondary)) !important;
+      border-color: color-mix(in srgb, var(--dh-block-accent, var(--interactive-accent)) 45%, transparent) !important;
+    }
+
+    /* Селекты в блоке «Упражнения» */
+    .dashboard-home .dh-ex-selects-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+      gap: 8px;
     }
     .dashboard-home select.dh-ex-select {
-      flex: 1 1 190px;
-      min-width: 150px;
-      max-width: 100%;
-      min-height: 38px;
-      height: 38px;
-      padding: 0 28px 0 11px;
-      border-radius: 9px;
+      width: 100%;
+      min-width: 0;
+      height: 34px !important;
+      min-height: 34px !important;
+      padding: 0 26px 0 10px;
+      border-radius: 8px;
       border: 1px solid var(--background-modifier-border);
       background-color: var(--background-primary);
       color: var(--text-normal);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 650;
       cursor: pointer;
       touch-action: manipulation;
@@ -786,215 +786,109 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
       border-color: var(--dh-block-accent, var(--interactive-accent));
     }
 
-    /* Раскрывающаяся шторка «⋯» через grid-template-rows: 0fr -> 1fr */
-    .dashboard-home .dh-dyn-drawer,
-    .dashboard-home .dh-ex-drawer {
-      display: grid;
-      grid-template-rows: 0fr;
-      opacity: 0;
-      transition: grid-template-rows 280ms var(--dh-ease-out), opacity 220ms var(--dh-ease-out);
-    }
-    .dashboard-home .dh-dyn-drawer.is-open,
-    .dashboard-home .dh-ex-drawer.is-open {
-      grid-template-rows: 1fr;
-      opacity: 1;
-    }
-    .dashboard-home .dh-dyn-drawer-inner,
-    .dashboard-home .dh-ex-drawer-inner {
-      overflow: hidden;
-      min-height: 0;
-    }
-    .dashboard-home .dh-dyn-drawer-box,
-    .dashboard-home .dh-ex-drawer-box {
-      padding: 10px 12px;
-      border-radius: 9px;
-      background: var(--background-primary);
-      border: 1px solid var(--background-modifier-border);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      font-size: 0.75rem;
-    }
-    .dashboard-home .dh-ex-drawer-filters {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 8px;
-    }
-    .dashboard-home .dh-ex-filter-field {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .dashboard-home .dh-ex-filter-label {
-      font-size: 0.68rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      color: var(--text-muted);
-    }
-    .dashboard-home .dh-ex-filter-field select {
-      width: 100%;
-      min-height: 36px;
-      height: 36px;
-      padding: 0 24px 0 9px;
-      border-radius: 7px;
-      border: 1px solid var(--background-modifier-border);
-      background: var(--background-secondary);
-      color: var(--text-normal);
-      font-size: 0.76rem;
-      font-weight: 600;
-    }
-    .dashboard-home .dh-dyn-stats-grid,
-    .dashboard-home .dh-ex-stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
-      gap: 8px;
-    }
-    .dashboard-home .dh-dyn-stat-item,
-    .dashboard-home .dh-ex-stat-item {
-      padding: 6px 8px;
-      border-radius: 7px;
-      background: var(--background-secondary);
-      border: 1px solid var(--background-modifier-border);
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-    .dashboard-home .dh-dyn-stat-k,
-    .dashboard-home .dh-ex-stat-k {
-      font-size: 0.68rem;
-      color: var(--text-muted);
-    }
-    .dashboard-home .dh-dyn-stat-v,
-    .dashboard-home .dh-ex-stat-v {
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: var(--text-normal);
-      font-variant-numeric: tabular-nums;
-    }
-    .dashboard-home .dh-dyn-legend,
-    .dashboard-home .dh-ex-legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 14px;
-      color: var(--text-muted);
-      font-size: 0.71rem;
-      padding-top: 4px;
-      border-top: 1px solid var(--background-modifier-border);
-    }
-    .dashboard-home .dh-dyn-legend span,
-    .dashboard-home .dh-ex-legend span {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .dashboard-home .dh-dyn-legend i,
-    .dashboard-home .dh-ex-legend i {
-      width: 14px;
-      height: 3px;
-      border-radius: 3px;
-      display: inline-block;
-    }
-
-    /* График SVG, кроссфейд, линия и тултип */
-    .dashboard-home .dh-dyn-chart-wrap,
-    .dashboard-home .dh-ex-chart-wrap {
+    /* График SVG и тултип (точные пиксельные координаты без искажения aspect ratio) */
+    .dashboard-home .dh-chart-box {
       position: relative;
       width: 100%;
-      padding: 6px 4px 2px;
       border-radius: 10px;
       background: var(--background-primary);
       border: 1px solid var(--background-modifier-border);
       overflow: visible;
-      transition: opacity 220ms var(--dh-ease-out);
     }
-    .dashboard-home .dh-dyn-svg,
-    .dashboard-home .dh-ex-svg {
+    .dashboard-home .dh-chart-svg {
       display: block;
       width: 100%;
-      height: 235px;
+      height: 220px;
       overflow: visible;
       touch-action: pan-y;
       user-select: none;
+      cursor: crosshair;
     }
-    .dashboard-home .dh-dyn-line-anim,
-    .dashboard-home .dh-ex-line-anim {
-      stroke-dasharray: var(--path-len, 1400);
-      stroke-dashoffset: var(--path-len, 1400);
-      animation: dh-chart-draw 540ms var(--dh-ease-out) forwards;
-    }
-    .dashboard-home .dh-dyn-area-anim,
-    .dashboard-home .dh-ex-area-anim {
-      opacity: 0;
-      animation: dh-chart-fade 420ms var(--dh-ease-out) 80ms forwards;
-    }
-    @keyframes dh-chart-draw {
-      to { stroke-dashoffset: 0; }
-    }
-    @keyframes dh-chart-fade {
-      to { opacity: 1; }
-    }
-    .dashboard-home .dh-dyn-guide,
-    .dashboard-home .dh-ex-guide {
-      stroke: color-mix(in srgb, var(--text-muted) 55%, transparent);
+    .dashboard-home .dh-chart-guide {
+      stroke: color-mix(in srgb, var(--text-muted) 65%, transparent);
       stroke-width: 1;
       stroke-dasharray: 3 3;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 150ms var(--dh-ease-out), transform 120ms var(--dh-ease-out);
     }
-    .dashboard-home .dh-dyn-active-dot,
-    .dashboard-home .dh-ex-active-dot {
+    .dashboard-home .dh-chart-active-dot {
       pointer-events: none;
       opacity: 0;
-      transition: opacity 150ms var(--dh-ease-out), transform 120ms var(--dh-ease-out);
     }
-    .dashboard-home .dh-dyn-tooltip,
-    .dashboard-home .dh-ex-tooltip {
+    .dashboard-home .dh-chart-tooltip {
       position: absolute;
-      z-index: 10;
+      z-index: 20;
       padding: 6px 10px;
       border-radius: 8px;
       background: var(--background-secondary);
-      border: 1px solid color-mix(in srgb, var(--dh-block-accent, var(--interactive-accent)) 55%, var(--background-modifier-border));
-      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+      border: 1px solid color-mix(in srgb, var(--dh-block-accent, var(--interactive-accent)) 60%, var(--background-modifier-border));
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
       pointer-events: none;
       white-space: nowrap;
       opacity: 0;
       visibility: hidden;
-      transform: translate(-50%, -112%);
-      transition: opacity 150ms var(--dh-ease-out), left 100ms var(--dh-ease-out), top 100ms var(--dh-ease-out), visibility 150ms;
+      transform: translate(-50%, calc(-100% - 10px));
+      transition: opacity 110ms var(--dh-ease-out), visibility 110ms;
     }
-    .dashboard-home .dh-dyn-tooltip.is-visible,
-    .dashboard-home .dh-ex-tooltip.is-visible {
+    .dashboard-home .dh-chart-tooltip.is-visible {
       opacity: 1;
       visibility: visible;
     }
-    .dashboard-home .dh-dyn-tooltip-date,
-    .dashboard-home .dh-ex-tooltip-date {
+    .dashboard-home .dh-chart-tooltip-date {
       display: block;
       font-size: 0.68rem;
       color: var(--text-muted);
       line-height: 1.2;
     }
-    .dashboard-home .dh-dyn-tooltip-val,
-    .dashboard-home .dh-ex-tooltip-val {
+    .dashboard-home .dh-chart-tooltip-val {
       display: block;
-      font-size: 0.88rem;
+      font-size: 0.86rem;
       font-weight: 800;
       color: var(--text-normal);
       font-variant-numeric: tabular-nums;
       line-height: 1.25;
     }
-    .dashboard-home .dh-dyn-empty,
-    .dashboard-home .dh-ex-empty {
+
+    /* Компактная строка сводки под графиком */
+    .dashboard-home .dh-chart-footer {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .dashboard-home .dh-chart-stat {
+      padding: 6px 10px;
+      border-radius: 8px;
+      background: var(--background-primary);
+      border: 1px solid var(--background-modifier-border);
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px;
+      min-width: 0;
+    }
+    .dashboard-home .dh-chart-stat-k {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .dashboard-home .dh-chart-stat-v {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--text-normal);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dashboard-home .dh-chart-empty {
       min-height: 180px;
-      padding: 24px 16px;
+      padding: 20px 16px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 5px;
       text-align: center;
       color: var(--text-muted);
       font-size: 0.8rem;
@@ -1005,52 +899,23 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
         grid-template-columns: minmax(0, 1fr);
       }
     }
-    @media (max-width: 640px) {
-      .dashboard-home .dh-dyn-controls,
-      .dashboard-home .dh-ex-controls {
+    @media (max-width: 560px) {
+      .dashboard-home .dh-ex-selects-row {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .dashboard-home .dh-chart-footer {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .dashboard-home .dh-chart-stat {
         flex-direction: column;
-        align-items: stretch;
-      }
-      .dashboard-home .dh-dyn-seg,
-      .dashboard-home .dh-ex-seg {
-        width: 100%;
-      }
-      .dashboard-home button.dh-dyn-seg-btn,
-      .dashboard-home button.dh-ex-seg-btn {
-        padding: 0 6px;
-        font-size: 0.73rem;
+        align-items: flex-start;
+        gap: 1px;
+        padding: 6px 8px;
       }
       .dashboard-home .dh-dyn-hero-val,
       .dashboard-home .dh-ex-hero-val {
         font-size: 1.45rem;
-      }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .dashboard-home .dh-dyn-panel,
-      .dashboard-home .dh-ex-panel,
-      .dashboard-home .dh-dyn-chevron,
-      .dashboard-home .dh-ex-chevron,
-      .dashboard-home .dh-dyn-seg-thumb,
-      .dashboard-home .dh-ex-seg-thumb,
-      .dashboard-home button.dh-dyn-seg-btn,
-      .dashboard-home button.dh-ex-seg-btn,
-      .dashboard-home .dh-dyn-drawer,
-      .dashboard-home .dh-ex-drawer,
-      .dashboard-home .dh-dyn-guide,
-      .dashboard-home .dh-ex-guide,
-      .dashboard-home .dh-dyn-active-dot,
-      .dashboard-home .dh-ex-active-dot,
-      .dashboard-home .dh-dyn-tooltip,
-      .dashboard-home .dh-ex-tooltip {
-        transition: none !important;
-      }
-      .dashboard-home .dh-dyn-line-anim,
-      .dashboard-home .dh-ex-line-anim,
-      .dashboard-home .dh-dyn-area-anim,
-      .dashboard-home .dh-ex-area-anim {
-        animation: none !important;
-        stroke-dashoffset: 0 !important;
-        opacity: 1 !important;
       }
     }
   `;
@@ -1071,10 +936,10 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     } catch { return {}; }
   })();
 
-  const metricKeys = ["weight", "calories", "proteins", "fats", "carbs"];
+const metricKeys = ["weight", "calories", "proteins", "fats", "carbs"];
   const metricMeta = {
     weight: { label: "Вес", unit: "кг", color: "#e5a158", digits: 1 },
-    calories: { label: "Калории", unit: "ккал", color: "#8b8dff", digits: 0 },
+    calories: { label: "Ккал", unit: "ккал", color: "#8b8dff", digits: 0 },
     proteins: { label: "Белки", unit: "г", color: "#4aab80", digits: 0 },
     fats: { label: "Жиры", unit: "г", color: "#d78f60", digits: 0 },
     carbs: { label: "Углеводы", unit: "г", color: "#599ed6", digits: 0 }
@@ -1102,7 +967,6 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     return dates;
   };
 
-  // Пропуски не превращаются в 0: в массив попадают только дни с реально записанным числом
   const buildMetricPoints = (key, period) => {
     const map = getMetricMap(key);
     const dates = getPeriodDates(period);
@@ -1114,8 +978,6 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
   };
 
   function computeDynNiceScale(minVal, maxVal, isWeight, tickCount = 4) {
-    // Для веса шкала Y строится вокруг рабочего коридора веса тела (не от 0, чтобы видеть динамику в 0.5–2 кг).
-    // Для калорий и БЖУ нижняя граница не опускается ниже 0, но поджимается к реальному диапазону записей.
     let lo = Number.isFinite(minVal) ? minVal : 0;
     let hi = Number.isFinite(maxVal) ? maxVal : 10;
     if (lo === hi) {
@@ -1188,33 +1050,6 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     return d;
   }
 
-  function animateDynCountUp(el, fromVal, toVal, digits) {
-    if (window.__dhDynCountRaf) {
-      window.cancelAnimationFrame(window.__dhDynCountRaf);
-      delete window.__dhDynCountRaf;
-    }
-    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (reduced || fromVal == null || !Number.isFinite(fromVal) || Math.abs(toVal - fromVal) < 0.01) {
-      el.textContent = fmt(toVal, digits, digits);
-      return;
-    }
-    const duration = 360;
-    const startTs = performance.now();
-    const step = (now) => {
-      if (!el.isConnected) return;
-      const p = Math.min(1, (now - startTs) / duration);
-      const eased = 1 - Math.pow(1 - p, 3);
-      const cur = fromVal + (toVal - fromVal) * eased;
-      el.textContent = fmt(cur, digits, digits);
-      if (p < 1) {
-        window.__dhDynCountRaf = window.requestAnimationFrame(step);
-      } else {
-        el.textContent = fmt(toVal, digits, digits);
-      }
-    };
-    window.__dhDynCountRaf = window.requestAnimationFrame(step);
-  }
-
   function formatDynAxisDate(iso, periodDays, spanDays) {
     const d = dv.date(iso);
     if (!d) return iso.slice(5).replace("-", ".");
@@ -1228,80 +1063,60 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     cls: "dh-dyn-panel",
     attr: { style: "--dh-block-accent: #e5a158;" }
   });
-  // По умолчанию блок закрыт, если пользователь явно не открывал его ранее
   chartPanel.open = dynamicState.open === true;
 
   let selectedMetric = metricKeys.includes(dynamicState.metric) ? dynamicState.metric : "weight";
   let selectedPeriod = [7, 30, 90, 365, null].includes(dynamicState.period) ? dynamicState.period : 90;
-  let isDynDrawerOpen = Boolean(dynamicState.drawerOpen);
-  let lastAnimatedDynVal = null;
 
   const persistDynState = () => {
     try {
       localStorage.setItem("dh-health-dynamics-v1", JSON.stringify({
         metric: selectedMetric,
         period: selectedPeriod,
-        open: chartPanel.open,
-        drawerOpen: isDynDrawerOpen
+        open: chartPanel.open
       }));
     } catch {}
   };
 
-  chartPanel.ontoggle = persistDynState;
-
   const chartSummary = chartPanel.createEl("summary", { cls: "dh-dyn-summary" });
   const sumTitleWrap = chartSummary.createDiv({ cls: "dh-dyn-summary-title" });
   sumTitleWrap.createSpan({ cls: "dh-dyn-chevron", text: "▶" });
-  sumTitleWrap.createSpan({ text: "📈 Динамика" });
+  sumTitleWrap.createSpan({ text: "⚖️ Вес и БЖУ" });
   const chartSummaryMeta = chartSummary.createSpan({ cls: "dh-dyn-summary-meta" });
 
   const chartBody = chartPanel.createDiv({ cls: "dh-dyn-body" });
 
-  // 1. Верхняя строка: Главное число + дельта + кнопка «⋯»
+  // 1. Главное число + изменение за период
   const dynHero = chartBody.createDiv({ cls: "dh-dyn-hero" });
   const dynHeroLeft = dynHero.createDiv({ cls: "dh-dyn-hero-left" });
   const dynHeroValEl = dynHeroLeft.createSpan({ cls: "dh-dyn-hero-val", text: "—" });
   const dynHeroUnitEl = dynHeroLeft.createSpan({ cls: "dh-dyn-hero-unit", text: "" });
   const dynHeroDeltaEl = dynHeroLeft.createSpan({ cls: "dh-dyn-hero-delta", attr: { style: "display: none;" } });
 
-  const dynMoreBtn = dynHero.createEl("button", {
-    cls: "dh-dyn-more-btn",
-    text: "⋯",
-    attr: {
-      type: "button",
-      title: "Сводка за период и обозначения",
-      "aria-expanded": String(isDynDrawerOpen)
-    }
-  });
-
-  // 2. Управление на виду: таблетки показателя и таблетки периода со скользящими индикаторами
-  const dynControls = chartBody.createDiv({ cls: "dh-dyn-controls" });
-
-  const metricBar = dynControls.createDiv({ cls: "dh-dyn-seg" });
-  const metricTabsList = metricKeys.map(k => ({ key: k, label: metricMeta[k].label }));
-  metricBar.style.setProperty("--seg-count", String(metricTabsList.length));
-  metricBar.style.setProperty("--seg-index", String(Math.max(0, metricKeys.indexOf(selectedMetric))));
-  metricBar.createDiv({ cls: "dh-dyn-seg-thumb" });
-
+  // 2. Пилюли выбора показателя (Вес, Ккал, Белки, Жиры, Углеводы)
+  const pillsRow = chartBody.createDiv({ cls: "dh-dyn-pills" });
   const metricBtnEls = [];
-  metricTabsList.forEach((m, idx) => {
-    const btn = metricBar.createEl("button", {
-      cls: "dh-dyn-seg-btn" + (m.key === selectedMetric ? " is-active" : ""),
-      text: m.label,
-      attr: { type: "button" }
+  metricKeys.forEach(k => {
+    const m = metricMeta[k];
+    const btn = pillsRow.createEl("button", {
+      cls: "dh-dyn-pill" + (k === selectedMetric ? " is-active" : ""),
+      attr: { type: "button", style: `--pill-color: ${m.color};` }
     });
-    metricBtnEls.push({ btn, key: m.key });
+    btn.createEl("i");
+    btn.createSpan({ text: m.label });
+    metricBtnEls.push({ btn, key: k });
     btn.onclick = () => {
-      if (selectedMetric === m.key) return;
-      selectedMetric = m.key;
-      metricBar.style.setProperty("--seg-index", String(idx));
+      if (selectedMetric === k) return;
+      selectedMetric = k;
       metricBtnEls.forEach(item => item.btn.classList.toggle("is-active", item.key === selectedMetric));
       persistDynState();
-      renderDynamicPanel(true);
+      renderDynamicPanel();
     };
   });
 
-  const periodBar = dynControls.createDiv({ cls: "dh-dyn-seg" });
+  // 3. Переключатель периода
+  const dynPeriodRow = chartBody.createDiv({ cls: "dh-seg-row" });
+  const periodBar = dynPeriodRow.createDiv({ cls: "dh-seg-group" });
   const periodOptions = [
     { val: 7, label: "7д" },
     { val: 30, label: "30д" },
@@ -1309,14 +1124,10 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     { val: 365, label: "Год" },
     { val: null, label: "Всё" }
   ];
-  periodBar.style.setProperty("--seg-count", String(periodOptions.length));
-  periodBar.style.setProperty("--seg-index", String(Math.max(0, periodOptions.findIndex(p => p.val === selectedPeriod))));
-  periodBar.createDiv({ cls: "dh-dyn-seg-thumb" });
-
   const periodBtnEls = [];
-  periodOptions.forEach((p, idx) => {
+  periodOptions.forEach(p => {
     const btn = periodBar.createEl("button", {
-      cls: "dh-dyn-seg-btn" + (p.val === selectedPeriod ? " is-active" : ""),
+      cls: "dh-seg-item" + (p.val === selectedPeriod ? " is-active" : ""),
       text: p.label,
       attr: { type: "button" }
     });
@@ -1324,32 +1135,19 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     btn.onclick = () => {
       if (selectedPeriod === p.val) return;
       selectedPeriod = p.val;
-      periodBar.style.setProperty("--seg-index", String(idx));
       periodBtnEls.forEach(item => item.btn.classList.toggle("is-active", item.val === selectedPeriod));
       persistDynState();
-      renderDynamicPanel(true);
+      renderDynamicPanel();
     };
   });
 
-  // 3. Шторка «⋯» (0fr -> 1fr): сводка и легенда
-  const dynDrawer = chartBody.createDiv({ cls: "dh-dyn-drawer" + (isDynDrawerOpen ? " is-open" : "") });
-  const dynDrawerInner = dynDrawer.createDiv({ cls: "dh-dyn-drawer-inner" });
-  const dynDrawerBox = dynDrawerInner.createDiv({ cls: "dh-dyn-drawer-box" });
-  const dynStatsGrid = dynDrawerBox.createDiv({ cls: "dh-dyn-stats-grid" });
-  const dynLegend = dynDrawerBox.createDiv({ cls: "dh-dyn-legend" });
+  // 4. График SVG
+  const dynChartWrap = chartBody.createDiv({ cls: "dh-chart-box" });
 
-  dynMoreBtn.onclick = (e) => {
-    e.stopPropagation();
-    isDynDrawerOpen = !isDynDrawerOpen;
-    dynDrawer.classList.toggle("is-open", isDynDrawerOpen);
-    dynMoreBtn.setAttribute("aria-expanded", String(isDynDrawerOpen));
-    persistDynState();
-  };
+  // 5. Компактная строка сводки под графиком
+  const dynFooter = chartBody.createDiv({ cls: "dh-chart-footer" });
 
-  // 4. Контейнер SVG-графика
-  const dynChartWrap = chartBody.createDiv({ cls: "dh-dyn-chart-wrap" });
-
-  const renderDynamicPanel = (animateTransition = false) => {
+  const renderDynamicPanel = () => {
     const meta = metricMeta[selectedMetric];
     chartPanel.style.setProperty("--dh-block-accent", meta.color);
     chartSummaryMeta.textContent = `${meta.label} · ${selectedPeriod === null ? "всё" : selectedPeriod + " дн."}`;
@@ -1364,13 +1162,11 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     const delta = lastVal != null && firstVal != null ? lastVal - firstVal : null;
 
     if (lastVal !== null) {
-      animateDynCountUp(dynHeroValEl, lastAnimatedDynVal, lastVal, meta.digits);
-      lastAnimatedDynVal = lastVal;
+      dynHeroValEl.textContent = fmt(lastVal, meta.digits, meta.digits);
       dynHeroUnitEl.textContent = meta.unit;
     } else {
       dynHeroValEl.textContent = "—";
       dynHeroUnitEl.textContent = "";
-      lastAnimatedDynVal = null;
     }
 
     if (delta !== null) {
@@ -1383,42 +1179,21 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
       dynHeroDeltaEl.style.display = "none";
     }
 
-    // Обновляем сводку и легенду внутри шторки «⋯»
-    dynStatsGrid.replaceChildren();
+    dynFooter.replaceChildren();
     [
-      ["Среднее", avgVal == null ? "—" : `${fmt(avgVal, 0, 1)} ${meta.unit}`],
+      ["Среднее", avgVal == null ? "—" : `${fmt(avgVal, 0, meta.digits)} ${meta.unit}`],
       ["Мин.", minVal == null ? "—" : `${fmt(minVal, 0, meta.digits)} ${meta.unit}`],
-      ["Макс.", maxVal == null ? "—" : `${fmt(maxVal, 0, meta.digits)} ${meta.unit}`],
-      ["Записей", String(points.length)]
+      ["Макс.", maxVal == null ? "—" : `${fmt(maxVal, 0, meta.digits)} ${meta.unit}`]
     ].forEach(([k, v]) => {
-      const item = dynStatsGrid.createDiv({ cls: "dh-dyn-stat-item" });
-      item.createSpan({ cls: "dh-dyn-stat-k", text: k });
-      item.createSpan({ cls: "dh-dyn-stat-v", text: v });
+      const item = dynFooter.createDiv({ cls: "dh-chart-stat" });
+      item.createSpan({ cls: "dh-chart-stat-k", text: k });
+      item.createSpan({ cls: "dh-chart-stat-v", text: v });
     });
 
-    dynLegend.replaceChildren();
-    const l1 = dynLegend.createEl("span");
-    l1.createEl("i", { attr: { style: `background: ${meta.color};` } });
-    l1.createSpan({ text: "Записи" });
-
-    const l2 = dynLegend.createEl("span");
-    l2.createEl("i", { attr: { style: "background: var(--text-muted); opacity: 0.65;" } });
-    l2.createSpan({ text: "Скользящее среднее · 7 дн." });
-
-    if (selectedMetric === "calories" && calorieGoal !== null) {
-      const l3 = dynLegend.createEl("span");
-      l3.createEl("i", { attr: { style: "background: #e5a158;" } });
-      l3.createSpan({ text: `Цель · ${calorieGoal} ккал` });
-    }
-
-    if (animateTransition) {
-      dynChartWrap.style.opacity = "0.35";
-      requestAnimationFrame(() => { dynChartWrap.style.opacity = "1"; });
-    }
     dynChartWrap.replaceChildren();
 
     if (points.length < 2) {
-      const emptyEl = dynChartWrap.createDiv({ cls: "dh-dyn-empty" });
+      const emptyEl = dynChartWrap.createDiv({ cls: "dh-chart-empty" });
       if (points.length === 1) {
         const only = points[0];
         emptyEl.createSpan({
@@ -1426,32 +1201,23 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
           attr: { style: "font-weight: 600; color: var(--text-normal);" }
         });
         emptyEl.createSpan({
-          text: "Добавь ещё один день или выбери более широкий период, чтобы увидеть линию динамики.",
+          text: "Выбери более широкий период, чтобы увидеть график.",
           attr: { style: "font-size: 0.74rem; color: var(--text-faint);" }
         });
       } else {
         emptyEl.createSpan({ text: "За выбранный период записей нет." });
-        emptyEl.createSpan({
-          text: "Выбери другой период (например, «Всё») или внеси данные за сегодня.",
-          attr: { style: "font-size: 0.74rem; color: var(--text-faint);" }
-        });
       }
       return;
     }
 
-    const svgW = 720;
-    const svgH = 235;
-    const pad = { left: 52, right: 16, top: 14, bottom: 28 };
+    const boxRect = dynChartWrap.getBoundingClientRect();
+    const svgW = Math.max(320, Math.round(boxRect.width || 560));
+    const svgH = 220;
+    const pad = { left: 46, right: 16, top: 16, bottom: 26 };
     const plotW = svgW - pad.left - pad.right;
     const plotH = svgH - pad.top - pad.bottom;
 
-    const movingAvg = points.map(point => {
-      const startISO = dv.date(point.iso).minus({ days: 6 }).toISODate();
-      const periodValues = points.filter(c => c.iso >= startISO && c.iso <= point.iso).map(c => c.value);
-      return { iso: point.iso, value: average(periodValues) };
-    });
-
-    const scaleValues = [...values, ...movingAvg.map(m => m.value).filter(Number.isFinite)];
+    const scaleValues = [...values];
     if (selectedMetric === "calories" && calorieGoal !== null) scaleValues.push(calorieGoal);
 
     const { yMin, yMax, ticks } = computeDynNiceScale(
@@ -1462,15 +1228,13 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     );
     const yRange = yMax - yMin || 1;
 
-    const xPos = idx => pad.left + (points.length <= 1 ? plotW / 2 : (idx * plotW) / (points.length - 1));
+    const xPos = idx => pad.left + (idx * plotW) / (points.length - 1);
     const yPos = val => pad.top + plotH - ((val - yMin) / yRange) * plotH;
 
     const svg = createHealthSvgNode(dynChartWrap, "svg", {
-      class: "dh-dyn-svg",
+      class: "dh-chart-svg",
       viewBox: `0 0 ${svgW} ${svgH}`,
-      preserveAspectRatio: "xMidYMid meet",
-      role: "img",
-      "aria-label": `${meta.label} за выбранный период`
+      preserveAspectRatio: "none"
     });
 
     ticks.forEach(tickVal => {
@@ -1481,7 +1245,7 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
       });
       const lbl = createHealthSvgNode(svg, "text", {
         x: pad.left - 8, y: y + 4, "text-anchor": "end",
-        fill: "var(--text-muted)", "font-size": "10"
+        fill: "var(--text-muted)", "font-size": "11"
       });
       lbl.textContent = fmt(tickVal, 0, meta.digits);
     });
@@ -1490,7 +1254,7 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
       const goalY = yPos(calorieGoal);
       createHealthSvgNode(svg, "line", {
         x1: pad.left, x2: svgW - pad.right, y1: goalY, y2: goalY,
-        stroke: "#e5a158", "stroke-width": "1.4", "stroke-dasharray": "4 4", opacity: "0.85"
+        stroke: "#e5a158", "stroke-width": "1.3", "stroke-dasharray": "4 4", opacity: "0.8"
       });
     }
 
@@ -1501,57 +1265,41 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     const labelCount = Math.min(points.length, 5);
     for (let t = 0; t < labelCount; t++) {
       const idx = labelCount === 1 ? 0 : Math.round((t * (points.length - 1)) / (labelCount - 1));
+      const anchor = t === 0 ? "start" : t === labelCount - 1 ? "end" : "middle";
       const lbl = createHealthSvgNode(svg, "text", {
-        x: xPos(idx), y: svgH - 6, "text-anchor": "middle",
-        fill: "var(--text-muted)", "font-size": "10"
+        x: xPos(idx), y: svgH - 6, "text-anchor": anchor,
+        fill: "var(--text-muted)", "font-size": "11"
       });
       lbl.textContent = formatDynAxisDate(points[idx].iso, selectedPeriod, spanDays);
     }
 
     const mainCoords = points.map((p, i) => ({ x: xPos(i), y: yPos(p.value) }));
-    const avgCoords = movingAvg.map((p, i) => ({ x: xPos(i), y: yPos(p.value) }));
-
     const mainPathData = buildDynMonotoneCubicPath(mainCoords);
-    const avgPathData = buildDynMonotoneCubicPath(avgCoords);
     const areaPathData = `${mainPathData} L ${mainCoords[mainCoords.length - 1].x.toFixed(1)},${(pad.top + plotH).toFixed(1)} L ${mainCoords[0].x.toFixed(1)},${(pad.top + plotH).toFixed(1)} Z`;
 
     const gradId = "dhDynGrad-" + Math.random().toString(36).slice(2, 7);
     const defs = createHealthSvgNode(svg, "defs");
     const grad = createHealthSvgNode(defs, "linearGradient", { id: gradId, x1: "0", y1: "0", x2: "0", y2: "1" });
-    createHealthSvgNode(grad, "stop", { offset: "0%", "stop-color": meta.color, "stop-opacity": "0.24" });
+    createHealthSvgNode(grad, "stop", { offset: "0%", "stop-color": meta.color, "stop-opacity": "0.22" });
     createHealthSvgNode(grad, "stop", { offset: "100%", "stop-color": meta.color, "stop-opacity": "0.0" });
 
+    createHealthSvgNode(svg, "path", { d: areaPathData, fill: `url(#${gradId})` });
     createHealthSvgNode(svg, "path", {
-      d: areaPathData, fill: `url(#${gradId})`, class: "dh-dyn-area-anim"
-    });
-
-    createHealthSvgNode(svg, "path", {
-      d: avgPathData, fill: "none", stroke: "var(--text-muted)",
-      "stroke-width": "1.4", "stroke-dasharray": "4 4", opacity: "0.6"
-    });
-
-    const mainPath = createHealthSvgNode(svg, "path", {
       d: mainPathData, fill: "none", stroke: meta.color,
-      "stroke-width": "2.8", "stroke-linecap": "round", "stroke-linejoin": "round",
-      class: "dh-dyn-line-anim"
+      "stroke-width": "2.6", "stroke-linecap": "round", "stroke-linejoin": "round"
     });
-    try {
-      const len = mainPath.getTotalLength?.() || 1400;
-      mainPath.style.setProperty("--path-len", String(Math.ceil(len)));
-    } catch {}
 
-    // Точки и выделенная последняя точка с мягким ореолом
     mainCoords.forEach((pt, idx) => {
       const isLast = idx === mainCoords.length - 1;
       if (isLast) {
         createHealthSvgNode(svg, "circle", {
-          cx: pt.x, cy: pt.y, r: "8",
-          fill: meta.color, opacity: "0.2", "pointer-events": "none"
+          cx: pt.x, cy: pt.y, r: "7.5",
+          fill: meta.color, opacity: "0.22", "pointer-events": "none"
         });
       }
       if (points.length <= 45 || isLast) {
         createHealthSvgNode(svg, "circle", {
-          cx: pt.x, cy: pt.y, r: isLast ? "4.8" : "2.8",
+          cx: pt.x, cy: pt.y, r: isLast ? "4.5" : "2.8",
           fill: isLast ? meta.color : "var(--background-primary)",
           stroke: meta.color,
           "stroke-width": isLast ? "2" : "1.6",
@@ -1562,17 +1310,17 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
 
     const guideLine = createHealthSvgNode(svg, "line", {
       x1: pad.left, x2: pad.left, y1: pad.top, y2: pad.top + plotH,
-      class: "dh-dyn-guide"
+      class: "dh-chart-guide"
     });
     const activeDot = createHealthSvgNode(svg, "circle", {
       cx: mainCoords[0].x, cy: mainCoords[0].y, r: "6",
       fill: "var(--background-secondary)", stroke: meta.color, "stroke-width": "2.6",
-      class: "dh-dyn-active-dot"
+      class: "dh-chart-active-dot"
     });
 
-    const tooltip = dynChartWrap.createDiv({ cls: "dh-dyn-tooltip" });
-    const ttDate = tooltip.createSpan({ cls: "dh-dyn-tooltip-date" });
-    const ttVal = tooltip.createSpan({ cls: "dh-dyn-tooltip-val" });
+    const tooltip = dynChartWrap.createDiv({ cls: "dh-chart-tooltip" });
+    const ttDate = tooltip.createSpan({ cls: "dh-chart-tooltip-date" });
+    const ttVal = tooltip.createSpan({ cls: "dh-chart-tooltip-val" });
 
     const showDynPoint = (idx) => {
       const pt = points[idx];
@@ -1589,10 +1337,9 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
       ttDate.textContent = dv.date(pt.iso).toFormat("dd.MM.yyyy");
       ttVal.textContent = `${fmt(pt.value, 0, meta.digits)} ${meta.unit}`;
 
-      const leftPct = Math.max(10, Math.min(90, (c.x / svgW) * 100));
-      const topPct = Math.max(16, (c.y / svgH) * 100);
-      tooltip.style.left = `${leftPct}%`;
-      tooltip.style.top = `${topPct}%`;
+      const clampedX = Math.max(54, Math.min(svgW - 54, c.x));
+      tooltip.style.left = `${clampedX}px`;
+      tooltip.style.top = `${Math.max(36, c.y)}px`;
       tooltip.classList.add("is-visible");
     };
 
@@ -1623,7 +1370,19 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
     svg.addEventListener("pointerleave", hideDynPoint);
   };
 
-  renderDynamicPanel(false);
+  chartPanel.ontoggle = () => {
+    persistDynState();
+    if (chartPanel.open) renderDynamicPanel();
+  };
+
+  if (typeof ResizeObserver !== "undefined") {
+    const dynRo = new ResizeObserver(() => {
+      if (chartPanel.open && dynChartWrap.isConnected) renderDynamicPanel();
+    });
+    dynRo.observe(dynChartWrap);
+  }
+
+  renderDynamicPanel();
 
   if (problems.length) {
     const box = root.createEl("details", { cls: "dh-details", attr: { style: "margin-top: 10px;" } });
@@ -2192,15 +1951,7 @@ const summarySection = root.createDiv({
 
   const sortedVariantGroups = [...byVariant.values()].sort(compareVariantGroups);
 
-  // Очистка активной анимации счётчика при перерисовке блока упражнений
-  if (window.__dhExCountRaf) {
-    window.cancelAnimationFrame(window.__dhExCountRaf);
-    delete window.__dhExCountRaf;
-  }
-
-  function computeExNiceScale(minVal, maxVal, tickCount = 4) {
-    // Шкала упражнений (повторы/секунды) привязана к диапазону рабочих значений (не обязана начинаться с 0,
-    // если все подходы высокие, но никогда не уходит в отрицательные числа).
+function computeExNiceScale(minVal, maxVal, tickCount = 4) {
     let lo = Number.isFinite(minVal) ? minVal : 0;
     let hi = Number.isFinite(maxVal) ? maxVal : 10;
     if (lo === hi) {
@@ -2209,8 +1960,8 @@ const summarySection = root.createDiv({
       hi = hi + pad;
     } else {
       const span = hi - lo;
-      lo = Math.max(0, lo - span * 0.1);
-      hi = hi + span * 0.1;
+      lo = Math.max(0, lo - span * 0.12);
+      hi = hi + span * 0.12;
     }
     const rawStep = (hi - lo) / Math.max(1, tickCount - 1) || 1;
     const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
@@ -2222,8 +1973,7 @@ const summarySection = root.createDiv({
     else if (residual <= 5) step = 5 * mag;
     else step = 10 * mag;
 
-    // Для повторов и секунд шаг делаем не дробнее 0.5
-    if (step < 0.5) step = 0.5;
+    if (step < 1) step = 1;
 
     const niceMin = Math.max(0, Math.floor(lo / step) * step);
     const niceMax = Math.ceil(hi / step) * step;
@@ -2277,33 +2027,6 @@ const summarySection = root.createDiv({
     return d;
   }
 
-  function animateExCountUp(el, fromVal, toVal) {
-    if (window.__dhExCountRaf) {
-      window.cancelAnimationFrame(window.__dhExCountRaf);
-      delete window.__dhExCountRaf;
-    }
-    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-    if (reduced || fromVal == null || !Number.isFinite(fromVal) || Math.abs(toVal - fromVal) < 0.01) {
-      el.textContent = fmt(toVal);
-      return;
-    }
-    const duration = 360;
-    const startTs = performance.now();
-    const step = (now) => {
-      if (!el.isConnected) return;
-      const p = Math.min(1, (now - startTs) / duration);
-      const eased = 1 - Math.pow(1 - p, 3);
-      const cur = fromVal + (toVal - fromVal) * eased;
-      el.textContent = fmt(Math.round(cur * 10) / 10);
-      if (p < 1) {
-        window.__dhExCountRaf = window.requestAnimationFrame(step);
-      } else {
-        el.textContent = fmt(toVal);
-      }
-    };
-    window.__dhExCountRaf = window.requestAnimationFrame(step);
-  }
-
   function formatExAxisDate(d, periodDays, spanDays) {
     if (!d) return "";
     if (periodDays !== null && periodDays <= 90) return d.toFormat("dd.MM");
@@ -2311,9 +2034,9 @@ const summarySection = root.createDiv({
     return d.setLocale("ru").toFormat("LLL yy").replace(".", "");
   }
 
-  function buildExerciseSeries(all) {
+  function buildExerciseSeries(allItems) {
     const map = new Map();
-    for (const item of all) {
+    for (const item of allItems) {
       if (!item || !item.name || !item.date) continue;
       const key = `${item.name}|${item.variant || "Основной"}`;
       if (!map.has(key)) {
@@ -2323,86 +2046,59 @@ const summarySection = root.createDiv({
           variant: item.variant || "Основной",
           unit: item.unit || "повт.",
           series: [],
-          topLoad: 0,
-          best: 0,
-          sets: 0,
-          total: 0,
-          weightOptions: new Set(),
-          loadTypeCounts: { bw: 0, weighted: 0, unspec: 0 }
+          loadChoices: new Map()
         });
       }
       const bucket = map.get(key);
       const best = Number.isFinite(item.best) ? item.best : 0;
       const total = Number.isFinite(item.total) ? item.total : 0;
       const weightValue = Number.isFinite(item.weight) ? item.weight : null;
-      const entry = {
+      const loadType = item.loadType || "unspec";
+
+      let loadToken = "unspec";
+      let loadLabel = "Вес не указан";
+      let loadSort = 999;
+      if (loadType === "bw") {
+        loadToken = "bw";
+        loadLabel = "Свой вес";
+        loadSort = 0;
+      } else if (loadType === "weighted" && weightValue != null) {
+        loadToken = "w:" + String(weightValue);
+        loadLabel = "+" + fmt(weightValue) + " кг";
+        loadSort = 1 + weightValue;
+      }
+
+      if (!bucket.loadChoices.has(loadToken)) {
+        bucket.loadChoices.set(loadToken, { token: loadToken, label: loadLabel, sort: loadSort });
+      }
+
+      bucket.series.push({
         date: item.date,
-        path: item.path,
-        link: item.link,
-        title: item.title || item.name,
+        dateISO: item.date.toISODate(),
         best,
         total,
         sets: Array.isArray(item.values) ? item.values.length : 0,
-        values: Array.isArray(item.values) ? [...item.values] : [],
-        loadType: item.loadType || "unspec",
+        loadType,
         weight: weightValue,
+        loadToken,
+        loadLabel,
         order: item.order
-      };
-      bucket.series.push(entry);
-      bucket.best = Math.max(bucket.best, best);
-      bucket.total += total;
-      bucket.sets += entry.sets;
-      bucket.topLoad = Math.max(bucket.topLoad, weightValue != null ? weightValue : 0);
-      if (weightValue != null) bucket.weightOptions.add(String(weightValue));
-      if (entry.loadType === "bw") bucket.loadTypeCounts.bw += 1;
-      else if (entry.loadType === "weighted") bucket.loadTypeCounts.weighted += 1;
-      else bucket.loadTypeCounts.unspec += 1;
+      });
     }
 
     return [...map.values()]
       .map(bucket => {
-        const ordered = [...bucket.series].sort((a, b) => (a.date && b.date ? a.date.toMillis() - b.date.toMillis() : 0));
-        const last = ordered[ordered.length - 1];
-        const previous = ordered[ordered.length - 2] || null;
-        const avgBest = ordered.length ? average(ordered.map(item => item.best)) : 0;
-        const delta = last && previous ? last.best - previous.best : null;
-        const trend = delta == null ? "neutral" : delta > 0 ? "up" : delta < 0 ? "down" : "flat";
-        const volume = ordered.reduce((sumVal, item) => sumVal + (Number.isFinite(item.total) ? item.total : 0), 0);
+        const ordered = [...bucket.series].sort((a, b) => a.order - b.order);
+        const loads = [...bucket.loadChoices.values()].sort((a, b) => a.sort - b.sort);
         return {
           ...bucket,
           ordered,
-          last,
-          previous,
-          avgBest,
-          delta,
-          trend,
-          volume,
-          sessions: ordered.length,
-          weightOptions: [...bucket.weightOptions].sort((a, b) => Number(a) - Number(b))
+          loads,
+          sessions: ordered.length
         };
       })
       .filter(bucket => bucket.ordered.length > 0)
-      .sort((a, b) => (b.ordered.length - a.ordered.length) || a.name.localeCompare(b.name, "ru"));
-  }
-
-  function trendVerdict(item) {
-    if (!item || !item.ordered || item.ordered.length < 2) {
-      return { label: "Мало данных", tone: "neutral", text: "Нужно минимум 2 тренировки для оценки динамики." };
-    }
-    const recent = item.ordered.slice(-Math.min(4, item.ordered.length));
-    const firstRecent = recent[0].best;
-    const lastRecent = recent[recent.length - 1].best;
-    const recentDelta = lastRecent - firstRecent;
-    const avgRecent = average(recent.map(entry => entry.best));
-    const avgAll = average(item.ordered.map(entry => entry.best));
-    const changeVsAvg = avgRecent != null && avgAll != null ? avgRecent - avgAll : 0;
-    if (recentDelta > 0 && changeVsAvg >= 0) {
-      return { label: "Прогресс", tone: "up", text: `+${fmt(recentDelta)} за последние ${recent.length} трен.` };
-    }
-    if (recentDelta < 0 && changeVsAvg < 0) {
-      return { label: "Спад", tone: "down", text: `−${fmt(Math.abs(recentDelta))} за последние ${recent.length} трен.` };
-    }
-    return { label: "Стабильно", tone: "flat", text: `Держится около среднего (${fmt(avgAll)}).` };
+      .sort((a, b) => (b.sessions - a.sessions) || a.name.localeCompare(b.name, "ru"));
   }
 
   const exerciseSeries = buildExerciseSeries(all);
@@ -2415,19 +2111,16 @@ const summarySection = root.createDiv({
   })();
 
   if (exerciseSeries.length) {
-    const defaultKey = exerciseSeries.reduce((best, item) => (!best || item.ordered.length > best.ordered.length ? item : best), null)?.key || exerciseSeries[0].key;
+    const defaultKey = exerciseSeries[0].key;
     let selectedExerciseKey = exerciseSeries.some(item => item.key === progressState.exerciseKey) ? progressState.exerciseKey : defaultKey;
     let selectedMetric = ["best", "total", "average"].includes(progressState.metric) ? progressState.metric : "best";
     let selectedPeriod = [7, 30, 90, 365, null].includes(progressState.period) ? progressState.period : 90;
-    let selectedLoad = ["all", "bw", "weighted"].includes(progressState.load) ? progressState.load : "all";
-    let isExDrawerOpen = Boolean(progressState.drawerOpen);
-    let lastAnimatedExVal = null;
+    let selectedLoad = typeof progressState.load === "string" ? progressState.load : "all";
 
     const progressPanel = analyticsLayout.createEl("details", {
       cls: "dh-ex-panel",
       attr: { style: "--dh-block-accent: #7e9ad9;" }
     });
-    // По умолчанию блок закрыт, если пользователь явно не открывал его ранее
     progressPanel.open = progressState.open === true;
 
     const persistProgressState = () => {
@@ -2437,54 +2130,82 @@ const summarySection = root.createDiv({
           metric: selectedMetric,
           period: selectedPeriod,
           load: selectedLoad,
-          open: progressPanel.open,
-          drawerOpen: isExDrawerOpen
+          open: progressPanel.open
         }));
       } catch {}
     };
 
-    progressPanel.ontoggle = persistProgressState;
-
     const progressSummary = progressPanel.createEl("summary", { cls: "dh-ex-summary" });
     const exSumTitle = progressSummary.createDiv({ cls: "dh-ex-summary-title" });
     exSumTitle.createSpan({ cls: "dh-ex-chevron", text: "▶" });
-    exSumTitle.createSpan({ text: "📈 Прогресс упражнений" });
+    exSumTitle.createSpan({ text: "🏋️ Упражнения" });
     const exSummaryMeta = progressSummary.createSpan({ cls: "dh-ex-summary-meta" });
 
     const progressBody = progressPanel.createDiv({ cls: "dh-ex-body" });
 
-    // 1. Верхняя строка: Главное число + дельта + кнопка «⋯»
+    // 1. Главное число + изменение за период
     const exHero = progressBody.createDiv({ cls: "dh-ex-hero" });
     const exHeroLeft = exHero.createDiv({ cls: "dh-ex-hero-left" });
     const exHeroValEl = exHeroLeft.createSpan({ cls: "dh-ex-hero-val", text: "—" });
     const exHeroUnitEl = exHeroLeft.createSpan({ cls: "dh-ex-hero-unit", text: "" });
     const exHeroDeltaEl = exHeroLeft.createSpan({ cls: "dh-ex-hero-delta", attr: { style: "display: none;" } });
 
-    const exMoreBtn = exHero.createEl("button", {
-      cls: "dh-ex-more-btn",
-      text: "⋯",
-      attr: {
-        type: "button",
-        title: "Метрика, нагрузка и подробная статистика",
-        "aria-expanded": String(isExDrawerOpen)
-      }
-    });
-
-    // 2. Управление на виду: только ЧТО показать (select упражнения) и ЗА КАКОЙ ПЕРИОД (сегменты)
-    const exControls = progressBody.createDiv({ cls: "dh-ex-controls" });
-    const exerciseSelect = exControls.createEl("select", {
+    // 2. Упражнение и нагрузка в одну чистую строку
+    const selectsRow = progressBody.createDiv({ cls: "dh-ex-selects-row" });
+    const exerciseSelect = selectsRow.createEl("select", {
       cls: "dh-ex-select",
-      attr: { "aria-label": "Выбор упражнения" }
+      attr: { "aria-label": "Упражнение" }
+    });
+    const loadSelect = selectsRow.createEl("select", {
+      cls: "dh-ex-select",
+      attr: { "aria-label": "Нагрузка" }
     });
 
-    const allExerciseOptions = [...exerciseSeries].sort((a, b) => b.sessions - a.sessions || a.name.localeCompare(b.name, "ru"));
-    allExerciseOptions.forEach(item => {
+    exerciseSeries.forEach(item => {
       const label = `${item.name}${item.variant !== "Основной" ? " · " + item.variant : ""}`;
       const option = exerciseSelect.createEl("option", { text: label, attr: { value: item.key } });
       option.selected = item.key === selectedExerciseKey;
     });
 
-    const exPeriodBar = exControls.createDiv({ cls: "dh-ex-seg" });
+    const syncLoadOptions = (exercise) => {
+      loadSelect.replaceChildren();
+      const opts = [{ token: "all", label: "Все веса" }, ...exercise.loads];
+      if (!opts.some(o => o.token === selectedLoad)) {
+        selectedLoad = exercise.loads.length === 1 ? exercise.loads[0].token : "all";
+      }
+      opts.forEach(o => {
+        const opt = loadSelect.createEl("option", { text: o.label, attr: { value: o.token } });
+        opt.selected = o.token === selectedLoad;
+      });
+    };
+
+    // 3. Метрика (Лучший / Сумма / Среднее) и период (7д / 30д / 90д / Год / Всё)
+    const exSegRow = progressBody.createDiv({ cls: "dh-seg-row" });
+
+    const exMetricBar = exSegRow.createDiv({ cls: "dh-seg-group" });
+    const exMetricOptions = [
+      { val: "best", label: "Лучший" },
+      { val: "total", label: "Сумма" },
+      { val: "average", label: "Среднее" }
+    ];
+    const exMetricBtns = [];
+    exMetricOptions.forEach(m => {
+      const btn = exMetricBar.createEl("button", {
+        cls: "dh-seg-item" + (m.val === selectedMetric ? " is-active" : ""),
+        text: m.label,
+        attr: { type: "button" }
+      });
+      exMetricBtns.push({ btn, val: m.val });
+      btn.onclick = () => {
+        if (selectedMetric === m.val) return;
+        selectedMetric = m.val;
+        exMetricBtns.forEach(item => item.btn.classList.toggle("is-active", item.val === selectedMetric));
+        persistProgressState();
+        renderProgressBlock();
+      };
+    });
+
+    const exPeriodBar = exSegRow.createDiv({ cls: "dh-seg-group" });
     const exPeriodOptions = [
       { val: 7, label: "7д" },
       { val: 30, label: "30д" },
@@ -2492,80 +2213,36 @@ const summarySection = root.createDiv({
       { val: 365, label: "Год" },
       { val: null, label: "Всё" }
     ];
-    exPeriodBar.style.setProperty("--seg-count", String(exPeriodOptions.length));
-    const initPeriodIdx = Math.max(0, exPeriodOptions.findIndex(p => p.val === selectedPeriod));
-    exPeriodBar.style.setProperty("--seg-index", String(initPeriodIdx));
-    exPeriodBar.createDiv({ cls: "dh-ex-seg-thumb" });
-
     const exPeriodBtns = [];
-    exPeriodOptions.forEach((p, idx) => {
+    exPeriodOptions.forEach(p => {
       const btn = exPeriodBar.createEl("button", {
-        cls: "dh-ex-seg-btn" + (p.val === selectedPeriod ? " is-active" : ""),
+        cls: "dh-seg-item" + (p.val === selectedPeriod ? " is-active" : ""),
         text: p.label,
         attr: { type: "button" }
       });
-      exPeriodBtns.push({ btn, val: p.val, idx });
+      exPeriodBtns.push({ btn, val: p.val });
       btn.onclick = () => {
         if (selectedPeriod === p.val) return;
         selectedPeriod = p.val;
-        exPeriodBar.style.setProperty("--seg-index", String(idx));
         exPeriodBtns.forEach(item => item.btn.classList.toggle("is-active", item.val === selectedPeriod));
         persistProgressState();
-        renderProgressBlock(true);
+        renderProgressBlock();
       };
     });
 
-    // 3. Сворачиваемая шторка «⋯» (0fr -> 1fr): выбор метрики, фильтр нагрузки, сводка и легенда
-    const exDrawer = progressBody.createDiv({ cls: "dh-ex-drawer" + (isExDrawerOpen ? " is-open" : "") });
-    const exDrawerInner = exDrawer.createDiv({ cls: "dh-ex-drawer-inner" });
-    const exDrawerBox = exDrawerInner.createDiv({ cls: "dh-ex-drawer-box" });
-
-    const filtersRow = exDrawerBox.createDiv({ cls: "dh-ex-drawer-filters" });
-
-    const metricField = filtersRow.createDiv({ cls: "dh-ex-filter-field" });
-    metricField.createSpan({ cls: "dh-ex-filter-label", text: "Метрика графика" });
-    const metricSelect = metricField.createEl("select", { attr: { "aria-label": "Метрика упражнения" } });
-    [
-      { val: "best", label: "Лучший подход" },
-      { val: "total", label: "Сумма за тренировку" },
-      { val: "average", label: "Среднее за подход" }
-    ].forEach(m => {
-      const opt = metricSelect.createEl("option", { text: m.label, attr: { value: m.val } });
-      opt.selected = m.val === selectedMetric;
-    });
-
-    const loadField = filtersRow.createDiv({ cls: "dh-ex-filter-field" });
-    loadField.createSpan({ cls: "dh-ex-filter-label", text: "Нагрузка" });
-    const loadSelect = loadField.createEl("select", { attr: { "aria-label": "Фильтр нагрузки" } });
-    [
-      { val: "all", label: "Все нагрузки" },
-      { val: "bw", label: "Свой вес" },
-      { val: "weighted", label: "С дополнительным весом" }
-    ].forEach(l => {
-      const opt = loadSelect.createEl("option", { text: l.label, attr: { value: l.val } });
-      opt.selected = l.val === selectedLoad;
-    });
-
-    const exStatsGrid = exDrawerBox.createDiv({ cls: "dh-ex-stats-grid" });
-    const exLegend = exDrawerBox.createDiv({ cls: "dh-ex-legend" });
-
-    exMoreBtn.onclick = (e) => {
-      e.stopPropagation();
-      isExDrawerOpen = !isExDrawerOpen;
-      exDrawer.classList.toggle("is-open", isExDrawerOpen);
-      exMoreBtn.setAttribute("aria-expanded", String(isExDrawerOpen));
-      persistProgressState();
-    };
-
     // 4. Контейнер SVG-графика
-    const exChartWrap = progressBody.createDiv({ cls: "dh-ex-chart-wrap" });
+    const exChartWrap = progressBody.createDiv({ cls: "dh-chart-box" });
 
-    const renderProgressBlock = (animateTransition = false) => {
+    // 5. Компактная строка сводки под графиком
+    const exFooter = progressBody.createDiv({ cls: "dh-chart-footer" });
+
+    const renderProgressBlock = () => {
       const exercise = exerciseSeries.find(item => item.key === selectedExerciseKey) || exerciseSeries[0];
-      const filteredSeries = [...exercise.ordered].filter(item => {
+      syncLoadOptions(exercise);
+
+      const filteredSeries = exercise.ordered.filter(item => {
         if (selectedLoad === "all") return true;
-        if (selectedLoad === "bw") return item.loadType === "bw";
-        return item.loadType === "weighted";
+        return item.loadToken === selectedLoad;
       });
 
       const periodSeries = filteredSeries.filter(item => {
@@ -2581,46 +2258,53 @@ const summarySection = root.createDiv({
           ? (item.sets ? r2(item.total / item.sets) : null)
           : item.best;
 
-      const verdict = trendVerdict({ ordered: periodSeries.length >= 2 ? periodSeries : filteredSeries });
-      const accentColor = verdict.tone === "up" ? "#4aab80" : verdict.tone === "down" ? "#d85b57" : "#7e9ad9";
-      progressPanel.style.setProperty("--dh-block-accent", accentColor);
+      // Если выбран режим «Все веса» и за один день было несколько весов, берём лучший результат дня, чтобы даты не дублировались
+      const byDayMap = new Map();
+      for (const item of periodSeries) {
+        const val = metricValue(item);
+        if (!Number.isFinite(val)) continue;
+        const prev = byDayMap.get(item.dateISO);
+        if (!prev || val > prev.value) {
+          byDayMap.set(item.dateISO, { item, value: val });
+        }
+      }
+      const dailyPoints = [...byDayMap.values()];
 
       const shortExName = exercise.name + (exercise.variant !== "Основной" ? ` (${exercise.variant})` : "");
       const periodText = selectedPeriod === null ? "всё" : `${selectedPeriod} дн.`;
       exSummaryMeta.textContent = `${shortExName} · ${periodText}`;
 
-      const spanDays = periodSeries.length >= 2
-        ? Math.max(1, Math.round(periodSeries[periodSeries.length - 1].date.diff(periodSeries[0].date, "days").days))
+      const spanDays = dailyPoints.length >= 2
+        ? Math.max(1, Math.round(dailyPoints[dailyPoints.length - 1].item.date.diff(dailyPoints[0].item.date, "days").days))
         : (selectedPeriod || 30);
 
-      const chartData = periodSeries.map((item, index) => {
-        const value = metricValue(item);
-        const windowSlice = periodSeries.slice(Math.max(0, index - 3), index + 1).map(metricValue).filter(Number.isFinite);
-        const loadHint = item.loadType === "weighted" && item.weight != null ? ` (+${fmt(item.weight)} кг)` : "";
+      const chartData = dailyPoints.map(({ item, value }) => {
+        const loadHint = item.loadType === "weighted" && item.weight != null
+          ? ` · +${fmt(item.weight)} кг`
+          : item.loadType === "bw"
+            ? " · свой вес"
+            : "";
         return {
-          rawDate: item.date,
           axisDate: formatExAxisDate(item.date, selectedPeriod, spanDays),
           value,
-          avg: average(windowSlice),
-          isLatest: index === periodSeries.length - 1,
-          tooltipDate: item.date.toFormat("dd.MM.yyyy"),
-          tooltipValue: `${fmt(value)} ${exercise.unit}${loadHint}`
+          tooltipDate: item.date.toFormat("dd.MM.yyyy") + loadHint,
+          tooltipValue: `${fmt(value)} ${exercise.unit}`
         };
-      }).filter(pt => Number.isFinite(pt.value));
+      });
 
       const currentVal = chartData.length ? chartData[chartData.length - 1].value : null;
       const firstVal = chartData.length > 1 ? chartData[0].value : null;
       const deltaVal = currentVal !== null && firstVal !== null ? r2(currentVal - firstVal) : null;
 
-      // Обновляем главное число (с count-up анимацией) и бейдж изменения за период
+      const accentColor = deltaVal == null ? "#7e9ad9" : deltaVal > 0 ? "#4aab80" : deltaVal < 0 ? "#d85b57" : "#7e9ad9";
+      progressPanel.style.setProperty("--dh-block-accent", accentColor);
+
       if (currentVal !== null) {
-        animateExCountUp(exHeroValEl, lastAnimatedExVal, currentVal);
-        lastAnimatedExVal = currentVal;
+        exHeroValEl.textContent = fmt(currentVal);
         exHeroUnitEl.textContent = exercise.unit;
       } else {
         exHeroValEl.textContent = "—";
         exHeroUnitEl.textContent = "";
-        lastAnimatedExVal = null;
       }
 
       if (deltaVal !== null) {
@@ -2632,83 +2316,59 @@ const summarySection = root.createDiv({
         exHeroDeltaEl.style.display = "none";
       }
 
-      // Наполняем сводку внутри шторки «⋯»
-      exStatsGrid.replaceChildren();
+      exFooter.replaceChildren();
       const periodVals = chartData.map(d => d.value);
       const bestInPeriod = periodVals.length ? Math.max(...periodVals) : null;
       const avgInPeriod = periodVals.length ? average(periodVals) : null;
 
       [
-        ["Тренировок", String(chartData.length)],
-        ["Макс. за период", bestInPeriod !== null ? `${fmt(bestInPeriod)} ${exercise.unit}` : "—"],
+        ["Макс.", bestInPeriod !== null ? `${fmt(bestInPeriod)} ${exercise.unit}` : "—"],
         ["Среднее", avgInPeriod !== null ? `${fmt(avgInPeriod)} ${exercise.unit}` : "—"],
-        ["Динамика", verdict.label]
+        ["Тренировок", String(chartData.length)]
       ].forEach(([k, v]) => {
-        const box = exStatsGrid.createDiv({ cls: "dh-ex-stat-item" });
-        box.createSpan({ cls: "dh-ex-stat-k", text: k });
-        box.createSpan({ cls: "dh-ex-stat-v", text: v });
+        const box = exFooter.createDiv({ cls: "dh-chart-stat" });
+        box.createSpan({ cls: "dh-chart-stat-k", text: k });
+        box.createSpan({ cls: "dh-chart-stat-v", text: v });
       });
 
-      exLegend.replaceChildren();
-      const l1 = exLegend.createEl("span");
-      l1.createEl("i", { attr: { style: `background: ${accentColor};` } });
-      l1.createSpan({
-        text: selectedMetric === "total" ? "Сумма за тренировку" : selectedMetric === "average" ? "Среднее за подход" : "Лучший подход"
-      });
-      const l2 = exLegend.createEl("span");
-      l2.createEl("i", { attr: { style: "background: var(--text-muted); opacity: 0.65;" } });
-      l2.createSpan({ text: "Скользящее среднее (4 трен.)" });
-
-      if (animateTransition) {
-        exChartWrap.style.opacity = "0.35";
-        requestAnimationFrame(() => { exChartWrap.style.opacity = "1"; });
-      }
       exChartWrap.replaceChildren();
 
-      // Пустое или малочисленное состояние (0–1 точка)
       if (chartData.length < 2) {
-        const emptyEl = exChartWrap.createDiv({ cls: "dh-ex-empty" });
+        const emptyEl = exChartWrap.createDiv({ cls: "dh-chart-empty" });
         if (chartData.length === 1) {
           emptyEl.createSpan({
             text: `Записана 1 тренировка (${chartData[0].tooltipDate}: ${chartData[0].tooltipValue}).`,
             attr: { style: "font-weight: 600; color: var(--text-normal);" }
           });
           emptyEl.createSpan({
-            text: "Добавь ещё одну сессию или расширь период до «Всё», чтобы построить кривую прогресса.",
+            text: "Выбери период «Всё» или «Все веса», чтобы построить график.",
             attr: { style: "font-size: 0.74rem; color: var(--text-faint);" }
           });
         } else {
-          emptyEl.createSpan({ text: "За выбранный период подходящих тренировок нет." });
-          emptyEl.createSpan({
-            text: "Попробуй выбрать период «Всё» или переключить нагрузку в меню «⋯».",
-            attr: { style: "font-size: 0.74rem; color: var(--text-faint);" }
-          });
+          emptyEl.createSpan({ text: "За выбранный период тренировок нет." });
         }
         return;
       }
 
-      const svgW = 720;
-      const svgH = 235;
-      const pad = { left: 48, right: 16, top: 14, bottom: 28 };
+      const boxRect = exChartWrap.getBoundingClientRect();
+      const svgW = Math.max(320, Math.round(boxRect.width || 560));
+      const svgH = 220;
+      const pad = { left: 42, right: 16, top: 16, bottom: 26 };
       const plotW = svgW - pad.left - pad.right;
       const plotH = svgH - pad.top - pad.bottom;
 
-      const allVals = [...periodVals, ...chartData.map(d => d.avg).filter(Number.isFinite)];
-      const { yMin, yMax, ticks } = computeExNiceScale(Math.min(...allVals), Math.max(...allVals), 4);
+      const { yMin, yMax, ticks } = computeExNiceScale(Math.min(...periodVals), Math.max(...periodVals), 4);
       const yRange = yMax - yMin || 1;
 
-      const xFor = idx => pad.left + (chartData.length <= 1 ? plotW / 2 : (idx * plotW) / (chartData.length - 1));
+      const xFor = idx => pad.left + (idx * plotW) / (chartData.length - 1);
       const yFor = val => pad.top + plotH - ((val - yMin) / yRange) * plotH;
 
       const svg = createHealthSvgNode(exChartWrap, "svg", {
-        class: "dh-ex-svg",
+        class: "dh-chart-svg",
         viewBox: `0 0 ${svgW} ${svgH}`,
-        preserveAspectRatio: "xMidYMid meet",
-        role: "img",
-        "aria-label": `График прогресса: ${shortExName}`
+        preserveAspectRatio: "none"
       });
 
-      // Горизонтальная сетка с «красивым» шагом
       ticks.forEach(tickVal => {
         const y = yFor(tickVal);
         createHealthSvgNode(svg, "line", {
@@ -2717,65 +2377,48 @@ const summarySection = root.createDiv({
         });
         const lbl = createHealthSvgNode(svg, "text", {
           x: pad.left - 8, y: y + 4, "text-anchor": "end",
-          fill: "var(--text-muted)", "font-size": "10"
+          fill: "var(--text-muted)", "font-size": "11"
         });
         lbl.textContent = fmt(tickVal);
       });
 
-      // Подписи оси X (4–6 меток)
       const xLabelCount = Math.min(chartData.length, 5);
       for (let t = 0; t < xLabelCount; t++) {
         const idx = xLabelCount === 1 ? 0 : Math.round((t * (chartData.length - 1)) / (xLabelCount - 1));
+        const anchor = t === 0 ? "start" : t === xLabelCount - 1 ? "end" : "middle";
         const lbl = createHealthSvgNode(svg, "text", {
-          x: xFor(idx), y: svgH - 6, "text-anchor": "middle",
-          fill: "var(--text-muted)", "font-size": "10"
+          x: xFor(idx), y: svgH - 6, "text-anchor": anchor,
+          fill: "var(--text-muted)", "font-size": "11"
         });
         lbl.textContent = chartData[idx].axisDate;
       }
 
       const mainCoords = chartData.map((d, i) => ({ x: xFor(i), y: yFor(d.value) }));
-      const avgCoords = chartData.map((d, i) => ({ x: xFor(i), y: yFor(d.avg) }));
-
       const mainPathD = buildExMonotoneCubicPath(mainCoords);
-      const avgPathD = buildExMonotoneCubicPath(avgCoords);
       const areaPathD = `${mainPathD} L ${mainCoords[mainCoords.length - 1].x.toFixed(1)},${(pad.top + plotH).toFixed(1)} L ${mainCoords[0].x.toFixed(1)},${(pad.top + plotH).toFixed(1)} Z`;
 
       const gradId = "dhExGrad-" + Math.random().toString(36).slice(2, 7);
       const defs = createHealthSvgNode(svg, "defs");
       const grad = createHealthSvgNode(defs, "linearGradient", { id: gradId, x1: "0", y1: "0", x2: "0", y2: "1" });
-      createHealthSvgNode(grad, "stop", { offset: "0%", "stop-color": accentColor, "stop-opacity": "0.24" });
+      createHealthSvgNode(grad, "stop", { offset: "0%", "stop-color": accentColor, "stop-opacity": "0.22" });
       createHealthSvgNode(grad, "stop", { offset: "100%", "stop-color": accentColor, "stop-opacity": "0.0" });
 
+      createHealthSvgNode(svg, "path", { d: areaPathD, fill: `url(#${gradId})` });
       createHealthSvgNode(svg, "path", {
-        d: areaPathD, fill: `url(#${gradId})`, class: "dh-ex-area-anim"
-      });
-
-      createHealthSvgNode(svg, "path", {
-        d: avgPathD, fill: "none", stroke: "var(--text-muted)",
-        "stroke-width": "1.4", "stroke-dasharray": "4 4", opacity: "0.6"
-      });
-
-      const lineNode = createHealthSvgNode(svg, "path", {
         d: mainPathD, fill: "none", stroke: accentColor,
-        "stroke-width": "2.8", "stroke-linecap": "round", "stroke-linejoin": "round",
-        class: "dh-ex-line-anim"
+        "stroke-width": "2.6", "stroke-linecap": "round", "stroke-linejoin": "round"
       });
-      try {
-        const totalLen = lineNode.getTotalLength?.() || 1400;
-        lineNode.style.setProperty("--path-len", String(Math.ceil(totalLen)));
-      } catch {}
 
-      // Точки тренировок, последняя точка выделена крупнее и с ореолом
       mainCoords.forEach((pt, idx) => {
         const isLast = idx === mainCoords.length - 1;
         if (isLast) {
           createHealthSvgNode(svg, "circle", {
-            cx: pt.x, cy: pt.y, r: "8",
-            fill: accentColor, opacity: "0.2", "pointer-events": "none"
+            cx: pt.x, cy: pt.y, r: "7.5",
+            fill: accentColor, opacity: "0.22", "pointer-events": "none"
           });
         }
         createHealthSvgNode(svg, "circle", {
-          cx: pt.x, cy: pt.y, r: isLast ? "4.8" : "3",
+          cx: pt.x, cy: pt.y, r: isLast ? "4.5" : "3",
           fill: isLast ? accentColor : "var(--background-primary)",
           stroke: accentColor,
           "stroke-width": isLast ? "2" : "1.8",
@@ -2783,20 +2426,19 @@ const summarySection = root.createDiv({
         });
       });
 
-      // Вертикальная направляющая и маркер при наведении/касании
       const guideLine = createHealthSvgNode(svg, "line", {
         x1: pad.left, x2: pad.left, y1: pad.top, y2: pad.top + plotH,
-        class: "dh-ex-guide"
+        class: "dh-chart-guide"
       });
       const activeDot = createHealthSvgNode(svg, "circle", {
         cx: mainCoords[0].x, cy: mainCoords[0].y, r: "6",
         fill: "var(--background-secondary)", stroke: accentColor, "stroke-width": "2.6",
-        class: "dh-ex-active-dot"
+        class: "dh-chart-active-dot"
       });
 
-      const tooltip = exChartWrap.createDiv({ cls: "dh-ex-tooltip" });
-      const ttDate = tooltip.createSpan({ cls: "dh-ex-tooltip-date" });
-      const ttVal = tooltip.createSpan({ cls: "dh-ex-tooltip-val" });
+      const tooltip = exChartWrap.createDiv({ cls: "dh-chart-tooltip" });
+      const ttDate = tooltip.createSpan({ cls: "dh-chart-tooltip-date" });
+      const ttVal = tooltip.createSpan({ cls: "dh-chart-tooltip-val" });
 
       const showExPoint = (idx) => {
         const d = chartData[idx];
@@ -2813,10 +2455,9 @@ const summarySection = root.createDiv({
         ttDate.textContent = d.tooltipDate;
         ttVal.textContent = d.tooltipValue;
 
-        const leftPct = Math.max(10, Math.min(90, (c.x / svgW) * 100));
-        const topPct = Math.max(16, (c.y / svgH) * 100);
-        tooltip.style.left = `${leftPct}%`;
-        tooltip.style.top = `${topPct}%`;
+        const clampedX = Math.max(64, Math.min(svgW - 64, c.x));
+        tooltip.style.left = `${clampedX}px`;
+        tooltip.style.top = `${Math.max(36, c.y)}px`;
         tooltip.classList.add("is-visible");
       };
 
@@ -2847,23 +2488,30 @@ const summarySection = root.createDiv({
       svg.addEventListener("pointerleave", hideExPoint);
     };
 
+    progressPanel.ontoggle = () => {
+      persistProgressState();
+      if (progressPanel.open) renderProgressBlock();
+    };
+
+    if (typeof ResizeObserver !== "undefined") {
+      const exRo = new ResizeObserver(() => {
+        if (progressPanel.open && exChartWrap.isConnected) renderProgressBlock();
+      });
+      exRo.observe(exChartWrap);
+    }
+
     exerciseSelect.onchange = () => {
       selectedExerciseKey = exerciseSelect.value;
       persistProgressState();
-      renderProgressBlock(true);
-    };
-    metricSelect.onchange = () => {
-      selectedMetric = metricSelect.value;
-      persistProgressState();
-      renderProgressBlock(true);
+      renderProgressBlock();
     };
     loadSelect.onchange = () => {
       selectedLoad = loadSelect.value;
       persistProgressState();
-      renderProgressBlock(true);
+      renderProgressBlock();
     };
 
-    renderProgressBlock(false);
+    renderProgressBlock();
   }
 
   const dynamicRecords = sortedVariantGroups.filter(list => list[0].unit === "повт.");
