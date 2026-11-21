@@ -162,224 +162,6 @@ if (mode === "all" || mode === "main") {
     return b;
   }
 
-  const stats = root.createDiv({
-    cls: "dh-grid",
-    attr: {
-      style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; position: relative; z-index: 30;"
-    }
-  });
-
-  let activePinnedCard = null;
-
-  function createMinimalCard({ label, value, tone, accent, rows }) {
-    const c = stats.createDiv({
-      cls: "dh-card",
-      attr: {
-        tabindex: "0",
-        role: "button",
-        "aria-expanded": "false",
-        style: `
-          position: relative;
-          overflow: visible;
-          cursor: pointer;
-          user-select: none;
-          border: 1px solid var(--background-modifier-border);
-          border-top: 2px solid ${accent}88;
-          transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-        `
-      }
-    });
-
-    c.onmousedown = e => e.preventDefault();
-    c.createDiv({ cls: "dh-card-label", text: label });
-    c.createDiv({ cls: `dh-card-value${tone ? " dh-" + tone : ""}`, text: value });
-
-    const popover = c.createDiv({
-      attr: {
-        style: `
-          position: absolute;
-          left: 0;
-          right: 0;
-          top: calc(100% + 8px);
-          z-index: 90;
-          padding: 10px 12px;
-          border-radius: 8px;
-          background: var(--background-secondary);
-          border: 1px solid ${accent}66;
-          box-shadow: 0 8px 22px rgba(0, 0, 0, 0.32);
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          font-size: 0.75rem;
-          line-height: 1.3;
-          opacity: 0;
-          visibility: hidden;
-          transform: translateY(-4px);
-          pointer-events: none;
-          transition: opacity 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), visibility 0.18s;
-        `
-      }
-    });
-
-    rows.forEach((r, idx) => {
-      const rowEl = popover.createDiv({
-        attr: {
-          style: `
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            ${idx > 0 ? "padding-top: 5px; border-top: 1px solid var(--background-modifier-border);" : ""}
-          `
-        }
-      });
-
-      rowEl.createSpan({
-        text: r.k,
-        attr: { style: "color: var(--text-muted);" }
-      });
-
-      if (r.minMax) {
-        const mmWrap = rowEl.createDiv({ attr: { style: "display: flex; align-items: center; gap: 6px;" } });
-        mmWrap.createSpan({
-          text: `мин ${r.minMax.min}`,
-          attr: {
-            style: "font-size: 0.72rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #d85b571a; color: #d85b57;"
-          }
-        });
-        mmWrap.createSpan({
-          text: `макс ${r.minMax.max}`,
-          attr: {
-            style: "font-size: 0.72rem; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: #4aab801a; color: #4aab80;"
-          }
-        });
-      } else {
-        rowEl.createSpan({
-          text: r.v,
-          attr: {
-            style: `font-weight: 600; color: ${r.vColor || "var(--text-normal)"}; text-align: right;`
-          }
-        });
-      }
-    });
-
-    const setVisualState = (isOpen) => {
-      c.style.borderColor = isOpen ? accent : "var(--background-modifier-border)";
-      c.style.borderTop = `2px solid ${isOpen ? accent : accent + "88"}`;
-      c.style.boxShadow = isOpen ? "0 6px 16px rgba(0, 0, 0, 0.18)" : "none";
-      c.style.transform = isOpen ? "translateY(-1px)" : "translateY(0)";
-
-      popover.style.opacity = isOpen ? "1" : "0";
-      popover.style.visibility = isOpen ? "visible" : "hidden";
-      popover.style.transform = isOpen ? "translateY(0)" : "translateY(-4px)";
-      c.setAttribute("aria-expanded", String(isOpen));
-    };
-
-    c.onpointerenter = (e) => {
-      if (e.pointerType === "mouse") setVisualState(true);
-    };
-    c.onpointerleave = (e) => {
-      if (e.pointerType === "mouse" && activePinnedCard !== c) setVisualState(false);
-    };
-
-    c.onclick = (e) => {
-      e.stopPropagation();
-      if (activePinnedCard === c) {
-        activePinnedCard = null;
-        setVisualState(false);
-      } else {
-        if (activePinnedCard) activePinnedCard._closePopover?.();
-        activePinnedCard = c;
-        setVisualState(true);
-      }
-    };
-
-    c._closePopover = () => setVisualState(false);
-  }
-
-  root.addEventListener("click", () => {
-    if (activePinnedCard) {
-      activePinnedCard._closePopover?.();
-      activePinnedCard = null;
-    }
-  });
-
-  // 1. Средняя оценка · 30 дней
-  const meanScore30 = average(scores);
-  createMinimalCard({
-    label: "Средняя оценка · 30 дней",
-    value: meanScore30 !== null ? fmt(meanScore30, 0, 1) : "—",
-    tone: null,
-    accent: "#e5a158",
-    rows: scores.length
-      ? [
-          { k: "Период", v: range30Str },
-          { k: "Заполнено", v: `${scores.length} из 30 дн. · шкала 1–10` },
-          { k: "Разброс", minMax: { min: fmt(Math.min(...scores)), max: fmt(Math.max(...scores)) } }
-        ]
-      : [
-          { k: "Период", v: range30Str },
-          { k: "Данные", v: "Оценок пока нет (шкала 1–10)", vColor: "var(--text-muted)" }
-        ]
-  });
-
-  // 2. Оценка · неделя к неделе
-  const hasEnoughWeekData = week.length >= MIN_WEEK_DAYS && before.length >= MIN_WEEK_DAYS;
-  let weekDeltaText = "—";
-  let weekDeltaTone = null;
-
-  if (hasEnoughWeekData) {
-    const rawDelta = weekMean - beforeMean;
-    const roundedDelta = Math.round(rawDelta * 10) / 10;
-    if (Object.is(roundedDelta, -0) || Math.abs(roundedDelta) < 0.05) {
-      weekDeltaText = "0,0";
-      weekDeltaTone = "flat";
-    } else if (roundedDelta > 0) {
-      weekDeltaText = `+${fmt(roundedDelta, 1, 1)}`;
-      weekDeltaTone = "up";
-    } else {
-      weekDeltaText = `−${fmt(Math.abs(roundedDelta), 1, 1)}`;
-      weekDeltaTone = "down";
-    }
-  }
-
-  createMinimalCard({
-    label: "Оценка · неделя к неделе",
-    value: weekDeltaText,
-    tone: weekDeltaTone,
-    accent: "#599ed6",
-    rows: hasEnoughWeekData
-      ? [
-          { k: `Текущие 7 дн. (${curWeekRange})`, v: `${fmt(weekMean, 1, 1)} · ${week.length}/7 дн.` },
-          { k: `Пред. 7 дн. (${prevWeekRange})`, v: `${fmt(beforeMean, 1, 1)} · ${before.length}/7 дн.` },
-          { k: "Шкала", v: "1–10 · завершённые дни" }
-        ]
-      : [
-          { k: "Статус", v: "Недостаточно данных для сравнения", vColor: "#e5a158" },
-          { k: `Текущие 7 дн. (${curWeekRange})`, v: `${week.length}/7 дн. (нужно ≥${MIN_WEEK_DAYS})` },
-          { k: `Пред. 7 дн. (${prevWeekRange})`, v: `${before.length}/7 дн. (нужно ≥${MIN_WEEK_DAYS})` }
-        ]
-  });
-
-  // 3. Средняя энергия · 30 дней
-  const meanEnergy30 = average(energies);
-  createMinimalCard({
-    label: "Средняя энергия · 30 дней",
-    value: meanEnergy30 !== null ? fmt(meanEnergy30, 0, 1) : "—",
-    tone: null,
-    accent: "#69b5aa",
-    rows: energies.length
-      ? [
-          { k: "Период", v: range30Str },
-          { k: "Заполнено", v: `${energies.length} из 30 дн. · шкала 1–10` },
-          { k: "Разброс", minMax: { min: fmt(Math.min(...energies)), max: fmt(Math.max(...energies)) } }
-        ]
-      : [
-          { k: "Период", v: range30Str },
-          { k: "Данные", v: "Записей пока нет (шкала 1–10)", vColor: "var(--text-muted)" }
-        ]
-  });
-
   // Календарь
   {
     const cal = section("");
@@ -390,11 +172,62 @@ if (mode === "all" || mode === "main") {
 
     const style = cal.createEl("style");
     style.textContent = `
-      .dh-calendar-v2 .dhc-panel {
+.dh-calendar-v2 .dhc-panel {
         padding: 16px;
         border: 1px solid var(--background-modifier-border);
         border-radius: 12px;
         background: var(--background-secondary);
+      }
+      .dh-calendar-v2 .dhc-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .dh-calendar-v2 .dhc-nav-range {
+        font-size: 0.84rem;
+        font-weight: 600;
+        color: var(--text-muted);
+      }
+      .dh-calendar-v2 .dhc-nav-controls {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .dh-calendar-v2 button.dhc-nav-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 30px;
+        height: 28px;
+        margin: 0;
+        padding: 0 8px;
+        border-radius: 7px;
+        border: 1px solid var(--background-modifier-border);
+        background: var(--background-primary);
+        color: var(--text-normal);
+        font-size: 0.86rem;
+        font-weight: 600;
+        line-height: 1;
+        cursor: pointer;
+        box-shadow: none;
+        transition: border-color 0.14s ease, color 0.14s ease;
+      }
+      .dh-calendar-v2 button.dhc-nav-btn:hover:not(:disabled) {
+        border-color: var(--interactive-accent);
+        color: var(--text-accent);
+      }
+      .dh-calendar-v2 button.dhc-nav-btn:disabled {
+        opacity: 0.35;
+        cursor: default;
+      }
+      .dh-calendar-v2 button.dhc-nav-today {
+        font-size: 0.73rem;
+        padding: 0 10px;
+        border-color: color-mix(in srgb, var(--interactive-accent) 45%, transparent);
+        color: var(--interactive-accent);
       }
       .dh-calendar-v2 .dhc-months {
         display: grid;
@@ -605,7 +438,26 @@ if (mode === "all" || mode === "main") {
       }
     `;
 
-    const panel = cal.createDiv({ cls: "dhc-panel" });
+const panel = cal.createDiv({ cls: "dhc-panel" });
+    const navBar = panel.createDiv({ cls: "dhc-nav" });
+    const navRangeEl = navBar.createSpan({ cls: "dhc-nav-range" });
+    const navControls = navBar.createDiv({ cls: "dhc-nav-controls" });
+    const prevCalBtn = navControls.createEl("button", {
+      cls: "dhc-nav-btn",
+      text: "‹",
+      attr: { type: "button", title: "На месяц назад", "aria-label": "На месяц назад" }
+    });
+    const resetCalBtn = navControls.createEl("button", {
+      cls: "dhc-nav-btn dhc-nav-today",
+      text: "Текущие",
+      attr: { type: "button", title: "Вернуться к текущим месяцам" }
+    });
+    const nextCalBtn = navControls.createEl("button", {
+      cls: "dhc-nav-btn",
+      text: "›",
+      attr: { type: "button", title: "На месяц вперёд", "aria-label": "На месяц вперёд" }
+    });
+
     const monthsGrid = panel.createDiv({ cls: "dhc-months" });
 
     const tip = doc.body.createDiv({
@@ -788,16 +640,34 @@ if (mode === "all" || mode === "main") {
       tip.remove();
     });
 
-    const currentMonthStart = today.startOf("month");
-    const displayMonths = [
-      currentMonthStart.minus({ months: 2 }),
-      currentMonthStart.minus({ months: 1 }),
-      currentMonthStart
-    ];
+if (typeof win.__dhDiaryCalOffset !== "number" || !Number.isFinite(win.__dhDiaryCalOffset) || win.__dhDiaryCalOffset > 0) {
+      win.__dhDiaryCalOffset = 0;
+    }
 
-    for (const monthDate of displayMonths) {
-      const monthBox = monthsGrid.createDiv({ cls: "dhc-month" });
-      const monthTitle = monthDate.setLocale("ru").toFormat("LLLL yyyy");
+    const capMonth = (d) => {
+      const s = d.setLocale("ru").toFormat("LLLL yyyy");
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    };
+
+    function renderCalendarMonths() {
+      hideTip();
+      monthsGrid.replaceChildren();
+
+      const offset = win.__dhDiaryCalOffset;
+      const anchorMonthStart = today.startOf("month").plus({ months: offset });
+      const displayMonths = [
+        anchorMonthStart.minus({ months: 2 }),
+        anchorMonthStart.minus({ months: 1 }),
+        anchorMonthStart
+      ];
+
+      navRangeEl.textContent = `${capMonth(displayMonths[0])} — ${capMonth(displayMonths[2])}`;
+      nextCalBtn.disabled = offset >= 0;
+      resetCalBtn.style.display = offset < 0 ? "inline-flex" : "none";
+
+      for (const monthDate of displayMonths) {
+        const monthBox = monthsGrid.createDiv({ cls: "dhc-month" });
+        const monthTitle = monthDate.setLocale("ru").toFormat("LLLL yyyy");
 
       monthBox.createDiv({
         cls: "dhc-title",
@@ -912,7 +782,7 @@ if (mode === "all" || mode === "main") {
 
         cell.addEventListener("blur", scheduleClose);
 
-        cell.addEventListener("click", e => {
+cell.addEventListener("click", e => {
           const isMouseClick = e.detail > 0 && pointerType === "mouse";
           if (isMouseClick && p) {
             hideTip();
@@ -926,7 +796,29 @@ if (mode === "all" || mode === "main") {
           }
         });
       }
+      }
     }
+
+    prevCalBtn.onmousedown = e => e.preventDefault();
+    nextCalBtn.onmousedown = e => e.preventDefault();
+    resetCalBtn.onmousedown = e => e.preventDefault();
+
+    prevCalBtn.onclick = () => {
+      win.__dhDiaryCalOffset -= 1;
+      renderCalendarMonths();
+    };
+    nextCalBtn.onclick = () => {
+      if (win.__dhDiaryCalOffset < 0) {
+        win.__dhDiaryCalOffset += 1;
+        renderCalendarMonths();
+      }
+    };
+    resetCalBtn.onclick = () => {
+      win.__dhDiaryCalOffset = 0;
+      renderCalendarMonths();
+    };
+
+    renderCalendarMonths();
 
     const legend = panel.createDiv({ cls: "dhc-legend" });
     legend.createSpan({ text: "Оценка: 1" });
@@ -954,9 +846,13 @@ if (mode === "all" || mode === "main") {
     const HABIT_MIN_MONTH_NUMERIC = 5;
     const HABIT_MIN_GROUP_SIZE = 4;
 
+let analyticsSectionEl = null;
+    let summariesSectionEl = null;
+
     // Витрина аналитики: расчёты выполняет my-correlation-analytics
     {
       const analytics = root.createDiv({ cls: "dh-diary-analytics" });
+      analyticsSectionEl = analytics;
       const styles = analytics.createEl("style");
       styles.textContent = [
         ".dashboard-home .dh-diary-analytics { margin: 16px 0; padding: 14px 16px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-secondary); }",
@@ -1030,9 +926,10 @@ if (mode === "all" || mode === "main") {
       }
     }
 
-    // Итог за месяц и Итог за год
+// Итог за месяц и Итог за год
     {
       const summariesRoot = root.createDiv({ cls: "dh-period-summaries" });
+      summariesSectionEl = summariesRoot;
       const doc = summariesRoot.ownerDocument;
       const win = doc.defaultView || window;
 
@@ -3563,7 +3460,7 @@ if (mode === "all" || mode === "main") {
 
       more.addEventListener("blur", scheduleClose);
 
-      more.addEventListener("click", e => {
+more.addEventListener("click", e => {
         e.stopPropagation();
         if (activeButton === more && pinned) {
           closePopover();
@@ -3572,852 +3469,9 @@ if (mode === "all" || mode === "main") {
         }
       });
     }
+
+    // Итоговый порядок: Календарь -> Привычки -> Итог за месяц и год -> Корреляции
+    if (summariesSectionEl) root.appendChild(summariesSectionEl);
+    if (analyticsSectionEl) root.appendChild(analyticsSectionEl);
   }
-}
-
-// ========================================================
-// ЧАСТЬ 2: МЫСЛИ, ИДЕИ И ЗНАНИЯ
-// ========================================================
-if (mode === "all" || mode === "thoughts") {
-  const { Notice, normalizePath } = obsidian;
-
-  const MARKER_PROP = "запись_мысли";
-  const DEFAULT_FOLDER = "Знания/Мысли";
-  const RECENT_LIMIT = 10;
-  const MIN_DATE = dv.date("2020-01-01");
-  const today = dv.date("today").startOf("day");
-  const todayISO = today.toISODate();
-  const CURRENT = dv.current().file.path;
-  const STORAGE_KEY = "diary-thoughts-v2:" + app.vault.getName();
-
-  let savedState = {};
-  try { savedState = JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "{}"); } catch {}
-  const state = {
-    category: typeof savedState.category === "string" ? savedState.category : "",
-    query: typeof savedState.query === "string" ? savedState.query : "",
-    sortBy: typeof savedState.sortBy === "string" ? savedState.sortBy : "date-desc",
-    showAll: Boolean(savedState.showAll),
-    formOpen: Boolean(savedState.formOpen),
-    editingPath: null
-  };
-  const persist = () => {
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-        category: state.category,
-        query: state.query,
-        sortBy: state.sortBy,
-        showAll: state.showAll,
-        formOpen: state.formOpen
-      }));
-    } catch {}
-  };
-
-  const cleanStr = v => typeof v === "string" ? v.trim() : "";
-  const validNum = v => {
-    if (v === null || v === undefined || v === "" || typeof v === "boolean") return null;
-    const n = typeof v === "number" ? v : Number(String(v).trim().replace(",", "."));
-    return Number.isFinite(n) ? n : null;
-  };
-  const parseDate = v => {
-    if (v == null || v === "") return null;
-    try { const d = dv.date(v); return d && d.isValid ? d.startOf("day") : null; } catch { return null; }
-  };
-  const cleanList = v => {
-    const raw = v == null ? [] : Array.isArray(v) ? v : [v];
-    return [...new Set(raw.flat().map(x => cleanStr(String(x))).filter(Boolean))];
-  };
-
-  function loadThoughts() {
-    const items = [];
-    for (const p of dv.pages()) {
-      if (p.file.path === CURRENT) continue;
-      const fileObj = app.vault.getAbstractFileByPath(p.file.path);
-      const fm = (fileObj ? app.metadataCache.getFileCache(fileObj)?.frontmatter : null) || p;
-      if (fm[MARKER_PROP] !== true && p[MARKER_PROP] !== true) continue;
-
-      const d = parseDate(fm.дата ?? p.дата) || parseDate(p.file.cday);
-      if (!d || d < MIN_DATE || d > today) continue;
-
-      const category = cleanStr(fm.категория ?? p.категория) || "Мысль";
-      const essence = cleanStr(fm.суть ?? p.суть);
-      const status = cleanStr(fm.статус ?? p.статус);
-      const source = cleanStr(fm.источник ?? p.источник);
-      const pinned = (fm.закреплено ?? p.закреплено) === true;
-      const importance = validNum(fm.важность ?? p.важность);
-      const tags = cleanList(fm.теги ?? p.теги);
-
-      items.push({
-        page: p,
-        path: p.file.path,
-        title: p.file.name,
-        date: d,
-        iso: d.toISODate(),
-        category,
-        essence,
-        status,
-        source,
-        pinned,
-        importance,
-        tags,
-        mtime: p.file.mtime?.toMillis?.() ?? 0
-      });
-    }
-    return items;
-  }
-
-  async function ensureFolderExists(folderPath) {
-    let acc = "";
-    for (const part of normalizePath(folderPath).split("/")) {
-      acc = acc ? `${acc}/${part}` : part;
-      if (!app.vault.getAbstractFileByPath(acc)) {
-        await app.vault.createFolder(acc);
-      }
-    }
-  }
-
-  function buildCleanFilePath(folderPath, isoDate, categoryName, currentFilePath = null) {
-    const safeCat = (cleanStr(categoryName) || "Мысль").replace(/[\\/:*?"<>|\n\r]/g, "").trim() || "Мысль";
-    const baseName = `${isoDate} — ${safeCat}`;
-    let candidate = normalizePath(`${folderPath}/${baseName}.md`);
-    let counter = 2;
-    while (app.vault.getAbstractFileByPath(candidate) && candidate !== currentFilePath) {
-      candidate = normalizePath(`${folderPath}/${baseName} ${counter++}.md`);
-    }
-    return candidate;
-  }
-
-  function formatThoughtMarkdown({ iso, category, essence, tags, source, status, importance, pinned }) {
-    return [
-      "---",
-      `${MARKER_PROP}: true`,
-      `дата: "${iso}"`,
-      `категория: ${JSON.stringify(category)}`,
-      `суть: ${JSON.stringify(essence)}`,
-      tags.length ? "теги:\n" + tags.map(t => `  - ${JSON.stringify(t)}`).join("\n") : "теги: []",
-      `источник: ${source ? JSON.stringify(source) : '""'}`,
-      `статус: ${status ? JSON.stringify(status) : '""'}`,
-      `важность: ${importance !== null ? importance : ""}`,
-      `закреплено: ${pinned ? "true" : "false"}`,
-      "---",
-      "",
-      essence,
-      ""
-    ].join("\n");
-  }
-
-  let busy = false;
-  async function togglePin(item, btn) {
-    if (busy) return;
-    const file = app.vault.getAbstractFileByPath(item.path);
-    if (!file) return;
-    busy = true;
-    if (btn) btn.disabled = true;
-    try {
-      const next = !item.pinned;
-      await app.fileManager.processFrontMatter(file, fm => {
-        fm.закреплено = next;
-      });
-      setTimeout(render, 80);
-    } catch (e) {
-      new Notice("Ошибка: " + (e?.message || e));
-    } finally {
-      busy = false;
-      if (btn) btn.disabled = false;
-    }
-  }
-
-  const root = dv.container.createDiv({ cls: "dh-thoughts" });
-
-  const THOUGHTS_CSS = `
-  .dh-thoughts {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 6px;
-  }
-  .dh-thoughts .dht-topbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .dh-thoughts .dht-pills {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    align-items: center;
-  }
-  .dh-thoughts button.dht-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    height: 26px;
-    padding: 0 9px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    color: var(--text-muted);
-    cursor: pointer;
-    box-shadow: none;
-  }
-  .dh-thoughts button.dht-pill.is-active {
-    color: var(--text-normal);
-    border-color: #e5a158;
-    background: color-mix(in srgb, #e5a158 16%, var(--background-primary));
-  }
-  .dh-thoughts .dht-pill-count {
-    font-size: 0.68rem;
-    opacity: 0.75;
-  }
-  .dh-thoughts .dht-actions {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .dh-thoughts input.dht-search {
-    height: 28px;
-    width: 165px;
-    font-size: 0.77rem;
-    padding: 0 9px;
-    border-radius: 6px;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-  }
-  .dh-thoughts select.dht-sort {
-    height: 28px;
-    font-size: 0.76rem;
-    padding: 0 22px 0 8px;
-    border-radius: 6px;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    color: var(--text-normal);
-    cursor: pointer;
-  }
-  .dh-thoughts button.dht-btn-primary {
-    height: 28px;
-    padding: 0 11px;
-    border-radius: 6px;
-    font-size: 0.77rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .dh-thoughts .dht-form,
-  .dh-thoughts .dht-edit-box {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    border-top: 2px solid #e5a158;
-  }
-  .dh-thoughts .dht-form-grid {
-    display: grid;
-    grid-template-columns: 1.3fr 0.7fr 1fr 1.2fr 1.2fr;
-    gap: 6px;
-  }
-  .dh-thoughts .dht-input,
-  .dh-thoughts .dht-textarea {
-    width: 100%;
-    box-sizing: border-box;
-    font-size: 0.8rem;
-    padding: 5px 8px;
-    border-radius: 6px;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    color: var(--text-normal);
-  }
-  .dh-thoughts .dht-input {
-    height: 30px;
-  }
-  .dh-thoughts .dht-textarea {
-    resize: vertical;
-    min-height: 54px;
-    line-height: 1.4;
-  }
-  .dh-thoughts .dht-cat-hints {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  .dh-thoughts button.dht-mini-chip {
-    height: 20px;
-    padding: 0 7px;
-    font-size: 0.69rem;
-    border-radius: 999px;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    color: var(--text-muted);
-    cursor: pointer;
-    box-shadow: none;
-  }
-  .dh-thoughts .dht-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .dh-thoughts .dht-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 10px;
-    padding: 8px 11px;
-    border-radius: 7px;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    transition: border-color 0.14s ease;
-  }
-  .dh-thoughts .dht-row.is-pinned {
-    border-left: 3px solid #e5a158;
-  }
-  .dh-thoughts .dht-row-main {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-    flex: 1;
-    min-width: 0;
-    flex-wrap: wrap;
-  }
-  .dh-thoughts .dht-badge-cat {
-    font-size: 0.69rem;
-    font-weight: 650;
-    padding: 1px 7px;
-    border-radius: 5px;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    color: var(--text-muted);
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .dh-thoughts .dht-row-text {
-    font-size: 0.85rem;
-    line-height: 1.4;
-    color: var(--text-normal);
-    word-break: break-word;
-  }
-  .dh-thoughts .dht-row-meta {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-  .dh-thoughts .dht-imp {
-    font-size: 0.7rem;
-    font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 4px;
-    color: #e5a158;
-    background: color-mix(in srgb, #e5a158 15%, transparent);
-    font-variant-numeric: tabular-nums;
-  }
-  .dh-thoughts .dht-status,
-  .dh-thoughts .dht-tag,
-  .dh-thoughts .dht-source {
-    font-size: 0.69rem;
-    padding: 1px 6px;
-    border-radius: 4px;
-    background: var(--background-secondary);
-    color: var(--text-muted);
-  }
-  .dh-thoughts .dht-date {
-    font-size: 0.71rem;
-    color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-  .dh-thoughts button.dht-icon-btn {
-    height: 22px;
-    min-width: 22px;
-    padding: 0 5px;
-    border-radius: 5px;
-    font-size: 0.73rem;
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--text-muted);
-    cursor: pointer;
-    box-shadow: none;
-  }
-  .dh-thoughts button.dht-icon-btn:hover {
-    color: var(--text-normal);
-    background: var(--background-secondary);
-    border-color: var(--background-modifier-border);
-  }
-  .dh-thoughts button.dht-icon-btn.is-pinned {
-    color: #e5a158;
-  }
-  .dh-thoughts .dht-empty {
-    padding: 12px;
-    text-align: center;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    background: var(--background-primary);
-    border-radius: 7px;
-    border: 1px dashed var(--background-modifier-border);
-  }
-  @media (max-width: 680px) {
-    .dh-thoughts .dht-form-grid {
-      grid-template-columns: 1fr 1fr;
-    }
-    .dh-thoughts .dht-row {
-      flex-direction: column;
-      gap: 6px;
-    }
-    .dh-thoughts .dht-row-meta {
-      width: 100%;
-      justify-content: flex-end;
-    }
-  }
-  `;
-
-  function render() {
-    root.replaceChildren();
-    const styleEl = root.createEl("style");
-    styleEl.textContent = THOUGHTS_CSS;
-
-    const allItems = loadThoughts();
-
-    const catCounts = new Map();
-    for (const it of allItems) {
-      catCounts.set(it.category, (catCounts.get(it.category) || 0) + 1);
-    }
-    const categories = [...catCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ru"));
-    if (state.category && !catCounts.has(state.category)) {
-      state.category = "";
-      persist();
-    }
-
-    const topBar = root.createDiv({ cls: "dht-topbar" });
-    const pillsWrap = topBar.createDiv({ cls: "dht-pills" });
-
-    const allBtn = pillsWrap.createEl("button", {
-      cls: `dht-pill${!state.category ? " is-active" : ""}`,
-      attr: { type: "button" }
-    });
-    allBtn.onmousedown = e => e.preventDefault();
-    allBtn.createSpan({ text: "Все" });
-    allBtn.createSpan({ cls: "dht-pill-count", text: String(allItems.length) });
-    allBtn.onclick = () => { state.category = ""; persist(); render(); };
-
-    for (const [catName, count] of categories) {
-      const btn = pillsWrap.createEl("button", {
-        cls: `dht-pill${state.category === catName ? " is-active" : ""}`,
-        attr: { type: "button" }
-      });
-      btn.onmousedown = e => e.preventDefault();
-      btn.createSpan({ text: catName });
-      btn.createSpan({ cls: "dht-pill-count", text: String(count) });
-      btn.onclick = () => {
-        state.category = state.category === catName ? "" : catName;
-        persist();
-        render();
-      };
-    }
-
-    const actionsWrap = topBar.createDiv({ cls: "dht-actions" });
-
-    const searchInput = actionsWrap.createEl("input", {
-      cls: "dht-search",
-      attr: { type: "search", placeholder: "Поиск...", value: state.query }
-    });
-    searchInput.oninput = () => {
-      state.query = searchInput.value;
-      persist();
-      renderListOnly();
-    };
-
-    const sortSelect = actionsWrap.createEl("select", {
-      cls: "dropdown dht-sort",
-      attr: { title: "Сортировка записей" }
-    });
-    [
-      { value: "date-desc", label: "Сначала новые" },
-      { value: "imp-desc", label: "По важности (5 → 1)" },
-      { value: "imp-asc", label: "По важности (1 → 5)" },
-      { value: "date-asc", label: "Сначала старые" }
-    ].forEach(opt => {
-      const o = sortSelect.createEl("option", { text: opt.label, value: opt.value });
-      if (state.sortBy === opt.value) o.selected = true;
-    });
-    sortSelect.onchange = () => {
-      state.sortBy = sortSelect.value;
-      persist();
-      renderListOnly();
-    };
-
-    const addBtn = actionsWrap.createEl("button", {
-      cls: `dht-btn-primary${state.formOpen ? " is-open" : ""}`,
-      text: state.formOpen ? "✕" : "+ Записать",
-      attr: { type: "button" }
-    });
-    addBtn.onmousedown = e => e.preventDefault();
-    addBtn.onclick = () => {
-      state.formOpen = !state.formOpen;
-      persist();
-      render();
-    };
-
-    if (state.formOpen) {
-      const form = root.createEl("form", { cls: "dht-form" });
-
-      const essenceInput = form.createEl("textarea", {
-        cls: "dht-textarea",
-        attr: { rows: "2", placeholder: "Текст мысли, идеи или факта *" }
-      });
-
-      const metaGrid = form.createDiv({ cls: "dht-form-grid" });
-      const catInput = metaGrid.createEl("input", {
-        cls: "dht-input",
-        attr: { type: "text", placeholder: "Категория", value: state.category || "Мысль" }
-      });
-      const impInput = metaGrid.createEl("input", {
-        cls: "dht-input",
-        attr: { type: "number", min: "1", max: "5", placeholder: "⚡ 1–5" }
-      });
-      const statusInput = metaGrid.createEl("input", {
-        cls: "dht-input",
-        attr: { type: "text", placeholder: "Статус" }
-      });
-      const tagsInput = metaGrid.createEl("input", {
-        cls: "dht-input",
-        attr: { type: "text", placeholder: "Теги (через запятую)" }
-      });
-      const srcInput = metaGrid.createEl("input", {
-        cls: "dht-input",
-        attr: { type: "text", placeholder: "Источник" }
-      });
-
-      const bottomBar = form.createDiv({
-        attr: { style: "display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;" }
-      });
-
-      const leftHints = bottomBar.createDiv({ cls: "dht-cat-hints" });
-      for (const [cName] of categories.slice(0, 6)) {
-        const chip = leftHints.createEl("button", { cls: "dht-mini-chip", text: cName, attr: { type: "button" } });
-        chip.onmousedown = e => e.preventDefault();
-        chip.onclick = () => { catInput.value = cName; };
-      }
-
-      const rightControls = bottomBar.createDiv({ attr: { style: "display: flex; align-items: center; gap: 10px; margin-left: auto;" } });
-      const pinLabel = rightControls.createEl("label", {
-        attr: { style: "display: inline-flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--text-muted); cursor: pointer;" }
-      });
-      const pinCheck = pinLabel.createEl("input", { attr: { type: "checkbox" } });
-      pinLabel.createSpan({ text: "★ Закрепить" });
-
-      const submitBtn = rightControls.createEl("button", {
-        cls: "dht-btn-primary mod-cta",
-        text: "✓ Сохранить",
-        attr: { type: "submit" }
-      });
-
-      form.onsubmit = async e => {
-        e.preventDefault();
-        if (busy) return;
-        const catVal = cleanStr(catInput.value) || "Мысль";
-        const essenceVal = cleanStr(essenceInput.value);
-        if (!essenceVal) {
-          new Notice("Введи текст мысли.");
-          essenceInput.focus();
-          return;
-        }
-
-        const numImp = validNum(impInput.value);
-        const validImp = numImp !== null && numImp >= 1 && numImp <= 5 ? Math.round(numImp) : null;
-        const tagsArr = tagsInput.value.split(",").map(s => s.trim().replace(/^#/, "")).filter(Boolean);
-        const srcVal = cleanStr(srcInput.value);
-        const stVal = cleanStr(statusInput.value);
-
-        busy = true;
-        submitBtn.disabled = true;
-        try {
-          await ensureFolderExists(DEFAULT_FOLDER);
-          const finalPath = buildCleanFilePath(DEFAULT_FOLDER, todayISO, catVal);
-          const content = formatThoughtMarkdown({
-            iso: todayISO,
-            category: catVal,
-            essence: essenceVal,
-            tags: tagsArr,
-            source: srcVal,
-            status: stVal,
-            importance: validImp,
-            pinned: pinCheck.checked
-          });
-
-          await app.vault.create(finalPath, content);
-          state.formOpen = false;
-          persist();
-          setTimeout(render, 100);
-        } catch (err) {
-          new Notice("Ошибка сохранения: " + (err?.message || err));
-        } finally {
-          busy = false;
-          submitBtn.disabled = false;
-        }
-      };
-    }
-
-    const listHost = root.createDiv({ cls: "dht-list-host" });
-
-    function renderListOnly() {
-      listHost.replaceChildren();
-      const q = state.query.trim().toLocaleLowerCase("ru");
-
-      const filtered = allItems.filter(it => {
-        if (state.category && it.category !== state.category) return false;
-        if (!q) return true;
-        const haystack = [it.essence, it.category, it.status, it.source, ...it.tags].join(" ").toLocaleLowerCase("ru");
-        return haystack.includes(q);
-      });
-
-      filtered.sort((a, b) => {
-        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-        if (state.sortBy === "imp-desc") {
-          const impA = a.importance ?? -1;
-          const impB = b.importance ?? -1;
-          if (impA !== impB) return impB - impA;
-        } else if (state.sortBy === "imp-asc") {
-          const impA = a.importance ?? 99;
-          const impB = b.importance ?? 99;
-          if (impA !== impB) return impA - impB;
-        } else if (state.sortBy === "date-asc") {
-          return a.iso.localeCompare(b.iso) || a.mtime - b.mtime;
-        }
-        return b.iso.localeCompare(a.iso) || b.mtime - a.mtime;
-      });
-
-      if (filtered.length === 0) {
-        listHost.createDiv({
-          cls: "dht-empty",
-          text: allItems.length === 0 ? "Записей пока нет." : "Ничего не найдено."
-        });
-        return;
-      }
-
-      const visibleRows = (state.showAll || state.category || q)
-        ? filtered
-        : filtered.slice(0, RECENT_LIMIT);
-
-      const rowsBox = listHost.createDiv({ cls: "dht-rows" });
-
-      for (const item of visibleRows) {
-        if (state.editingPath === item.path) {
-          const editBox = rowsBox.createDiv({ cls: "dht-edit-box" });
-
-          const eText = editBox.createEl("textarea", {
-            cls: "dht-textarea",
-            attr: { rows: "2", placeholder: "Текст мысли *" }
-          });
-          eText.value = item.essence || item.title;
-
-          const eGrid = editBox.createDiv({ cls: "dht-form-grid" });
-          const eCat = eGrid.createEl("input", {
-            cls: "dht-input",
-            attr: { type: "text", placeholder: "Категория", value: item.category }
-          });
-          const eImp = eGrid.createEl("input", {
-            cls: "dht-input",
-            attr: { type: "number", min: "1", max: "5", placeholder: "⚡ 1–5", value: item.importance !== null ? String(item.importance) : "" }
-          });
-          const eStatus = eGrid.createEl("input", {
-            cls: "dht-input",
-            attr: { type: "text", placeholder: "Статус", value: item.status }
-          });
-          const eTags = eGrid.createEl("input", {
-            cls: "dht-input",
-            attr: { type: "text", placeholder: "Теги", value: item.tags.join(", ") }
-          });
-          const eSrc = eGrid.createEl("input", {
-            cls: "dht-input",
-            attr: { type: "text", placeholder: "Источник", value: item.source }
-          });
-
-          const eActions = editBox.createDiv({
-            attr: { style: "display: flex; justify-content: flex-end; gap: 6px;" }
-          });
-          const saveBtn = eActions.createEl("button", {
-            cls: "dht-btn-primary mod-cta",
-            text: "✓ Сохранить",
-            attr: { type: "button" }
-          });
-          const cancelBtn = eActions.createEl("button", {
-            cls: "dht-icon-btn",
-            text: "✕",
-            attr: { type: "button", title: "Отмена" }
-          });
-
-          cancelBtn.onclick = () => {
-            state.editingPath = null;
-            renderListOnly();
-          };
-
-          saveBtn.onclick = async () => {
-            if (busy) return;
-            const nextEssence = cleanStr(eText.value);
-            if (!nextEssence) {
-              new Notice("Текст мысли не может быть пустым.");
-              return;
-            }
-            const nextCat = cleanStr(eCat.value) || "Мысль";
-            const rawImp = validNum(eImp.value);
-            const nextImp = rawImp !== null && rawImp >= 1 && rawImp <= 5 ? Math.round(rawImp) : null;
-            const nextStatus = cleanStr(eStatus.value);
-            const nextTags = eTags.value.split(",").map(s => s.trim().replace(/^#/, "")).filter(Boolean);
-            const nextSrc = cleanStr(eSrc.value);
-
-            const file = app.vault.getAbstractFileByPath(item.path);
-            if (!file) return;
-
-            busy = true;
-            saveBtn.disabled = true;
-            try {
-              const newContent = formatThoughtMarkdown({
-                iso: item.iso,
-                category: nextCat,
-                essence: nextEssence,
-                tags: nextTags,
-                source: nextSrc,
-                status: nextStatus,
-                importance: nextImp,
-                pinned: item.pinned
-              });
-              await app.vault.modify(file, newContent);
-
-              const folderPath = file.parent ? file.parent.path : DEFAULT_FOLDER;
-              const desiredPrefix = `${item.iso} — ${nextCat}`;
-              if (!file.basename.startsWith(desiredPrefix) || file.basename.length > desiredPrefix.length + 4) {
-                const cleanTarget = buildCleanFilePath(folderPath, item.iso, nextCat, file.path);
-                if (cleanTarget !== file.path) {
-                  await app.fileManager.renameFile(file, cleanTarget);
-                }
-              }
-
-              state.editingPath = null;
-              setTimeout(render, 100);
-            } catch (err) {
-              new Notice("Ошибка обновления: " + (err?.message || err));
-            } finally {
-              busy = false;
-              saveBtn.disabled = false;
-            }
-          };
-          continue;
-        }
-
-        const row = rowsBox.createDiv({ cls: `dht-row${item.pinned ? " is-pinned" : ""}` });
-        const main = row.createDiv({ cls: "dht-row-main" });
-
-        const catBadge = main.createSpan({ cls: "dht-badge-cat", text: item.category });
-        catBadge.onclick = () => {
-          state.category = state.category === item.category ? "" : item.category;
-          persist();
-          render();
-        };
-
-        main.createSpan({
-          cls: "dht-row-text",
-          text: item.essence || item.title
-        });
-
-        const meta = row.createDiv({ cls: "dht-row-meta" });
-        if (item.importance !== null) {
-          meta.createSpan({ cls: "dht-imp", text: `⚡${item.importance}`, attr: { title: `Важность: ${item.importance}` } });
-        }
-        if (item.status) {
-          meta.createSpan({ cls: "dht-status", text: item.status });
-        }
-        for (const t of item.tags.slice(0, 2)) {
-          meta.createSpan({ cls: "dht-tag", text: `#${t}` });
-        }
-        if (item.source) {
-          meta.createSpan({ cls: "dht-source", text: item.source });
-        }
-        meta.createSpan({ cls: "dht-date", text: item.date.toFormat("dd.MM.yy") });
-
-        const pinBtn = meta.createEl("button", {
-          cls: `dht-icon-btn${item.pinned ? " is-pinned" : ""}`,
-          text: item.pinned ? "★" : "☆",
-          attr: { type: "button", title: item.pinned ? "Открепить" : "Закрепить" }
-        });
-        pinBtn.onmousedown = e => e.preventDefault();
-        pinBtn.onclick = e => {
-          e.stopPropagation();
-          togglePin(item, pinBtn);
-        };
-
-        const editBtn = meta.createEl("button", {
-          cls: "dht-icon-btn",
-          text: "✎",
-          attr: { type: "button", title: "Редактировать" }
-        });
-        editBtn.onmousedown = e => e.preventDefault();
-        editBtn.onclick = e => {
-          e.stopPropagation();
-          state.editingPath = item.path;
-          renderListOnly();
-        };
-
-        let confirmDelete = false;
-        const delBtn = meta.createEl("button", {
-          cls: "dht-icon-btn",
-          text: "✕",
-          attr: { type: "button", title: "Удалить" }
-        });
-        delBtn.onmousedown = e => e.preventDefault();
-        delBtn.onclick = async e => {
-          e.stopPropagation();
-          if (busy || delBtn.disabled) return;
-          if (!confirmDelete) {
-            confirmDelete = true;
-            delBtn.textContent = "Удалить?";
-            delBtn.style.color = "#d85b57";
-            delBtn.style.borderColor = "#d85b5766";
-            setTimeout(() => {
-              if (!delBtn.isConnected || delBtn.disabled) return;
-              confirmDelete = false;
-              delBtn.textContent = "✕";
-              delBtn.style.color = "";
-              delBtn.style.borderColor = "transparent";
-            }, 3000);
-            return;
-          }
-          busy = true;
-          delBtn.disabled = true;
-          try {
-            const file = app.vault.getAbstractFileByPath(item.path);
-            if (file) await app.vault.trash(file, true);
-            setTimeout(render, 100);
-          } catch (err) {
-            new Notice("Ошибка удаления: " + (err?.message || err));
-            delBtn.disabled = false;
-          } finally {
-            busy = false;
-          }
-        };
-      }
-
-      if (!state.category && !q && filtered.length > RECENT_LIMIT) {
-        const moreBtn = listHost.createEl("button", {
-          cls: "dht-icon-btn",
-          text: state.showAll ? "Свернуть ▲" : `Ещё ${filtered.length - RECENT_LIMIT} ▾`,
-          attr: { type: "button", style: "align-self: center; margin-top: 4px; padding: 2px 10px;" }
-        });
-        moreBtn.onmousedown = e => e.preventDefault();
-        moreBtn.onclick = () => {
-          state.showAll = !state.showAll;
-          persist();
-          renderListOnly();
-        };
-      }
-    }
-
-    renderListOnly();
-  }
-
-  render();
 }
