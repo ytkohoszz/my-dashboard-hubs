@@ -318,122 +318,58 @@ const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) ||
       title: "Дневник",
       file: "📓Дневник",
       icon: "📓",
-      color: "#9c83e8",
+      color: "var(--color-purple, #9c83e8)",
       badge: todayNote?.оценка_дня ? `${todayNote.оценка_дня}/10` : ""
     },
     {
       title: "Учёба",
       file: "🎓Учёба",
       icon: "🎓",
-      color: "#e5a158",
+      color: "var(--color-orange, #e5a158)",
       badge: studyActive > 0 ? String(studyActive) : ""
     },
     {
       title: "Здоровье",
       file: "💪Здоровье",
       icon: "💪",
-      color: "#d69852",
+      color: "var(--color-yellow, #d69852)",
       badge: trainingsToday > 0 || todayNote?.тренировка === true ? "✓" : ""
     },
     {
       title: "Английский",
       file: "🌎Английский и книги",
       icon: "🌎",
-      color: "#4aab80",
+      color: "var(--color-green, #4aab80)",
       badge: englishBadge
     },
-{
+    {
       title: "3D",
       file: "🧊3D",
       icon: "🧊",
-      color: "#599ed6",
+      color: "var(--color-blue, #599ed6)",
       badge: notes3D > 0 ? String(notes3D) : ""
     }
   ];
 
-  const root = dv.container.createDiv({ cls: "dh dh-hub-nav", attr: { style: "margin: 4px 0 18px 0;" } });
-
-  const grid = root.createDiv({
-    attr: {
-      style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 10px;"
-    }
-  });
+  const root = dv.container.createDiv({ cls: "dh dh-hub-nav" });
+  const grid = root.createDiv({ cls: "dh-hub-grid" });
 
   HUBS.forEach(hub => {
-    const card = grid.createDiv({
-      cls: "dh-card",
-      attr: {
-        style: `
-          position: relative;
-          padding: 13px 15px;
-          background: color-mix(in srgb, var(--background-secondary) 75%, transparent);
-          border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
-          border-radius: 14px;
-          cursor: pointer;
-          display: flex;
-          flex-direction: column;
-          justify-content: space-between;
-          gap: 10px;
-          transition: transform 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
-        `
-      }
-    });
-
-    card.onmouseenter = () => {
-      card.style.transform = "translateY(-1px)";
-      card.style.borderColor = `${hub.color}55`;
-    };
-    card.onmouseleave = () => {
-      card.style.transform = "translateY(0)";
-      card.style.borderColor = "color-mix(in srgb, var(--text-normal) 8%, transparent)";
-    };
+    const card = grid.createDiv({ cls: "dh-card dh-hub-card" });
+    card.style.setProperty("--hub-color", hub.color);
 
     card.onclick = (e) => {
       app.workspace.openLinkText(hub.file, dv.currentFilePath, e.ctrlKey || e.metaKey);
     };
 
-    const topRow = card.createDiv({
-      attr: { style: "display: flex; justify-content: space-between; align-items: center; gap: 8px;" }
-    });
-
-    topRow.createDiv({
-      text: hub.icon,
-      attr: {
-        style: `
-          font-size: 1.15rem;
-          width: 30px;
-          height: 30px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 9px;
-          background: ${hub.color}16;
-        `
-      }
-    });
+    const topRow = card.createDiv({ cls: "dh-hub-top" });
+    topRow.createDiv({ cls: "dh-hub-icon", text: hub.icon });
 
     if (hub.badge) {
-      topRow.createSpan({
-        text: hub.badge,
-        attr: {
-          style: `
-            font-size: 0.72rem;
-            font-weight: 600;
-            font-variant-numeric: tabular-nums;
-            padding: 2px 8px;
-            border-radius: 99px;
-            background: ${hub.color}16;
-            color: ${hub.color};
-            white-space: nowrap;
-          `
-        }
-      });
+      topRow.createSpan({ cls: "dh-hub-badge", text: hub.badge });
     }
 
-    card.createDiv({
-      text: hub.title,
-      attr: { style: "font-size: 0.96rem; font-weight: 600; letter-spacing: -0.01em; color: var(--text-normal);" }
-    });
+    card.createDiv({ cls: "dh-hub-title", text: hub.title });
   });
 }
 
@@ -610,13 +546,91 @@ let selectedISO =
 
   const styleEl = root.createEl("style");
   styleEl.textContent = `
-.dashboard-home .dh-today {
-    background: color-mix(in srgb, var(--background-secondary) 75%, transparent);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
-    border-radius: 16px;
-    padding: 16px 18px;
+  /* === Velocity-native Home Dashboard === */
+  .dashboard-home .dh-hub-nav {
+    margin: 4px 0 18px 0;
+  }
+  .dashboard-home .dh-hub-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+  }
+  .dashboard-home .dh-hub-card {
+    position: relative;
+    contain: content;
+    padding: calc(var(--vl-layout-padding, 8px) + 5px) calc(var(--vl-layout-padding, 8px) + 7px);
+    background: var(--setting-item-background, var(--background-secondary));
+    border: none;
+    border-radius: var(--radius-ml, 14px);
+    box-shadow: var(--shadow-setting-items, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 10px;
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    transition:
+      transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+  }
+  .dashboard-home .dh-hub-card:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--hub-color) 42%, transparent),
+      var(--shadow-muted, 0 4px 16px rgba(0, 0, 0, 0.14));
+  }
+  .dashboard-home .dh-hub-card:active {
+    transform: scale(0.985);
+    filter: opacity(85%);
+  }
+  .dashboard-home .dh-hub-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .dashboard-home .dh-hub-icon {
+    font-size: 1.12rem;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm, 10px);
+    background: color-mix(in oklab, var(--hub-color) 14%, transparent);
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+  }
+  .dashboard-home .dh-hub-badge {
+    font-size: var(--font-ui-smaller, 12px);
+    font-weight: var(--font-semi-medium, 500);
+    font-variant-numeric: tabular-nums;
+    padding: 3px 8px;
+    border-radius: var(--pill-radius, var(--radius-l, 18px));
+    background: color-mix(in oklab, var(--hub-color) 14%, transparent);
+    color: var(--hub-color);
+    white-space: nowrap;
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
+  }
+  .dashboard-home .dh-hub-title {
+    font-size: var(--font-ui-medium, 15px);
+    font-weight: var(--font-semibold, 600);
+    font-variation-settings: "opsz" 24;
+    letter-spacing: -0.005em;
+    color: var(--color-base-100, var(--text-normal));
+  }
+
+  /* === Блок «Сегодня» === */
+  .dashboard-home .dh-today {
+    background: var(--setting-item-background, var(--background-secondary));
+    border: none;
+    border-radius: calc(var(--radius-ml, 14px) + 2px);
+    box-shadow: var(--shadow-setting-items, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+    padding: calc(var(--vl-layout-padding, 8px) * 2) calc(var(--vl-layout-padding, 8px) * 2 + 2px);
     margin: 0 0 20px 0;
     box-sizing: border-box;
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
   }
   .dashboard-home .dh-today-head {
     display: flex;
@@ -625,7 +639,7 @@ let selectedISO =
     flex-wrap: wrap;
     gap: 12px;
     padding-bottom: 12px;
-    border-bottom: 1px solid var(--background-modifier-border);
+    border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border));
   }
   .dashboard-home .dh-today-titles {
     display: flex;
@@ -634,12 +648,12 @@ let selectedISO =
   }
   .dashboard-home .dh-today .dh-kicker {
     font-size: 0.7rem;
-    font-weight: 700;
+    font-weight: var(--font-semibold, 600);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
+    letter-spacing: 0.075em;
+    color: var(--icon-color, var(--text-muted));
   }
-.dashboard-home .dh-today-date-row {
+  .dashboard-home .dh-today-date-row {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -651,39 +665,44 @@ let selectedISO =
     gap: 4px;
   }
   .dashboard-home button.dh-date-nav-btn {
-    width: 28px;
-    height: 28px;
-    min-width: 28px;
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
     padding: 0;
-    border-radius: 8px;
-    font-size: 1rem;
+    border: none;
+    border-radius: var(--radius-xxl, 22px);
+    font-size: 1.05rem;
     line-height: 1;
-    background: color-mix(in srgb, var(--background-primary) 75%, transparent);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
-    color: var(--text-muted);
+    background: transparent;
+    color: var(--control-icon-color, var(--icon-color));
     cursor: pointer;
     box-shadow: none;
-    transition: border-color 0.14s ease, color 0.14s ease;
+    contain: content;
+    transition:
+      background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
   .dashboard-home button.dh-date-nav-btn:hover:not(:disabled) {
-    border-color: var(--interactive-accent);
+    background: var(--control-icon-background, var(--background-modifier-hover));
+    box-shadow: var(--control-icon-shadow, none);
     color: var(--text-normal);
   }
   .dashboard-home button.dh-date-nav-btn:disabled {
-    opacity: 0.35;
+    filter: opacity(0.3125);
     cursor: default;
   }
   .dashboard-home .dh-date-picker-wrap {
     position: relative;
     display: inline-flex;
     align-items: center;
-    padding: 2px 8px;
-    border-radius: 8px;
+    padding: 4px 10px;
+    border-radius: var(--radius-s, 8px);
     cursor: pointer;
-    transition: background-color 0.14s ease;
+    transition: background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
   .dashboard-home .dh-date-picker-wrap:hover {
-    background: color-mix(in srgb, var(--text-normal) 6%, transparent);
+    background: var(--background-modifier-hover);
   }
   .dashboard-home input.dh-date-picker-native {
     position: absolute;
@@ -693,26 +712,52 @@ let selectedISO =
     opacity: 0;
     cursor: pointer;
     border: none;
+    box-shadow: none !important;
     margin: 0;
     padding: 0;
   }
   .dashboard-home button.dh-date-today-btn {
     height: 26px;
-    padding: 0 10px;
-    border-radius: 99px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
-    border: 1px solid color-mix(in srgb, var(--interactive-accent) 40%, transparent);
-    color: var(--interactive-accent);
+    padding: 0 11px;
+    border: none;
+    border-radius: var(--radius-xl, 20px);
+    font-size: 0.74rem;
+    font-weight: var(--font-semi-medium, 500);
+    background: var(--color-accent-4, var(--background-modifier-active-hover));
+    color: var(--color-accent-1, var(--text-accent));
     cursor: pointer;
     box-shadow: none;
+    transition: background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+  }
+  .dashboard-home button.dh-date-today-btn:hover {
+    background: var(--text-selection, var(--background-modifier-active-hover));
   }
   .dashboard-home .dh-today .dh-today-date {
-    font-size: 1.2rem;
-    font-weight: 700;
-    color: var(--text-normal);
+    font-size: 1.18rem;
+    font-weight: var(--font-semibold, 600);
+    font-variation-settings: "opsz" 26;
+    letter-spacing: -0.01em;
+    color: var(--color-base-100, var(--text-normal));
     line-height: 1.2;
+  }
+  .dashboard-home .dh-today .dh-actions button.dh-btn {
+    border: none;
+    border-radius: var(--input-radius, var(--radius-s, 8px));
+    min-height: var(--input-height, 28px);
+    padding: 0 12px;
+    font-weight: var(--font-semi-medium, 500);
+    background: var(--interactive-normal);
+    color: var(--text-normal);
+    box-shadow: none;
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+  }
+  .dashboard-home .dh-today .dh-actions button.dh-btn:hover {
+    background: var(--interactive-hover);
+  }
+  .dashboard-home .dh-today .dh-actions button.dh-btn.mod-cta {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    box-shadow: var(--shadow-button, none);
   }
   .dashboard-home .dh-today-badges {
     display: flex;
@@ -720,27 +765,13 @@ let selectedISO =
     flex-wrap: wrap;
     gap: 6px;
   }
-  .dashboard-home .dh-status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 2px 9px;
-    border-radius: 999px;
-    font-size: 0.74rem;
-    font-weight: 600;
-    line-height: 1.3;
-    border: 1px solid var(--background-modifier-border);
-    background: var(--background-primary);
-    color: var(--text-muted);
-    white-space: nowrap;
-  }
   .dashboard-home .dh-today-body {
     display: flex;
     flex-direction: column;
     gap: 14px;
     margin-top: 14px;
   }
-.dashboard-home .dh-today-section {
+  .dashboard-home .dh-today-section {
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -757,23 +788,29 @@ let selectedISO =
     gap: 8px;
     height: 30px;
     padding: 0 12px;
-    border-radius: 99px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    background: color-mix(in srgb, var(--background-primary) 75%, transparent);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
+    border: none;
+    border-radius: var(--radius-xl, 20px);
+    font-size: var(--font-ui-small, 13px);
+    font-weight: var(--font-semi-medium, 500);
+    background: var(--background-primary);
     color: var(--text-muted);
-    box-shadow: none;
+    box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border)));
     cursor: pointer;
-    transition: border-color 0.14s ease, color 0.14s ease;
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    transition:
+      box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
-  .dashboard-home button.dh-rating-pill:hover,
-  .dashboard-home button.dh-rating-pill.is-open {
-    border-color: var(--interactive-accent);
+  .dashboard-home button.dh-rating-pill:hover {
     color: var(--text-normal);
+    box-shadow: 0 0 0 1px var(--trans-faint-40, var(--background-modifier-border));
+  }
+  .dashboard-home button.dh-rating-pill.is-open {
+    color: var(--text-normal);
+    box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent));
   }
   .dashboard-home .dh-rating-pill-val {
-    font-weight: 700;
+    font-weight: var(--font-bold, 700);
     font-variant-numeric: tabular-nums;
     color: var(--pill-color, var(--text-normal));
   }
@@ -783,9 +820,11 @@ let selectedISO =
     flex-wrap: wrap;
     gap: 6px;
     padding: 8px 10px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--background-primary) 70%, transparent);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);
+    border: none;
+    border-radius: var(--radius-m, 12px);
+    background: var(--background-primary);
+    box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
   }
   .dashboard-home .dh-today-row {
     display: grid;
@@ -794,17 +833,17 @@ let selectedISO =
     gap: 12px;
   }
   .dashboard-home .dh-today-row-label {
-    font-size: 0.82rem;
-    font-weight: 500;
-    color: var(--text-muted);
+    font-size: var(--font-ui-small, 13px);
+    font-weight: var(--font-semi-medium, 500);
+    color: var(--icon-color, var(--text-muted));
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 6px;
   }
   .dashboard-home .dh-today-row-sub {
-    font-size: 0.72rem;
-    font-weight: 600;
+    font-size: 0.74rem;
+    font-weight: var(--font-medium, 525);
     color: var(--text-faint);
     font-variant-numeric: tabular-nums;
   }
@@ -818,25 +857,30 @@ let selectedISO =
     min-width: 30px;
     height: 28px;
     padding: 0 6px;
-    border-radius: 7px;
+    border: none;
+    border-radius: var(--radius-s, 8px);
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: var(--font-semi-medium, 500);
     font-variant-numeric: tabular-nums;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
+    background: var(--trans-faint-10, var(--background-modifier-hover));
+    box-shadow: none;
     color: var(--text-muted);
     cursor: pointer;
-    transition: border-color 0.14s ease, background-color 0.14s ease, color 0.14s ease, transform 0.1s ease;
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    transition:
+      background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
   .dashboard-home .dh-today .dh-score:hover:not(:disabled) {
-    border-color: var(--chip-color, var(--interactive-accent));
+    background: color-mix(in oklab, var(--chip-color, var(--interactive-accent)) 22%, var(--background-primary));
     color: var(--text-normal);
   }
   .dashboard-home .dh-today .dh-score.is-active {
     background: var(--chip-color, var(--interactive-accent));
-    border-color: var(--chip-color, var(--interactive-accent));
+    box-shadow: var(--glass-base, none);
     color: #141619;
-    font-weight: 700;
+    font-weight: var(--font-bold, 700);
   }
   .dashboard-home .dh-today .dh-habit-chip {
     display: inline-flex;
@@ -844,68 +888,79 @@ let selectedISO =
     gap: 6px;
     height: 29px;
     padding: 0 11px;
-    border-radius: 7px;
+    border: none;
+    border-radius: var(--pill-radius, var(--radius-l, 18px));
     font-size: 0.8rem;
-    font-weight: 500;
+    font-weight: var(--font-semi-medium, 500);
     background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
+    box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border)));
     color: var(--text-muted);
     cursor: pointer;
-    transition: border-color 0.14s ease, background-color 0.14s ease, color 0.14s ease;
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    transition:
+      background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
   .dashboard-home .dh-today .dh-habit-chip:hover:not(:disabled) {
-    border-color: var(--chip-color, var(--interactive-accent));
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--chip-color, var(--interactive-accent)) 55%, transparent);
     color: var(--text-normal);
   }
   .dashboard-home .dh-today .dh-habit-chip .dh-habit-check {
     font-size: 0.74rem;
     line-height: 1;
-    opacity: 0.65;
+    opacity: 0.6;
   }
   .dashboard-home .dh-today .dh-habit-chip.is-active {
-    background: color-mix(in srgb, var(--chip-color) 22%, var(--background-primary));
-    border-color: var(--chip-color);
-    color: var(--text-normal);
-    font-weight: 600;
+    background: color-mix(in oklab, var(--chip-color) 18%, var(--background-primary));
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--chip-color) 55%, transparent);
+    color: var(--color-base-100, var(--text-normal));
+    font-weight: var(--font-medium, 525);
   }
   .dashboard-home .dh-today .dh-habit-chip.is-active .dh-habit-check {
     color: var(--chip-color);
     opacity: 1;
-    font-weight: 700;
+    font-weight: var(--font-bold, 700);
   }
-.dashboard-home .dh-metrics-grid {
+
+  /* === Сетка метрик === */
+  .dashboard-home .dh-metrics-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(150px, 1fr));
     gap: 10px;
     padding-top: 12px;
-    border-top: 1px solid color-mix(in srgb, var(--text-normal) 7%, transparent);
+    border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
   }
   .dashboard-home .dh-metric-item {
     display: flex;
     flex-direction: column;
     gap: 4px;
     padding: 10px 12px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--background-primary) 70%, transparent);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 7%, transparent);
-    transition: border-color 0.15s ease, background-color 0.15s ease;
+    border: none;
+    border-radius: var(--radius-sm, 10px);
+    background: var(--background-primary);
+    box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    transition:
+      box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
   .dashboard-home .dh-metric-item.is-clickable {
     cursor: pointer;
     user-select: none;
   }
   .dashboard-home .dh-metric-item.is-clickable:hover {
-    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 1px var(--color-accent-3, var(--interactive-accent));
   }
   .dashboard-home .dh-metric-item.is-running {
-    border-color: #9c83e8;
-    background: color-mix(in srgb, #9c83e8 10%, var(--background-primary));
+    background: color-mix(in oklab, var(--color-purple, #9c83e8) 12%, var(--background-primary));
+    box-shadow: 0 0 0 1.5px color-mix(in oklab, var(--color-purple, #9c83e8) 60%, transparent);
   }
   .dashboard-home .dh-metric-item:focus-within {
-    border-color: #599ed6;
+    box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent));
   }
   .dashboard-home .dh-metric-item.is-invalid {
-    border-color: #d85b57;
+    box-shadow: 0 0 0 2px var(--color-red, #d85b57);
   }
   .dashboard-home .dh-metric-top {
     display: flex;
@@ -915,13 +970,13 @@ let selectedISO =
   }
   .dashboard-home .dh-metric-label {
     font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-muted);
+    font-weight: var(--font-semi-medium, 500);
+    color: var(--icon-color, var(--text-muted));
   }
   .dashboard-home .dh-metric-status {
-    font-size: 0.68rem;
-    font-weight: 600;
-    color: #4aab80;
+    font-size: 0.7rem;
+    font-weight: var(--font-medium, 525);
+    color: var(--color-green, #4aab80);
     min-height: 1em;
   }
   .dashboard-home .dh-metric-control {
@@ -932,38 +987,38 @@ let selectedISO =
   }
   .dashboard-home .dh-metric-readonly-val {
     font-size: 1rem;
-    font-weight: 700;
+    font-weight: var(--font-semibold, 600);
     font-variant-numeric: tabular-nums;
-    color: var(--text-normal);
+    color: var(--color-base-100, var(--text-normal));
     line-height: 28px;
   }
-.dashboard-home .dh-metric-input {
+  .dashboard-home .dh-metric-input {
     width: var(--dh-in-w, 2.2ch) !important;
     min-width: 2ch !important;
     max-width: 100%;
     height: 28px !important;
-    padding: 0 3px !important;
-    margin-left: -3px;
+    padding: 0 4px !important;
+    margin-left: -4px;
     font-size: 1rem !important;
-    font-weight: 700;
+    font-weight: var(--font-semibold, 600);
     font-variant-numeric: tabular-nums;
     text-align: left;
-    border-radius: 7px !important;
-    border: 1px solid transparent !important;
+    border-radius: var(--radius-xs, 6px) !important;
+    border: none !important;
     background: transparent !important;
     box-shadow: none !important;
-    color: var(--text-normal) !important;
-    transition: background-color 0.14s ease, border-color 0.14s ease;
+    color: var(--color-base-100, var(--text-normal)) !important;
+    transition: background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
   .dashboard-home .dh-metric-input:hover {
-    background: color-mix(in srgb, var(--text-normal) 5%, transparent) !important;
+    background: var(--trans-faint-10, var(--background-modifier-hover)) !important;
   }
   .dashboard-home .dh-metric-input:focus {
     outline: none !important;
-    background: var(--background-secondary) !important;
-    border-color: #599ed6 !important;
+    background: var(--trans-faint-20, var(--background-modifier-hover)) !important;
+    box-shadow: none !important;
   }
-.dashboard-home .dh-sleep-pair {
+  .dashboard-home .dh-sleep-pair {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
@@ -985,7 +1040,7 @@ let selectedISO =
     text-align: center !important;
     font-size: 0.88rem !important;
     letter-spacing: -0.02em;
-    background: color-mix(in srgb, var(--text-normal) 4%, transparent) !important;
+    background: var(--trans-faint-05, var(--background-modifier-hover)) !important;
   }
   .dashboard-home .dh-metric-unit {
     font-size: 0.78rem;
@@ -993,33 +1048,37 @@ let selectedISO =
     white-space: nowrap;
   }
   .dashboard-home .dh-metric-subhint {
-    font-size: 0.66rem;
+    font-size: 0.68rem;
     color: var(--text-faint);
-    line-height: 1.2;
+    line-height: 1.25;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .dashboard-home .dh-metric-error {
     font-size: 0.7rem;
-    color: #d85b57;
+    color: var(--color-red, #d85b57);
     line-height: 1.25;
   }
+
+  /* === План дня и Главное событие === */
   .dashboard-home .dh-today-bottom-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: 10px;
     padding-top: 12px;
-    border-top: 1px solid var(--background-modifier-border);
+    border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
   }
-.dashboard-home .dh-plan-box {
+  .dashboard-home .dh-plan-box {
     padding: 12px 14px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--background-primary) 70%, transparent);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 7%, transparent);
+    border: none;
+    border-radius: var(--radius-sm, 10px);
+    background: var(--background-primary);
+    box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
     display: flex;
     flex-direction: column;
     gap: 8px;
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
   }
   .dashboard-home .dh-plan-head {
     display: flex;
@@ -1030,49 +1089,50 @@ let selectedISO =
   }
   .dashboard-home .dh-plan-title {
     font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--text-muted);
+    font-weight: var(--font-semi-medium, 500);
+    color: var(--icon-color, var(--text-muted));
   }
   .dashboard-home .dh-plan-bar-track {
     height: 5px;
-    border-radius: 999px;
-    background: var(--background-modifier-border);
+    border-radius: var(--radius-l, 18px);
+    background: var(--trans-faint-20, var(--background-modifier-border));
     overflow: hidden;
   }
   .dashboard-home .dh-plan-bar-fill {
     height: 100%;
-    border-radius: 999px;
-    transition: width 0.2s ease;
+    border-radius: var(--radius-l, 18px);
+    transition: width var(--anim-duration-moderate, 200ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
   .dashboard-home .dh-plan-list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
     gap: 6px;
   }
-.dashboard-home .dh-plan-item {
+  .dashboard-home .dh-plan-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 6px 10px;
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--background-secondary) 70%, transparent);
-    border: 1px solid color-mix(in srgb, var(--text-normal) 6%, transparent);
-    font-size: 0.8rem;
+    padding: 7px 10px;
+    border: none;
+    border-radius: var(--radius-s, 8px);
+    background: var(--trans-faint-05, var(--background-secondary));
+    box-shadow: inset 0 0 0 0.5px var(--trans-faint-10, transparent);
+    font-size: 0.82rem;
     cursor: pointer;
     user-select: none;
-    transition: border-color 0.14s ease;
+    transition: background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
   .dashboard-home .dh-plan-item:hover {
-    border-color: #599ed688;
+    background: var(--trans-faint-10, var(--background-modifier-hover));
   }
   .dashboard-home .dh-plan-item.is-done {
-    border-color: #4aab8055;
+    background: color-mix(in oklab, var(--color-green, #4aab80) 8%, transparent);
   }
   .dashboard-home .dh-plan-item-left {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
     min-width: 0;
   }
   .dashboard-home .dh-plan-item-right {
@@ -1081,51 +1141,55 @@ let selectedISO =
     gap: 6px;
     flex-shrink: 0;
   }
-.dashboard-home .dh-plan-focus-btn {
+  .dashboard-home .dh-plan-focus-btn {
     height: 22px !important;
     min-height: 22px !important;
-    padding: 0 7px !important;
-    border-radius: 99px !important;
+    padding: 0 8px !important;
+    border: none !important;
+    border-radius: var(--radius-l, 18px) !important;
     font-size: 0.68rem !important;
-    font-weight: 600 !important;
+    font-weight: var(--font-semi-medium, 500) !important;
     font-variant-numeric: tabular-nums;
-    background: color-mix(in srgb, #9c83e8 14%, var(--background-primary)) !important;
-    border: 1px solid color-mix(in srgb, #9c83e8 28%, transparent) !important;
-    color: #9c83e8 !important;
+    background: color-mix(in oklab, var(--color-purple, #9c83e8) 16%, transparent) !important;
+    color: var(--color-purple, #9c83e8) !important;
     cursor: pointer;
     box-shadow: none !important;
-    transition: opacity 0.14s ease, background-color 0.14s ease;
+    transition:
+      opacity var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
-  @media (hover: hover) and (pointer: fine) {
-    .dashboard-home .dh-plan-focus-btn.is-empty {
-      opacity: 0;
-    }
-    .dashboard-home .dh-plan-item:hover .dh-plan-focus-btn.is-empty,
-    .dashboard-home .dh-plan-item:focus-within .dh-plan-focus-btn.is-empty {
-      opacity: 1;
-    }
+  body:not(.is-mobile) .dashboard-home .dh-plan-focus-btn.is-empty {
+    opacity: 0;
+  }
+  body:not(.is-mobile) .dashboard-home .dh-plan-item:hover .dh-plan-focus-btn.is-empty,
+  body:not(.is-mobile) .dashboard-home .dh-plan-item:focus-within .dh-plan-focus-btn.is-empty {
+    opacity: 1;
   }
   .dashboard-home .dh-plan-focus-btn:hover {
-    background: color-mix(in srgb, #9c83e8 24%, var(--background-primary)) !important;
+    background: color-mix(in oklab, var(--color-purple, #9c83e8) 26%, transparent) !important;
   }
   .dashboard-home .dh-plan-check {
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    border: 1px solid var(--background-modifier-border);
+    width: 17px;
+    height: 17px;
+    border-radius: var(--checkbox-radius, 50%);
+    border: none;
+    box-shadow: inset 0 0 0 1.5px var(--checkbox-border-color, var(--text-faint));
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     flex-shrink: 0;
     color: transparent;
-    background: var(--background-primary);
+    background: transparent;
+    transition:
+      background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
   .dashboard-home .dh-plan-item.is-done .dh-plan-check {
-    background: #4aab8022;
-    border-color: #4aab80;
-    color: #4aab80;
-    font-weight: 700;
+    background: var(--color-green, #4aab80);
+    box-shadow: none;
+    color: var(--text-on-accent, #fff);
+    font-weight: var(--font-bold, 700);
   }
   .dashboard-home .dh-plan-text {
     color: var(--text-normal);
@@ -1134,17 +1198,17 @@ let selectedISO =
     white-space: nowrap;
   }
   .dashboard-home .dh-plan-item.is-done .dh-plan-text {
-    color: var(--text-muted);
+    color: var(--checklist-done-color, var(--text-faint));
     text-decoration: line-through;
   }
   .dashboard-home .dh-plan-pct {
     font-size: 0.72rem;
-    font-weight: 600;
+    font-weight: var(--font-medium, 525);
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
   }
-.dashboard-home .dh-event-row {
+  .dashboard-home .dh-event-row {
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
@@ -1159,22 +1223,22 @@ let selectedISO =
     gap: 8px;
     width: 100%;
   }
-.dashboard-home .dh-event-input {
+  .dashboard-home .dh-event-input {
     flex: 1;
     width: 100% !important;
     height: 32px !important;
     padding: 4px 12px !important;
     font-size: 0.84rem !important;
-    border-radius: 10px !important;
-    border: 1px solid color-mix(in srgb, var(--text-normal) 6%, transparent) !important;
-    background: color-mix(in srgb, var(--background-primary) 55%, transparent) !important;
+    border-radius: var(--input-radius, var(--radius-s, 8px)) !important;
+    border: none !important;
+    background: var(--background-primary) !important;
+    box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border))) !important;
     color: var(--text-normal) !important;
-    transition: border-color 0.14s ease, background-color 0.14s ease;
+    transition: box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
   .dashboard-home .dh-event-input:focus {
     outline: none !important;
-    background: var(--background-primary) !important;
-    border-color: #599ed6 !important;
+    box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent)) !important;
   }
   .dashboard-home .dh-today-footer {
     display: flex;
@@ -1183,7 +1247,7 @@ let selectedISO =
     flex-wrap: wrap;
     gap: 8px;
     padding-top: 10px;
-    border-top: 1px solid var(--background-modifier-border);
+    border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
     font-size: 0.8rem;
     color: var(--text-muted);
   }
@@ -1197,14 +1261,131 @@ let selectedISO =
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 2px 8px;
-    border-radius: 6px;
+    padding: 3px 9px;
+    border: none;
+    border-radius: var(--pill-radius, var(--radius-l, 18px));
     font-size: 0.76rem;
-    font-weight: 500;
-    background: var(--background-primary);
-    border: 1px solid var(--background-modifier-border);
-    color: var(--text-accent);
+    font-weight: var(--font-semi-medium, 500);
+    background: var(--pill-background, var(--code-background));
+    color: var(--color-accent-1, var(--text-accent));
     text-decoration: none;
+    box-shadow: none;
+  }
+
+  /* === Блок «Недавно в работе» (Velocity Table + Island) === */
+  .dashboard-home .dh-recent-work {
+    margin: 15px 0 25px 0;
+  }
+  .dashboard-home .dh-recent-work details.dh-recent-details {
+    padding: calc(var(--vl-layout-padding, 8px) + 6px) calc(var(--vl-layout-padding, 8px) + 10px);
+    background: var(--setting-item-background, var(--background-secondary));
+    border: none;
+    border-radius: calc(var(--radius-ml, 14px) + 2px);
+    box-shadow: var(--shadow-setting-items, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+  }
+  .dashboard-home .dh-recent-work details.dh-recent-details > summary {
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .dashboard-home .dh-recent-work details.dh-recent-details > summary::-webkit-details-marker {
+    display: none;
+  }
+  .dashboard-home .dh-recent-work details.dh-recent-details[open] > summary {
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+  }
+  .dashboard-home .dh-recent-title {
+    font-size: var(--font-ui-medium, 15px);
+    font-weight: var(--font-semibold, 600);
+    font-variation-settings: "opsz" 24;
+    color: var(--color-base-100, var(--text-normal));
+  }
+  .dashboard-home .dh-recent-toggle {
+    font-size: 0.76rem;
+    font-weight: var(--font-semi-medium, 500);
+    color: var(--icon-color, var(--text-muted));
+  }
+  .dashboard-home .dh-recent-empty {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    padding: 12px;
+    text-align: center;
+  }
+  .dashboard-home table.dh-recent-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--table-text-size, 0.86rem);
+  }
+  .dashboard-home table.dh-recent-table thead th {
+    border: none;
+    border-bottom: 2px solid var(--table-header-border-color, var(--hr-color, var(--background-modifier-border)));
+    padding: 6px 10px;
+    text-align: start;
+    color: var(--table-header-color, var(--icon-color));
+    font-size: var(--font-ui-smaller, 12px);
+    font-weight: var(--table-header-weight, var(--font-medium));
+  }
+  .dashboard-home table.dh-recent-table thead th:last-child {
+    width: 140px;
+    text-align: end;
+  }
+  .dashboard-home table.dh-recent-table tbody tr {
+    cursor: pointer;
+    transition: background-color var(--anim-super-smooth, 75ms ease-out);
+  }
+  .dashboard-home table.dh-recent-table tbody tr:nth-child(even) {
+    background: var(--table-row-bg, var(--trans-faint-00, transparent));
+  }
+  .dashboard-home table.dh-recent-table tbody tr:hover {
+    background: var(--background-modifier-hover);
+  }
+  .dashboard-home table.dh-recent-table tbody td {
+    border: none;
+    border-left: 1px solid var(--table-border-color, var(--trans-faint-20, var(--background-modifier-border)));
+    padding: 8px 10px;
+  }
+  .dashboard-home table.dh-recent-table tbody td:first-child {
+    border-left: none;
+    font-weight: var(--font-semi-medium, 500);
+  }
+  .dashboard-home table.dh-recent-table tbody td a.internal-link {
+    color: var(--color-accent-1, var(--text-accent));
+    text-decoration: none;
+  }
+  .dashboard-home table.dh-recent-table tbody td.dh-recent-time {
+    text-align: end;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* === Адаптивность и iPadOS / Touch === */
+  body.is-mobile .dashboard-home button.dh-date-nav-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+  }
+  body.is-mobile .dashboard-home button.dh-rating-pill,
+  body.is-mobile .dashboard-home .dh-today .dh-habit-chip,
+  body.is-mobile .dashboard-home .dh-today .dh-score {
+    min-height: 36px;
+    height: 36px;
+  }
+  body.is-mobile .dashboard-home .dh-event-input {
+    height: 38px !important;
+  }
+  body.is-mobile .dashboard-home .dh-plan-focus-btn {
+    height: 28px !important;
+    min-height: 28px !important;
+    padding: 0 10px !important;
   }
   @media (max-width: 820px) {
     .dashboard-home .dh-metrics-grid {
@@ -2336,48 +2517,17 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     .sort((a, b) => stampOf(b) - stampOf(a))
     .slice(0, LIMIT);
 
-  const root = dv.container.createDiv({ cls: "dh dh-recent-work", attr: { style: "margin: 15px 0 25px 0;" } });
-
-  const styleEl = root.createEl("style");
-  styleEl.textContent = `
-  .dashboard-home .dh-recent-work details.dh-recent-details > summary {
-    list-style: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    user-select: none;
-  }
-  .dashboard-home .dh-recent-work details.dh-recent-details > summary::-webkit-details-marker {
-    display: none;
-  }
-  .dashboard-home .dh-recent-work details.dh-recent-details[open] > summary {
-    margin-bottom: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--background-modifier-border);
-  }
-  `;
-
-  const details = root.createEl("details", {
-    cls: "dh-panel dh-recent-details",
-    attr: {
-      style: "padding: 14px 18px; background: color-mix(in srgb, var(--background-secondary) 75%, transparent); border-radius: 16px; border: 1px solid color-mix(in srgb, var(--text-normal) 8%, transparent);"
-    }
-  });
+  const root = dv.container.createDiv({ cls: "dh dh-recent-work" });
+  const details = root.createEl("details", { cls: "dh-panel dh-recent-details" });
   details.open = Boolean(uiState.isOpen);
 
   const summary = details.createEl("summary");
   summary.onmousedown = e => e.preventDefault();
 
-  summary.createDiv({
-    text: "Недавно в работе",
-    attr: { style: "font-size: 1.05rem; font-weight: 600; color: var(--text-normal);" }
-  });
-
+  summary.createDiv({ cls: "dh-recent-title", text: "Недавно в работе" });
   const toggleHint = summary.createSpan({
-    text: details.open ? "Свернуть ▲" : "Развернуть ▾",
-    attr: { style: "font-size: 0.76rem; font-weight: 600; color: var(--text-muted);" }
+    cls: "dh-recent-toggle",
+    text: details.open ? "Свернуть ▲" : "Развернуть ▾"
   });
 
   const listContainer = details.createDiv();
@@ -2388,49 +2538,35 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     listContainer.empty();
 
     if (!recentPages.length) {
-      listContainer.createDiv({
-        text: "Недавних заметок пока нет.",
-        attr: { style: "font-size: 0.85rem; color: var(--text-muted); padding: 12px; text-align: center;" }
-      });
+      listContainer.createDiv({ cls: "dh-recent-empty", text: "Недавних заметок пока нет." });
       return;
     }
 
-    const tableEl = listContainer.createEl("table", {
-      cls: "dh-table",
-      attr: { style: "width: 100%; border-collapse: collapse; font-size: 0.86rem;" }
-    });
-
+    const tableEl = listContainer.createEl("table", { cls: "dh-table dh-recent-table" });
     const thead = tableEl.createEl("thead");
-    const trH = thead.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border); text-align: left; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;" } });
-    trH.createEl("th", { text: "Заметка", attr: { style: "padding: 8px 6px;" } });
-    trH.createEl("th", { text: "Изменена", attr: { style: "padding: 8px 6px; width: 140px; text-align: right;" } });
+    const trH = thead.createEl("tr");
+    trH.createEl("th", { text: "Заметка" });
+    trH.createEl("th", { text: "Изменена" });
 
     const tbody = tableEl.createEl("tbody");
     const todayStr = moment().format("YYYY-MM-DD");
     const yesterdayStr = moment().subtract(1, "days").format("YYYY-MM-DD");
 
     recentPages.forEach(p => {
-      const tr = tbody.createEl("tr", {
-        attr: {
-          style: "border-bottom: 1px solid var(--background-modifier-border); transition: background 0.1s ease; cursor: pointer;"
-        }
-      });
+      const tr = tbody.createEl("tr");
 
-      tr.onmouseenter = () => { tr.style.background = "var(--background-modifier-hover)"; };
-      tr.onmouseleave = () => { tr.style.background = "transparent"; };
-
-      const tdName = tr.createEl("td", { attr: { style: "padding: 8px 6px; font-weight: 500;" } });
+      const tdName = tr.createEl("td");
       tdName.createEl("a", {
         cls: "internal-link",
         text: p.file.name,
-        attr: { href: p.file.path, style: "color: var(--text-accent); text-decoration: none;" }
+        attr: { href: p.file.path }
       });
       tr.onclick = (e) => {
         e.preventDefault();
         app.workspace.openLinkText(p.file.path, dv.currentFilePath, e.ctrlKey || e.metaKey);
       };
 
-      const tdTime = tr.createEl("td", { attr: { style: "padding: 8px 6px; text-align: right; color: var(--text-muted); font-size: 0.78rem; white-space: nowrap; font-variant-numeric: tabular-nums;" } });
+      const tdTime = tr.createEl("td", { cls: "dh-recent-time" });
       const m = moment(stampOf(p));
       const mDay = m.format("YYYY-MM-DD");
       let timeLabel = m.format("DD.MM HH:mm");

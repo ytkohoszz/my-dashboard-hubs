@@ -1,6 +1,6 @@
 {
     "name":  "my-dashboard-hubs",
-    "version":  "0.1.60",
+    "version":  "0.1.61",
     "description":  "Нативный движок для главных страниц и хабов системы",
     "main":  "main.js",
     "scripts":  {
