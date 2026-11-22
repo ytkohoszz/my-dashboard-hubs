@@ -362,14 +362,12 @@ const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) ||
       app.workspace.openLinkText(hub.file, dv.currentFilePath, e.ctrlKey || e.metaKey);
     };
 
-    const topRow = card.createDiv({ cls: "dh-hub-top" });
-    topRow.createDiv({ cls: "dh-hub-icon", text: hub.icon });
+    card.createDiv({ cls: "dh-hub-icon", text: hub.icon });
+    card.createDiv({ cls: "dh-hub-title", text: hub.title });
 
     if (hub.badge) {
-      topRow.createSpan({ cls: "dh-hub-badge", text: hub.badge });
+      card.createSpan({ cls: "dh-hub-badge", text: hub.badge });
     }
-
-    card.createDiv({ cls: "dh-hub-title", text: hub.title });
   });
 }
 
@@ -548,26 +546,29 @@ let selectedISO =
   styleEl.textContent = `
   /* === Velocity-native Home Dashboard === */
   .dashboard-home .dh-hub-nav {
-    margin: 4px 0 18px 0;
+    margin: 4px 0 24px 0 !important;
   }
   .dashboard-home .dh-hub-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
     gap: 10px;
   }
   .dashboard-home .dh-hub-card {
     position: relative;
     contain: content;
-    padding: calc(var(--vl-layout-padding, 8px) + 5px) calc(var(--vl-layout-padding, 8px) + 7px);
-    background: var(--setting-item-background, var(--background-secondary));
-    border: none;
-    border-radius: var(--radius-ml, 14px);
-    box-shadow: var(--shadow-setting-items, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
-    cursor: pointer;
     display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+    flex-direction: row;
+    align-items: center;
     gap: 10px;
+    min-height: 50px;
+    padding: 9px 12px !important;
+    background: var(--trans-faint-05, var(--background-secondary)) !important;
+    border: none !important;
+    border-radius: var(--radius-ml, 14px) !important;
+    box-shadow:
+      var(--glass-base-m, none),
+      0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)) !important;
+    cursor: pointer;
     -electron-corner-smoothing: var(--corner-smoothing, 60%);
     transition:
       transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
@@ -576,59 +577,65 @@ let selectedISO =
   }
   .dashboard-home .dh-hub-card:hover {
     transform: translateY(-1px);
+    background: color-mix(in oklab, var(--hub-color) 10%, var(--background-primary)) !important;
     box-shadow:
-      0 0 0 1px color-mix(in oklab, var(--hub-color) 42%, transparent),
-      var(--shadow-muted, 0 4px 16px rgba(0, 0, 0, 0.14));
+      var(--glass-base, none),
+      0 0 0 1px color-mix(in oklab, var(--hub-color) 40%, transparent),
+      var(--shadow-muted, 0 4px 16px rgba(0, 0, 0, 0.14)) !important;
   }
   .dashboard-home .dh-hub-card:active {
-    transform: scale(0.985);
+    transform: scale(0.98);
     filter: opacity(85%);
   }
-  .dashboard-home .dh-hub-top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 8px;
-  }
   .dashboard-home .dh-hub-icon {
-    font-size: 1.12rem;
-    width: 30px;
-    height: 30px;
+    font-size: 1.08rem;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: var(--radius-sm, 10px);
-    background: color-mix(in oklab, var(--hub-color) 14%, transparent);
+    background: color-mix(in oklab, var(--hub-color) 16%, transparent);
     -electron-corner-smoothing: var(--corner-smoothing, 60%);
   }
+  .dashboard-home .dh-hub-title {
+    font-size: var(--font-ui-medium, 14.5px);
+    font-weight: var(--font-semibold, 600);
+    font-variation-settings: "opsz" 24;
+    letter-spacing: -0.005em;
+    color: var(--color-base-100, var(--text-normal));
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .dashboard-home .dh-hub-badge {
+    margin-left: auto;
+    flex-shrink: 0;
     font-size: var(--font-ui-smaller, 12px);
     font-weight: var(--font-semi-medium, 500);
     font-variant-numeric: tabular-nums;
     padding: 3px 8px;
     border-radius: var(--pill-radius, var(--radius-l, 18px));
-    background: color-mix(in oklab, var(--hub-color) 14%, transparent);
+    background: color-mix(in oklab, var(--hub-color) 15%, transparent);
     color: var(--hub-color);
     white-space: nowrap;
     text-box-trim: trim-both;
     text-box-edge: cap alphabetic;
   }
-  .dashboard-home .dh-hub-title {
-    font-size: var(--font-ui-medium, 15px);
-    font-weight: var(--font-semibold, 600);
-    font-variation-settings: "opsz" 24;
-    letter-spacing: -0.005em;
-    color: var(--color-base-100, var(--text-normal));
-  }
 
   /* === Блок «Сегодня» === */
   .dashboard-home .dh-today {
-    background: var(--setting-item-background, var(--background-secondary));
-    border: none;
-    border-radius: calc(var(--radius-ml, 14px) + 2px);
-    box-shadow: var(--shadow-setting-items, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+    background: var(--trans-faint-05, var(--background-secondary)) !important;
+    border: none !important;
+    border-radius: calc(var(--radius-ml, 14px) + 2px) !important;
+    box-shadow:
+      var(--glass-base-m, none),
+      0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
+      var(--shadow-setting-items, 0 4px 12px rgba(0, 0, 0, 0.1)) !important;
     padding: calc(var(--vl-layout-padding, 8px) * 2) calc(var(--vl-layout-padding, 8px) * 2 + 2px);
-    margin: 0 0 20px 0;
+    margin: 0 0 22px 0 !important;
     box-sizing: border-box;
     -electron-corner-smoothing: var(--corner-smoothing, 60%);
   }
@@ -888,22 +895,33 @@ let selectedISO =
     gap: 6px;
     height: 29px;
     padding: 0 11px;
-    border: none;
+    border: none !important;
+    outline: none !important;
     border-radius: var(--pill-radius, var(--radius-l, 18px));
     font-size: 0.8rem;
     font-weight: var(--font-semi-medium, 500);
-    background: var(--background-primary);
-    box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border)));
+    background: var(--background-primary) !important;
+    box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border))) !important;
     color: var(--text-muted);
     cursor: pointer;
     -electron-corner-smoothing: var(--corner-smoothing, 60%);
     transition:
       background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
       box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
-      color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+      color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      opacity var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+  }
+  .dashboard-home .dh-today .dh-habit-chip.is-unknown {
+    background: var(--trans-faint-05, transparent) !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: inset 0 0 0 1px var(--trans-faint-20, var(--background-modifier-border)) !important;
+    color: var(--text-faint);
+    opacity: 0.8;
   }
   .dashboard-home .dh-today .dh-habit-chip:hover:not(:disabled) {
-    box-shadow: 0 0 0 1px color-mix(in oklab, var(--chip-color, var(--interactive-accent)) 55%, transparent);
+    opacity: 1;
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--chip-color, var(--interactive-accent)) 55%, transparent) !important;
     color: var(--text-normal);
   }
   .dashboard-home .dh-today .dh-habit-chip .dh-habit-check {
@@ -912,8 +930,11 @@ let selectedISO =
     opacity: 0.6;
   }
   .dashboard-home .dh-today .dh-habit-chip.is-active {
-    background: color-mix(in oklab, var(--chip-color) 18%, var(--background-primary));
-    box-shadow: 0 0 0 1px color-mix(in oklab, var(--chip-color) 55%, transparent);
+    opacity: 1;
+    background: color-mix(in oklab, var(--chip-color) 18%, var(--background-primary)) !important;
+    box-shadow:
+      var(--glass-base, none),
+      0 0 0 1px color-mix(in oklab, var(--chip-color) 55%, transparent) !important;
     color: var(--color-base-100, var(--text-normal));
     font-weight: var(--font-medium, 525);
   }
