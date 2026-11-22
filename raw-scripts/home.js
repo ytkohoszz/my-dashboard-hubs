@@ -69,6 +69,23 @@ function getFocusPlugin() {
   return app.plugins?.plugins?.["my-focus-tracker"] || window.__myFocusTracker || null;
 }
 
+function getValuesCompassPlugin() {
+  return app.plugins?.plugins?.["my-values-compass"] ?? null;
+}
+
+function openValuesCompassFromHome() {
+  const plugin = getValuesCompassPlugin();
+  if (!plugin || typeof plugin.activateView !== "function") {
+    notify("Включи плагин «Values Compass» (my-values-compass) в настройках Obsidian.");
+    return;
+  }
+  try {
+    plugin.activateView("today");
+  } catch (err) {
+    notify("Не удалось открыть Компас ценностей: " + (err instanceof Error ? err.message : String(err)));
+  }
+}
+
 function openFocusTrackerFromHome(initialProject) {
   const plugin = getFocusPlugin();
   if (!plugin || typeof plugin.openFocusModal !== "function") {
@@ -348,6 +365,16 @@ const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) ||
       icon: "🧊",
       color: "var(--color-blue, #599ed6)",
       badge: notes3D > 0 ? String(notes3D) : ""
+    },
+    {
+      title: "Ценности",
+      icon: "🧭",
+      color: "var(--color-cyan, #69b5aa)",
+      badge: (() => {
+        const count = getValuesCompassPlugin()?.store?.getLogsByDate?.(todayISO)?.length || 0;
+        return count > 0 ? String(count) : "";
+      })(),
+      onClick: () => openValuesCompassFromHome()
     }
   ];
 
@@ -359,6 +386,10 @@ const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) ||
     card.style.setProperty("--hub-color", hub.color);
 
     card.onclick = (e) => {
+      if (typeof hub.onClick === "function") {
+        hub.onClick(e);
+        return;
+      }
       app.workspace.openLinkText(hub.file, dv.currentFilePath, e.ctrlKey || e.metaKey);
     };
 
@@ -2887,4 +2918,16 @@ if (!hostContainer.dataset.dhHomeBound) {
   app.vault.on("create", onFileChanged);
   app.vault.on("delete", onFileChanged);
   app.vault.on("rename", onFileChanged);
+
+  const vcPlugin = app.plugins?.plugins?.["my-values-compass"];
+  if (vcPlugin?.store?.subscribe) {
+    let unsubVc = null;
+    unsubVc = vcPlugin.store.subscribe(() => {
+      if (!hostContainer.isConnected) {
+        unsubVc?.();
+        return;
+      }
+      scheduleHomeRender(150);
+    });
+  }
 }
