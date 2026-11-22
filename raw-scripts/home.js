@@ -432,16 +432,10 @@ let selectedISO =
     renderHomeDashboard();
   };
 
-  const readingSubHint = isToday
-    ? (readingSync.manualOverridePages !== null
-        ? (readingSync.autoBookPages > 0 ? `вручную · из книг ${readingSync.autoBookPages}` : "вручную")
-        : (readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages}` : ""))
-    : "";
-
   const INPUT_METRICS = [
     { label: "Вес", key: "вес_кг", unit: "кг", min: 20, max: 300, digits: 1, placeholder: "—" },
     { label: "Сон", key: "сон_часов", unit: "ч", min: 0, max: 24, digits: 1, placeholder: "—" },
-    { label: "Чтение", key: "страниц_прочитано", unit: "стр.", min: 0, max: 1500, digits: 0, placeholder: "—", hint: readingSubHint },
+    { label: "Чтение", key: "страниц_прочитано", unit: "стр.", min: 0, max: 1500, digits: 0, placeholder: "—" },
     { label: "Соцсети", key: "соцсети_мин", unit: "мин", min: 0, max: 1440, digits: 0, placeholder: "—" },
     { label: "Шаги", key: "шаги", unit: "шаг", min: 0, max: 100000, digits: 0, placeholder: "—" },
   ];
@@ -1003,7 +997,7 @@ let selectedISO =
   .dashboard-home .dh-metric-control {
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    gap: 4px;
     min-height: 28px;
   }
   .dashboard-home .dh-metric-readonly-val {
@@ -1011,18 +1005,40 @@ let selectedISO =
     font-weight: var(--font-semibold, 600);
     font-variant-numeric: tabular-nums;
     color: var(--color-base-100, var(--text-normal));
-    line-height: 28px;
+    line-height: 1.35;
   }
-  .dashboard-home .dh-metric-input {
-    width: var(--dh-in-w, 2.2ch) !important;
-    min-width: 2ch !important;
+  .dashboard-home .dh-metric-sizer {
+    display: inline-grid;
+    align-items: baseline;
+    margin-left: -3px;
     max-width: 100%;
-    height: 28px !important;
-    padding: 0 4px !important;
-    margin-left: -4px;
-    font-size: 1rem !important;
+    font-size: 1rem;
     font-weight: var(--font-semibold, 600);
     font-variant-numeric: tabular-nums;
+    line-height: 1.35;
+  }
+  .dashboard-home .dh-metric-sizer::after {
+    content: attr(data-val);
+    grid-area: 1 / 1;
+    visibility: hidden;
+    white-space: pre;
+    padding: 1px 3px;
+    font: inherit;
+    font-variant-numeric: inherit;
+    pointer-events: none;
+  }
+  .dashboard-home .dh-metric-sizer > .dh-metric-input {
+    grid-area: 1 / 1;
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 1px 3px !important;
+    font: inherit !important;
+    font-variant-numeric: inherit !important;
+    line-height: inherit !important;
+    vertical-align: baseline;
     text-align: left;
     border-radius: var(--radius-xs, 6px) !important;
     border: none !important;
@@ -1039,13 +1055,36 @@ let selectedISO =
     background: var(--trans-faint-20, var(--background-modifier-hover)) !important;
     box-shadow: none !important;
   }
+  .dashboard-home .dh-sleep-card {
+    grid-column: span 2;
+  }
+  .dashboard-home .dh-sleep-unified {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 28px;
+  }
+  .dashboard-home .dh-sleep-dur {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .dashboard-home .dh-sleep-divider {
+    width: 1px;
+    height: 18px;
+    background: var(--trans-faint-20, var(--background-modifier-border));
+    flex-shrink: 0;
+  }
   .dashboard-home .dh-sleep-pair {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(52px, 1fr) auto minmax(52px, 1fr);
     align-items: center;
-    gap: 4px;
-    width: 100%;
-    min-height: 28px;
+    gap: 6px;
+    flex: 1;
+    max-width: 210px;
+    min-height: 26px;
   }
   .dashboard-home .dh-sleep-sep {
     font-size: 0.74rem;
@@ -1056,12 +1095,28 @@ let selectedISO =
   .dashboard-home .dh-time-input {
     width: 100% !important;
     min-width: 0 !important;
-    margin-left: 0 !important;
-    padding: 0 2px !important;
+    height: 26px !important;
+    margin: 0 !important;
+    padding: 0 4px !important;
+    border: none !important;
+    border-radius: var(--radius-xs, 6px) !important;
     text-align: center !important;
     font-size: 0.88rem !important;
+    font-weight: var(--font-semibold, 600);
+    font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
+    color: var(--color-base-100, var(--text-normal)) !important;
     background: var(--trans-faint-05, var(--background-modifier-hover)) !important;
+    box-shadow: inset 0 0 0 0.5px var(--trans-faint-15, transparent) !important;
+    transition: background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+  }
+  .dashboard-home .dh-time-input:hover {
+    background: var(--trans-faint-10, var(--background-modifier-hover)) !important;
+  }
+  .dashboard-home .dh-time-input:focus {
+    outline: none !important;
+    background: var(--trans-faint-20, var(--background-modifier-hover)) !important;
+    box-shadow: none !important;
   }
   .dashboard-home .dh-metric-unit {
     font-size: 0.78rem;
@@ -1776,10 +1831,10 @@ const metricsGrid = body.createDiv({ cls: "dh-metrics-grid" });
     const inputRefs = new Map();
 
     const syncMetricInputWidth = (inp, fallback = "—") => {
-      const txt = (inp.value || fallback).trim() || fallback;
-      const sepCount = (txt.match(/[.,]/g) || []).length;
-      const ch = Math.max(2.0, txt.length - sepCount * 0.45 + 1.15);
-      inp.style.setProperty("--dh-in-w", `${ch.toFixed(2)}ch`);
+      const sizer = inp.parentElement;
+      if (sizer && sizer.classList.contains("dh-metric-sizer")) {
+        sizer.dataset.val = inp.value || fallback;
+      }
     };
 
     const renderInputMetricCard = (m) => {
@@ -1789,7 +1844,8 @@ const metricsGrid = body.createDiv({ cls: "dh-metrics-grid" });
       const statusSpan = top.createSpan({ cls: "dh-metric-status" });
 
       const control = card.createDiv({ cls: "dh-metric-control" });
-      const input = control.createEl("input", {
+      const sizer = control.createSpan({ cls: "dh-metric-sizer" });
+      const input = sizer.createEl("input", {
         cls: "dh-metric-input",
         attr: {
           type: "text",
@@ -1980,19 +2036,160 @@ try {
       inputRefs.set(m.key, input);
     };
 
-const renderSleepScheduleCard = () => {
-      const card = metricsGrid.createDiv({ cls: "dh-metric-item" });
+const renderSleepUnifiedCard = (m) => {
+      const card = metricsGrid.createDiv({ cls: "dh-metric-item dh-sleep-card" });
       const top = card.createDiv({ cls: "dh-metric-top" });
-      top.createSpan({ cls: "dh-metric-label", text: "Режим" });
+      top.createSpan({ cls: "dh-metric-label", text: "Сон и режим" });
       const statusSpan = top.createSpan({ cls: "dh-metric-status" });
 
-      const pair = card.createDiv({ cls: "dh-sleep-pair" });
+      const bodyRow = card.createDiv({ cls: "dh-sleep-unified" });
+      const durWrap = bodyRow.createEl("label", { cls: "dh-sleep-dur" });
+      const sizer = durWrap.createSpan({ cls: "dh-metric-sizer" });
+      const sleepInput = sizer.createEl("input", {
+        cls: "dh-metric-input",
+        attr: {
+          type: "text",
+          inputmode: "decimal",
+          placeholder: m.placeholder,
+          "aria-label": `${m.label}, ${m.unit}`
+        }
+      });
+      durWrap.createSpan({ cls: "dh-metric-unit", text: m.unit });
+
+      bodyRow.createDiv({ cls: "dh-sleep-divider" });
+      const pair = bodyRow.createDiv({ cls: "dh-sleep-pair" });
+
       const errorEl = card.createDiv({ cls: "dh-metric-error" });
       errorEl.style.display = "none";
 
-const mountTimeField = (key, label, placeholder) => {
+      const showError = (msg) => {
+        card.classList.add("is-invalid");
+        errorEl.setText(msg);
+        errorEl.style.display = "block";
+      };
+      const clearError = (key) => {
+        delete uiDrafts.errors[key];
+        const anyErr = ["сон_часов", "отбой", "подъём"].find(k => uiDrafts.errors[k]);
+        if (anyErr) {
+          showError(uiDrafts.errors[anyErr]);
+        } else {
+          card.classList.remove("is-invalid");
+          errorEl.style.display = "none";
+        }
+      };
+      const flashSaved = (key) => {
+        uiDrafts.savedStamp[key] = Date.now();
+        statusSpan.setText("✓");
+        setTimeout(() => { if (statusSpan.isConnected) statusSpan.setText(""); }, 1800);
+      };
+
+      // --- Поле длительности сна (ч) ---
+      const savedSleepRaw = note[m.key];
+      const savedSleepFormatted = formatNumForInput(savedSleepRaw, m.digits);
+      const hasSleepDraft = Object.prototype.hasOwnProperty.call(uiDrafts.inputs, m.key);
+      sleepInput.value = hasSleepDraft ? uiDrafts.inputs[m.key] : savedSleepFormatted;
+      syncMetricInputWidth(sleepInput, m.placeholder);
+
+      if (uiDrafts.errors[m.key]) {
+        showError(uiDrafts.errors[m.key]);
+      } else if (uiDrafts.savedStamp[m.key] && Date.now() - uiDrafts.savedStamp[m.key] < 2200) {
+        statusSpan.setText("✓");
+        setTimeout(() => { if (statusSpan.isConnected) statusSpan.setText(""); }, 1800);
+      }
+
+      sleepInput.onfocus = () => { uiDrafts.activeKey = m.key; };
+      sleepInput.oninput = () => {
+        syncMetricInputWidth(sleepInput, m.placeholder);
+        uiDrafts.inputs[m.key] = sleepInput.value;
+        uiDrafts.selectionStart = sleepInput.selectionStart;
+        uiDrafts.selectionEnd = sleepInput.selectionEnd;
+        if (uiDrafts.errors[m.key]) clearError(m.key);
+      };
+      sleepInput.onkeydown = e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          sleepInput.blur();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          delete uiDrafts.inputs[m.key];
+          clearError(m.key);
+          sleepInput.value = savedSleepFormatted;
+          syncMetricInputWidth(sleepInput, m.placeholder);
+          sleepInput.blur();
+        }
+      };
+
+      let isSavingSleep = false;
+      const commitSleep = async () => {
+        if (isSavingSleep) return;
+        if (uiDrafts.activeKey === m.key) uiDrafts.activeKey = null;
+
+        const rawTrimmed = sleepInput.value.trim();
+        const normalized = rawTrimmed.replace(",", ".");
+        if (normalized === "") {
+          delete uiDrafts.inputs[m.key];
+          clearError(m.key);
+          syncMetricInputWidth(sleepInput, m.placeholder);
+          if (savedSleepFormatted === "") return;
+          isSavingSleep = true;
+          try {
+            await saveField(m.key, null);
+            flashSaved(m.key);
+          } catch (err) {
+            notify(`Не удалось очистить «Сон»: ${err?.message ?? err}`);
+          } finally {
+            isSavingSleep = false;
+          }
+          return;
+        }
+
+        const numVal = parseNum(normalized);
+        if (numVal === null || numVal < m.min || numVal > m.max) {
+          const msg = `Нужно число ${m.min}–${m.max} ${m.unit}`;
+          uiDrafts.errors[m.key] = msg;
+          showError(msg);
+          return;
+        }
+
+        const finalValue = Math.round(numVal * 10 ** m.digits) / 10 ** m.digits;
+        const finalFormatted = formatNumForInput(finalValue, m.digits);
+        sleepInput.value = finalFormatted;
+        syncMetricInputWidth(sleepInput, m.placeholder);
+        delete uiDrafts.inputs[m.key];
+        clearError(m.key);
+
+        const autoHabitVal = finalValue > AUTO_SLEEP_MIN_HOURS;
+        const habitNeedsUpdate = states.get("режим_сна") !== autoHabitVal;
+        if (finalFormatted === savedSleepFormatted && typeof savedSleepRaw === "number" && !habitNeedsUpdate) return;
+
+        isSavingSleep = true;
+        try {
+          setManualHabitOverride("режим_сна", undefined, selectedISO);
+          states.set("режим_сна", autoHabitVal);
+          habitPainters.get("режим_сна")?.();
+          updateHabitsSummary();
+
+          await enqueueFrontMatterSave(file, fm => {
+            fm[m.key] = finalValue;
+            fm["режим_сна"] = autoHabitVal;
+          });
+          flashSaved(m.key);
+        } catch (err) {
+          uiDrafts.inputs[m.key] = rawTrimmed;
+          notify(`Ошибка сохранения «Сон»: ${err?.message ?? err}`);
+        } finally {
+          isSavingSleep = false;
+        }
+      };
+
+      sleepInput.onchange = commitSleep;
+      sleepInput.onblur = commitSleep;
+      inputRefs.set(m.key, sleepInput);
+
+      // --- Поля режима (Отбой → Подъём) ---
+      const mountTimeField = (key, label, placeholder) => {
         const input = pair.createEl("input", {
-          cls: "dh-metric-input dh-time-input",
+          cls: "dh-time-input",
           attr: { type: "text", maxlength: "5", placeholder, "aria-label": label }
         });
 
@@ -2001,9 +2198,7 @@ const mountTimeField = (key, label, placeholder) => {
         input.value = hasDraft ? uiDrafts.inputs[key] : savedVal;
 
         if (uiDrafts.errors[key]) {
-          card.classList.add("is-invalid");
-          errorEl.setText(uiDrafts.errors[key]);
-          errorEl.style.display = "block";
+          showError(uiDrafts.errors[key]);
         } else if (uiDrafts.savedStamp[key] && Date.now() - uiDrafts.savedStamp[key] < 2200) {
           statusSpan.setText("✓");
           setTimeout(() => { if (statusSpan.isConnected) statusSpan.setText(""); }, 1800);
@@ -2012,13 +2207,8 @@ const mountTimeField = (key, label, placeholder) => {
         input.onfocus = () => { uiDrafts.activeKey = key; };
         input.oninput = () => {
           uiDrafts.inputs[key] = input.value;
-          if (uiDrafts.errors[key]) {
-            delete uiDrafts.errors[key];
-            card.classList.remove("is-invalid");
-            errorEl.style.display = "none";
-          }
+          if (uiDrafts.errors[key]) clearError(key);
         };
-
         input.onkeydown = e => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -2026,9 +2216,7 @@ const mountTimeField = (key, label, placeholder) => {
           } else if (e.key === "Escape") {
             e.preventDefault();
             delete uiDrafts.inputs[key];
-            delete uiDrafts.errors[key];
-            card.classList.remove("is-invalid");
-            errorEl.style.display = "none";
+            clearError(key);
             input.value = savedVal;
             input.blur();
           }
@@ -2042,15 +2230,12 @@ const mountTimeField = (key, label, placeholder) => {
           const raw = input.value.trim();
           if (raw === "") {
             delete uiDrafts.inputs[key];
-            delete uiDrafts.errors[key];
-            card.classList.remove("is-invalid");
-            errorEl.style.display = "none";
+            clearError(key);
             if (savedVal === "") return;
             isSavingTime = true;
             try {
               await saveField(key, null);
-              uiDrafts.savedStamp[key] = Date.now();
-              statusSpan.setText("✓");
+              flashSaved(key);
             } catch (err) {
               notify(`Ошибка очистки «${label}»: ${err?.message ?? err}`);
             } finally {
@@ -2063,24 +2248,21 @@ const mountTimeField = (key, label, placeholder) => {
           if (!normalized) {
             const msg = "Формат ЧЧ:ММ";
             uiDrafts.errors[key] = msg;
-            card.classList.add("is-invalid");
-            errorEl.setText(msg);
-            errorEl.style.display = "block";
+            showError(msg);
             return;
           }
 
           input.value = normalized;
           delete uiDrafts.inputs[key];
-          delete uiDrafts.errors[key];
-          card.classList.remove("is-invalid");
-          errorEl.style.display = "none";
-
+          clearError(key);
           if (normalized === savedVal) return;
 
           isSavingTime = true;
           try {
             const counterpartKey = key === "отбой" ? "подъём" : "отбой";
-            const counterpartVal = typeof note[counterpartKey] === "string" ? note[counterpartKey].trim() : "";
+            const counterpartInputVal = inputRefs.get(counterpartKey)?.value?.trim() || "";
+            const counterpartVal = normalizeTimeString(counterpartInputVal)
+              || (typeof note[counterpartKey] === "string" ? note[counterpartKey].trim() : "");
             const otboy = key === "отбой" ? normalized : counterpartVal;
             const podjom = key === "подъём" ? normalized : counterpartVal;
             const autoSleep = computeSleepDurationHours(otboy, podjom);
@@ -2105,14 +2287,12 @@ const mountTimeField = (key, label, placeholder) => {
               }
             });
 
-if (autoSleep !== null && inputRefs.has("сон_часов")) {
-              const sleepInput = inputRefs.get("сон_часов");
+            if (autoSleep !== null) {
               sleepInput.value = formatNumForInput(autoSleep, 1);
-              syncMetricInputWidth(sleepInput, "—");
+              syncMetricInputWidth(sleepInput, m.placeholder);
             }
 
-            uiDrafts.savedStamp[key] = Date.now();
-            statusSpan.setText("✓");
+            flashSaved(key);
           } catch (err) {
             uiDrafts.inputs[key] = raw;
             notify(`Ошибка сохранения «${label}»: ${err?.message ?? err}`);
@@ -2131,7 +2311,7 @@ if (autoSleep !== null && inputRefs.has("сон_часов")) {
       mountTimeField("подъём", "Подъём", "07:15");
     };
 
-    // РЯД 1: Вес, Калории, Сон (авто/ручной), Чтение
+    // РЯД 1: Вес (1), Калории (1), Сон и режим (2)
     renderInputMetricCard(INPUT_METRICS[0]); // Вес
 
     // Калории (из плагина my-nutrition-tracker)
@@ -2146,7 +2326,7 @@ if (autoSleep !== null && inputRefs.has("сон_часов")) {
       });
       const top = calCard.createDiv({ cls: "dh-metric-top" });
       top.createSpan({ cls: "dh-metric-label", text: "Калории" });
-top.createSpan({
+      top.createSpan({
         cls: "dh-metric-status",
         text: "+",
         attr: { style: "color: var(--interactive-accent); font-size: 0.9rem;" }
@@ -2178,12 +2358,11 @@ top.createSpan({
       };
     }
 
-    renderInputMetricCard(INPUT_METRICS[1]); // Сон
-    renderInputMetricCard(INPUT_METRICS[2]); // Чтение
+    renderSleepUnifiedCard(INPUT_METRICS[1]); // Сон и режим (span 2)
 
-    // РЯД 2: Фокус (my-focus-tracker), Отбой, Подъём, Соцсети (мин), Шаги
+    // РЯД 2: Фокус (1), Чтение (1), Соцсети (1), Шаги (1)
     {
-const focusPlugin = getFocusPlugin();
+      const focusPlugin = getFocusPlugin();
       const activeSession = focusPlugin?.session;
       const isRunningNow = isToday && Boolean(activeSession && activeSession.isRunning);
 
@@ -2196,11 +2375,11 @@ const focusPlugin = getFocusPlugin();
         }
       });
       const top = focusCard.createDiv({ cls: "dh-metric-top" });
-top.createSpan({ cls: "dh-metric-label", text: "Фокус" });
+      top.createSpan({ cls: "dh-metric-label", text: "Фокус" });
       const statusBadgeEl = top.createSpan({
         cls: "dh-metric-status",
         text: isRunningNow ? "● Идёт" : "+",
-        attr: { style: "color: #9c83e8; font-size: " + (isRunningNow ? "0.72rem;" : "0.9rem;") }
+        attr: { style: "color: var(--color-purple, #9c83e8); font-size: " + (isRunningNow ? "0.72rem;" : "0.9rem;") }
       });
 
       const control = focusCard.createDiv({ cls: "dh-metric-control" });
@@ -2236,24 +2415,64 @@ top.createSpan({ cls: "dh-metric-label", text: "Фокус" });
         delete window.__dhHomeFocusTicker;
       }
 
+      const formatStopwatch = (totalSec) => {
+        const s = Math.max(0, Math.floor(totalSec));
+        const hh = Math.floor(s / 3600);
+        const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
+        const ss = String(s % 60).padStart(2, "0");
+        return hh > 0 ? `${hh}:${mm}:${ss}` : `${mm}:${ss}`;
+      };
+
       const paintRunningState = () => {
-        const curSession = getFocusPlugin()?.session;
-        if (!curSession || !curSession.isRunning) return;
-        if (curSession.endAt !== null) {
+        const plugin = getFocusPlugin();
+        const curSession = plugin?.session;
+        if (!curSession || !curSession.isRunning) {
+          if (window.__dhHomeFocusTicker) {
+            window.clearInterval(window.__dhHomeFocusTicker);
+            delete window.__dhHomeFocusTicker;
+          }
+          focusCard.classList.remove("is-running");
+          statusBadgeEl.setText("+");
+          statusBadgeEl.style.fontSize = "0.9rem";
+          valSpan.setText(savedFocus !== null ? String(savedFocus).replace(".", ",") : "—");
+          unitSpan.setText("ч");
+          hintEl.setText(defaultHint);
+          hintEl.style.display = defaultHint ? "" : "none";
+          return;
+        }
+
+        const hasValidEndAt = typeof curSession.endAt === "number" && Number.isFinite(curSession.endAt);
+        if (hasValidEndAt) {
           const remSec = Math.max(0, Math.ceil((curSession.endAt - Date.now()) / 1000));
-          const mm = String(Math.floor(remSec / 60)).padStart(2, "0");
-          const ss = String(remSec % 60).padStart(2, "0");
-          valSpan.setText(`${mm}:${ss}`);
+          valSpan.setText(formatStopwatch(remSec));
           unitSpan.setText("ост.");
         } else {
-          const elSec = Math.max(0, Math.floor((Date.now() - curSession.startAt) / 1000));
-          const mm = String(Math.floor(elSec / 60)).padStart(2, "0");
-          const ss = String(elSec % 60).padStart(2, "0");
-          valSpan.setText(`${mm}:${ss}`);
-          unitSpan.setText("сек.");
+          let elSec = null;
+          if (typeof plugin?.getElapsedSeconds === "function") {
+            const v = Number(plugin.getElapsedSeconds());
+            if (Number.isFinite(v)) elSec = v;
+          }
+          if (elSec === null) {
+            const startTs = Number(curSession.startAt ?? curSession.startedAt);
+            const accSec = Number(curSession.accumulatedSec ?? (Number(curSession.accumulatedMs || 0) / 1000)) || 0;
+            if (Number.isFinite(startTs) && startTs > 0) {
+              elSec = (Date.now() - startTs) / 1000 + accSec;
+            } else if (Number.isFinite(Number(curSession.elapsedSec))) {
+              elSec = Number(curSession.elapsedSec);
+            } else {
+              elSec = 0;
+            }
+          }
+          valSpan.setText(formatStopwatch(elSec));
+          unitSpan.setText("");
         }
-        statusBadgeEl.setText("🔥 Идёт");
-        hintEl.setText(`Цель: ${curSession.project}`);
+
+        statusBadgeEl.setText("● Идёт");
+        statusBadgeEl.style.fontSize = "0.72rem";
+        if (curSession.project) {
+          hintEl.setText(`Цель: ${curSession.project}`);
+          hintEl.style.display = "";
+        }
       };
 
       if (isRunningNow) {
@@ -2276,7 +2495,7 @@ top.createSpan({ cls: "dh-metric-label", text: "Фокус" });
       };
     }
 
-renderSleepScheduleCard(); // Отбой → Подъём
+    renderInputMetricCard(INPUT_METRICS[2]); // Чтение
     renderInputMetricCard(INPUT_METRICS[3]); // Соцсети (мин)
     renderInputMetricCard(INPUT_METRICS[4]); // Шаги
 
