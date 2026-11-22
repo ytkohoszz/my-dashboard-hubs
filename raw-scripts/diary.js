@@ -172,11 +172,16 @@ if (mode === "all" || mode === "main") {
 
     const style = cal.createEl("style");
     style.textContent = `
-.dh-calendar-v2 .dhc-panel {
-        padding: 16px;
-        border: 1px solid var(--background-modifier-border);
-        border-radius: 12px;
-        background: var(--background-secondary);
+      .dh-calendar-v2 .dhc-panel {
+        padding: calc(var(--vl-layout-padding, 8px) * 2);
+        border: none;
+        border-radius: calc(var(--radius-ml, 14px) + 2px);
+        background: var(--trans-faint-05, var(--background-secondary));
+        box-shadow:
+          var(--glass-base-m, none),
+          0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
+          var(--shadow-setting-items, none);
+        -electron-corner-smoothing: var(--corner-smoothing, 60%);
       }
       .dh-calendar-v2 .dhc-nav {
         display: flex;
@@ -187,68 +192,84 @@ if (mode === "all" || mode === "main") {
         margin-bottom: 12px;
       }
       .dh-calendar-v2 .dhc-nav-range {
-        font-size: 0.84rem;
-        font-weight: 600;
-        color: var(--text-muted);
+        font-size: var(--font-ui-small, 13.5px);
+        font-weight: var(--font-semibold, 600);
+        font-variation-settings: "opsz" 24;
+        color: var(--color-base-100, var(--text-normal));
       }
       .dh-calendar-v2 .dhc-nav-controls {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
       }
       .dh-calendar-v2 button.dhc-nav-btn {
+        appearance: none;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         min-width: 30px;
-        height: 28px;
+        height: 30px;
         margin: 0;
         padding: 0 8px;
-        border-radius: 7px;
-        border: 1px solid var(--background-modifier-border);
-        background: var(--background-primary);
-        color: var(--text-normal);
-        font-size: 0.86rem;
-        font-weight: 600;
+        border: none;
+        border-radius: var(--radius-xxl, 22px);
+        background: transparent;
+        color: var(--control-icon-color, var(--icon-color));
+        font-size: 1rem;
+        font-weight: var(--font-semi-medium, 500);
         line-height: 1;
         cursor: pointer;
         box-shadow: none;
-        transition: border-color 0.14s ease, color 0.14s ease;
+        contain: content;
+        transition:
+          background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+          box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+          color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
       }
       .dh-calendar-v2 button.dhc-nav-btn:hover:not(:disabled) {
-        border-color: var(--interactive-accent);
-        color: var(--text-accent);
+        background: var(--control-icon-background, var(--background-modifier-hover));
+        box-shadow: var(--control-icon-shadow, none);
+        color: var(--text-normal);
       }
       .dh-calendar-v2 button.dhc-nav-btn:disabled {
-        opacity: 0.35;
+        filter: opacity(0.3125);
         cursor: default;
       }
       .dh-calendar-v2 button.dhc-nav-today {
-        font-size: 0.73rem;
-        padding: 0 10px;
-        border-color: color-mix(in srgb, var(--interactive-accent) 45%, transparent);
-        color: var(--interactive-accent);
+        font-size: 0.74rem;
+        padding: 0 11px;
+        height: 26px;
+        background: var(--color-accent-4, var(--background-modifier-active-hover));
+        color: var(--color-accent-1, var(--text-accent));
+      }
+      .dh-calendar-v2 button.dhc-nav-today:hover:not(:disabled) {
+        background: var(--text-selection, var(--background-modifier-active-hover));
+        box-shadow: none;
+        color: var(--color-accent-1, var(--text-accent));
       }
       .dh-calendar-v2 .dhc-months {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
-        gap: 16px;
+        gap: 12px;
         align-items: start;
       }
       .dh-calendar-v2 .dhc-month {
         min-width: 0;
         padding: 12px;
-        border: 1px solid var(--background-modifier-border);
-        border-radius: 9px;
+        border: none;
+        border-radius: var(--radius-sm, 10px);
         background: var(--background-primary);
+        box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+        -electron-corner-smoothing: var(--corner-smoothing, 60%);
       }
       .dh-calendar-v2 .dhc-title {
         margin-bottom: 10px;
         padding-bottom: 8px;
-        border-bottom: 1px solid var(--background-modifier-border);
-        color: var(--text-normal);
+        border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+        color: var(--color-base-100, var(--text-normal));
         font-size: 0.88rem;
-        font-weight: 600;
+        font-weight: var(--font-semibold, 600);
+        font-variation-settings: "opsz" 24;
       }
       .dh-calendar-v2 .dhc-weekdays,
       .dh-calendar-v2 .dhc-days {
@@ -259,9 +280,9 @@ if (mode === "all" || mode === "main") {
       .dh-calendar-v2 .dhc-weekdays {
         margin-bottom: 6px;
         text-align: center;
-        color: var(--text-muted);
+        color: var(--icon-color, var(--text-muted));
         font-size: 0.7rem;
-        font-weight: 600;
+        font-weight: var(--font-semi-medium, 500);
       }
       .dh-calendar-v2 .dhc-spacer {
         height: 32px;
@@ -276,53 +297,57 @@ if (mode === "all" || mode === "main") {
         height: 32px;
         margin: 0;
         padding: 0;
-        border: 1px solid transparent;
-        border-radius: 5px;
+        border: none;
+        border-radius: var(--radius-xs, 6px);
         box-shadow: none;
-        background: var(--background-secondary);
+        background: var(--trans-faint-05, var(--background-secondary));
         color: var(--text-muted);
         font-family: inherit;
         font-size: 0.76rem;
-        font-weight: 500;
+        font-weight: var(--font-semi-medium, 500);
+        font-variant-numeric: tabular-nums;
         line-height: 1;
         cursor: pointer;
-        transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+        -electron-corner-smoothing: var(--corner-smoothing, 60%);
+        transition:
+          background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+          box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+          transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
       }
       .dh-calendar-v2 button.dhc-day.has-score {
         background: var(--day-background);
-        border-color: var(--day-color);
-        color: var(--text-normal);
+        box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--day-color) 60%, transparent);
+        color: var(--color-base-100, var(--text-normal));
       }
       .dh-calendar-v2 button.dhc-day.has-entry:not(.has-score) {
-        border-style: dashed;
-        border-color: var(--text-faint);
-        background: var(--background-primary);
+        background: var(--trans-faint-10, var(--background-modifier-hover));
+        box-shadow: inset 0 0 0 1px var(--trans-faint-30, var(--background-modifier-border));
         color: var(--text-normal);
       }
       .dh-calendar-v2 button.dhc-day:hover:not(:disabled) {
-        box-shadow: inset 0 0 0 1px var(--text-muted);
+        box-shadow: inset 0 0 0 1.25px var(--text-muted);
       }
       .dh-calendar-v2 button.dhc-day.is-today {
-        outline: 2px solid var(--interactive-accent);
-        outline-offset: 1px;
-        font-weight: 700;
+        box-shadow: 0 0 0 2px var(--interactive-accent);
+        font-weight: var(--font-bold, 700);
+        color: var(--color-base-100, var(--text-normal));
       }
       .dh-calendar-v2 button.dhc-day:focus-visible {
-        outline: 2px solid var(--text-normal);
-        outline-offset: 2px;
+        box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent));
+        outline: none;
       }
       .dh-calendar-v2 button.dhc-day.is-future {
-        border-color: transparent;
         background: transparent;
+        box-shadow: none;
         color: var(--text-faint);
-        opacity: 0.38;
+        opacity: 0.35;
         cursor: default;
       }
       .dh-calendar-v2 .dhc-training {
         position: absolute;
         top: 2px;
         right: 2px;
-        font-size: 0.56rem;
+        font-size: 0.54rem;
         line-height: 1;
         pointer-events: none;
       }
@@ -332,20 +357,20 @@ if (mode === "all" || mode === "main") {
         flex-wrap: wrap;
         gap: 7px;
         margin-top: 14px;
-        color: var(--text-muted);
+        color: var(--icon-color, var(--text-muted));
         font-size: 0.73rem;
       }
       .dh-calendar-v2 .dhc-swatch {
         display: inline-block;
         width: 12px;
         height: 12px;
-        border-radius: 3px;
+        border-radius: 4px;
         flex: 0 0 auto;
       }
       .dh-calendar-v2 .dhc-no-score {
         margin-left: 6px;
-        border: 1px dashed var(--text-faint);
-        background: var(--background-primary);
+        background: var(--trans-faint-10, var(--background-primary));
+        box-shadow: inset 0 0 0 1px var(--trans-faint-30, var(--text-faint));
       }
       .dhc-calendar-popover-v2 {
         position: fixed;
@@ -355,12 +380,15 @@ if (mode === "all" || mode === "main") {
         max-width: calc(100vw - 20px);
         max-height: 70vh;
         overflow: auto;
-        padding: 12px 14px;
-        border: 1px solid var(--dhc-pop-accent, var(--background-modifier-border));
-        border-radius: 9px;
-        background: var(--background-primary);
+        scrollbar-width: none;
+        padding: 13px 15px;
+        border: 1px solid var(--menu-border-color, var(--trans-faint-30, var(--background-modifier-border)));
+        border-radius: var(--menu-radius, var(--radius-ml, 14px));
+        background: var(--modal-small-background, var(--background-primary-alt, var(--background-primary)));
+        backdrop-filter: var(--blur-m, blur(12px));
+        -webkit-backdrop-filter: var(--blur-m, blur(12px));
         color: var(--text-normal);
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        box-shadow: var(--glass-base-l, none), var(--menu-shadow, 0 10px 30px rgba(0, 0, 0, 0.28));
         font-family: var(--font-interface);
         font-size: 0.8rem;
         line-height: 1.45;
@@ -369,19 +397,27 @@ if (mode === "all" || mode === "main") {
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transform: translateY(4px);
-        transition: opacity 150ms ease, transform 150ms ease, visibility 150ms ease;
+        transform: scale(1.03) translateY(4px);
+        -electron-corner-smoothing: var(--corner-smoothing, 60%);
+        transition:
+          opacity var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+          transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+          visibility var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+      }
+      .dhc-calendar-popover-v2::-webkit-scrollbar {
+        display: none;
       }
       .dhc-calendar-popover-v2.is-open {
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
-        transform: translateY(0);
+        transform: scale(1) translateY(0);
       }
       .dhc-calendar-popover-v2 .dhc-pop-date {
         margin-bottom: 8px;
-        color: var(--text-muted);
+        color: var(--icon-color, var(--text-muted));
         font-size: 0.74rem;
+        font-weight: var(--font-semi-medium, 500);
       }
       .dhc-calendar-popover-v2 .dhc-pop-score {
         display: flex;
@@ -393,19 +429,21 @@ if (mode === "all" || mode === "main") {
         color: var(--text-muted);
       }
       .dhc-calendar-popover-v2 .dhc-pop-value {
-        color: var(--dhc-pop-accent, var(--text-normal));
-        font-weight: 650;
+        color: var(--dhc-pop-accent, var(--color-base-100, var(--text-normal)));
+        font-weight: var(--font-semibold, 600);
+        font-variant-numeric: tabular-nums;
         text-align: right;
       }
       .dhc-calendar-popover-v2 .dhc-pop-event {
         margin-top: 10px;
         padding-top: 9px;
-        border-top: 1px solid var(--background-modifier-border);
+        border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
       }
       .dhc-calendar-popover-v2 .dhc-pop-event-label {
         margin-bottom: 4px;
-        color: var(--text-muted);
+        color: var(--icon-color, var(--text-muted));
         font-size: 0.72rem;
+        font-weight: var(--font-semi-medium, 500);
       }
       .dhc-calendar-popover-v2 .dhc-pop-event-text {
         white-space: pre-wrap;
@@ -414,20 +452,30 @@ if (mode === "all" || mode === "main") {
         color: var(--text-muted);
       }
       .dhc-calendar-popover-v2 button.dhc-open-note {
+        appearance: none;
         width: 100%;
-        height: auto;
+        min-height: var(--input-height, 28px);
         margin: 11px 0 0;
-        padding: 6px 9px;
-        border: 1px solid var(--background-modifier-border);
-        border-radius: 6px;
+        padding: 6px 10px;
+        border: none;
+        border-radius: var(--input-radius, var(--radius-s, 8px));
         box-shadow: none;
-        background: var(--background-secondary);
+        background: var(--interactive-normal);
         color: var(--text-normal);
-        font-size: 0.75rem;
+        font-size: 0.76rem;
+        font-weight: var(--font-semi-medium, 500);
         cursor: pointer;
+        transition: background-color var(--anim-super-smooth, 75ms ease-out);
       }
       .dhc-calendar-popover-v2 button.dhc-open-note:hover {
-        background: var(--background-modifier-hover);
+        background: var(--interactive-hover);
+      }
+      body.is-mobile .dh-calendar-v2 button.dhc-nav-btn {
+        min-width: 36px;
+        height: 36px;
+      }
+      body.is-mobile .dhc-calendar-popover-v2 button.dhc-open-note {
+        min-height: 36px;
       }
       @media (prefers-reduced-motion: reduce) {
         .dh-calendar-v2 button.dhc-day,
@@ -855,15 +903,16 @@ let analyticsSectionEl = null;
       analyticsSectionEl = analytics;
       const styles = analytics.createEl("style");
       styles.textContent = [
-        ".dashboard-home .dh-diary-analytics { margin: 16px 0; padding: 14px 16px; border: 1px solid var(--background-modifier-border); border-radius: 10px; background: var(--background-secondary); }",
+        ".dashboard-home .dh-diary-analytics { margin: 16px 0; padding: calc(var(--vl-layout-padding, 8px) + 6px) calc(var(--vl-layout-padding, 8px) + 8px); border: none; border-radius: calc(var(--radius-ml, 14px) + 2px); background: var(--trans-faint-05, var(--background-secondary)); box-shadow: var(--glass-base-m, none), 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)), var(--shadow-setting-items, none); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
         ".dashboard-home .dh-diary-analytics .dda-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }",
-        ".dashboard-home .dh-diary-analytics .dda-title { font-weight: 700; font-size: 0.95rem; color: var(--text-normal); }",
-        ".dashboard-home .dh-diary-analytics button.dda-btn { min-height: 32px; padding: 0 12px; border-radius: 7px; font-size: 0.78rem; font-weight: 600; cursor: pointer; background: var(--background-primary); border: 1px solid var(--background-modifier-border); color: var(--text-normal); transition: border-color 0.14s ease; }",
-        ".dashboard-home .dh-diary-analytics button.dda-btn:hover { border-color: var(--interactive-accent); color: var(--text-accent); }",
-        ".dashboard-home .dh-diary-analytics .dda-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 8px; margin-top: 10px; }",
-        ".dashboard-home .dh-diary-analytics .dda-card { padding: 9px 12px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 8px; min-width: 0; font-size: 0.78rem; }",
-        ".dashboard-home .dh-diary-analytics .dda-card-title { font-weight: 650; color: var(--text-normal); margin-bottom: 2px; }",
-        ".dashboard-home .dh-diary-analytics .dda-meta { color: var(--text-muted); font-size: 0.72rem; line-height: 1.35; }"
+        ".dashboard-home .dh-diary-analytics .dda-title { font-weight: var(--font-semibold, 600); font-variation-settings: 'opsz' 24; font-size: 0.96rem; color: var(--color-base-100, var(--text-normal)); }",
+        ".dashboard-home .dh-diary-analytics button.dda-btn { appearance: none; min-height: var(--input-height, 28px); padding: 0 12px; border: none; border-radius: var(--input-radius, var(--radius-s, 8px)); box-shadow: none; font-size: 0.78rem; font-weight: var(--font-semi-medium, 500); cursor: pointer; background: var(--interactive-normal); color: var(--text-normal); -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: background-color var(--anim-super-smooth, 75ms ease-out), color var(--anim-super-smooth, 75ms ease-out); }",
+        ".dashboard-home .dh-diary-analytics button.dda-btn:hover { background: var(--interactive-hover); color: var(--color-accent-1, var(--text-accent)); }",
+        ".dashboard-home .dh-diary-analytics .dda-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; margin-top: 12px; }",
+        ".dashboard-home .dh-diary-analytics .dda-card { padding: 10px 12px; background: var(--background-primary); border: none; border-radius: var(--radius-sm, 10px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); min-width: 0; font-size: 0.78rem; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+        ".dashboard-home .dh-diary-analytics .dda-card-title { font-weight: var(--font-semibold, 600); color: var(--color-base-100, var(--text-normal)); margin-bottom: 3px; }",
+        ".dashboard-home .dh-diary-analytics .dda-meta { color: var(--text-muted); font-size: 0.72rem; line-height: 1.38; font-variant-numeric: tabular-nums; }",
+        "body.is-mobile .dashboard-home .dh-diary-analytics button.dda-btn { min-height: 36px; padding: 0 14px; }"
       ].join("\n");
 
       const head = analytics.createDiv({ cls: "dda-head" });
@@ -943,10 +992,15 @@ let analyticsSectionEl = null;
           font-variant-numeric: tabular-nums;
         }
         .dh-period-summaries .dhps-panel {
-          border: 1px solid var(--background-modifier-border);
-          border-radius: 10px;
-          background: var(--background-secondary);
+          border: none;
+          border-radius: calc(var(--radius-ml, 14px) + 2px);
+          background: var(--trans-faint-05, var(--background-secondary));
+          box-shadow:
+            var(--glass-base-m, none),
+            0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
+            var(--shadow-setting-items, none);
           overflow: hidden;
+          -electron-corner-smoothing: var(--corner-smoothing, 60%);
         }
         .dh-period-summaries .dhps-header {
           display: flex;
@@ -954,10 +1008,10 @@ let analyticsSectionEl = null;
           justify-content: space-between;
           gap: 10px;
           flex-wrap: wrap;
-          padding: 11px 15px;
+          padding: calc(var(--vl-layout-padding, 8px) + 4px) calc(var(--vl-layout-padding, 8px) + 8px);
           cursor: pointer;
           user-select: none;
-          transition: background-color 0.14s ease;
+          transition: background-color var(--anim-super-smooth, 75ms ease-out);
         }
         .dh-period-summaries .dhps-header:hover {
           background: var(--background-modifier-hover);
@@ -971,20 +1025,25 @@ let analyticsSectionEl = null;
         .dh-period-summaries .dhps-arrow {
           display: inline-block;
           font-size: 0.72rem;
-          color: var(--text-muted);
-          transition: transform 0.16s ease;
+          color: var(--icon-color, var(--text-muted));
+          transition: transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
         }
         .dh-period-summaries .dhps-panel.is-open .dhps-arrow {
           transform: rotate(90deg);
         }
         .dh-period-summaries .dhps-title {
-          font-weight: 700;
-          font-size: 0.94rem;
-          color: var(--text-normal);
+          font-weight: var(--font-semibold, 600);
+          font-variation-settings: "opsz" 24;
+          font-size: 0.96rem;
+          color: var(--color-base-100, var(--text-normal));
         }
         .dh-period-summaries .dhps-sub {
           font-size: 0.74rem;
-          color: var(--text-muted);
+          font-weight: var(--font-semi-medium, 500);
+          color: var(--icon-color, var(--text-muted));
+          padding: 2px 8px;
+          border-radius: var(--pill-radius, var(--radius-l, 18px));
+          background: var(--pill-background, var(--code-background));
         }
         .dh-period-summaries .dhps-controls {
           display: inline-flex;
@@ -992,6 +1051,7 @@ let analyticsSectionEl = null;
           gap: 5px;
         }
         .dh-period-summaries button.dhps-nav-btn {
+          appearance: none;
           display: inline-flex;
           align-items: center;
           justify-content: center;
@@ -999,50 +1059,60 @@ let analyticsSectionEl = null;
           height: 30px;
           margin: 0;
           padding: 0 7px;
-          border-radius: 6px;
-          border: 1px solid var(--background-modifier-border);
-          background: var(--background-primary);
-          color: var(--text-normal);
-          font-size: 0.88rem;
-          font-weight: 600;
+          border: none;
+          border-radius: var(--radius-xxl, 22px);
+          background: transparent;
+          color: var(--control-icon-color, var(--icon-color));
+          font-size: 1rem;
+          font-weight: var(--font-semi-medium, 500);
           line-height: 1;
           cursor: pointer;
           box-shadow: none;
-          transition: border-color 0.14s ease, color 0.14s ease;
+          transition:
+            background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+            box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+            color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
         }
         .dh-period-summaries button.dhps-nav-btn:hover:not(:disabled) {
-          border-color: var(--interactive-accent);
-          color: var(--text-accent);
+          background: var(--control-icon-background, var(--background-modifier-hover));
+          box-shadow: var(--control-icon-shadow, none);
+          color: var(--text-normal);
         }
         .dh-period-summaries button.dhps-nav-btn:disabled {
-          opacity: 0.38;
+          filter: opacity(0.3125);
           cursor: default;
         }
         .dh-period-summaries .dhps-period-label {
-          min-width: 112px;
+          min-width: 96px;
           text-align: center;
-          font-size: 0.81rem;
-          font-weight: 650;
-          color: var(--text-normal);
+          font-size: 0.84rem;
+          font-weight: var(--font-semibold, 600);
+          color: var(--color-base-100, var(--text-normal));
           padding: 0 4px;
         }
         .dh-period-summaries select.dhps-select {
           height: 30px;
-          padding: 0 24px 0 9px;
-          border-radius: 6px;
-          border: 1px solid var(--background-modifier-border);
+          padding: 0 24px 0 10px;
+          border: none;
+          outline: none;
+          border-radius: var(--input-radius, var(--radius-s, 8px));
           background: var(--background-primary);
+          box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border)));
           color: var(--text-normal);
           font-size: 0.78rem;
-          font-weight: 600;
+          font-weight: var(--font-semi-medium, 500);
           cursor: pointer;
+          transition: box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+        }
+        .dh-period-summaries select.dhps-select:focus {
+          box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent));
         }
         .dh-period-summaries .dhps-body {
           display: none;
           flex-direction: column;
           gap: 12px;
           padding: 0 15px 15px;
-          border-top: 1px solid var(--background-modifier-border);
+          border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
         }
         .dh-period-summaries .dhps-panel.is-open .dhps-body {
           display: flex;
@@ -1057,12 +1127,15 @@ let analyticsSectionEl = null;
           display: flex;
           flex-direction: column;
           gap: 5px;
-          padding: 10px 12px;
-          border-radius: 8px;
+          padding: 11px 13px;
+          border: none;
+          border-radius: var(--radius-sm, 10px);
           background: var(--background-primary);
-          border: 1px solid var(--background-modifier-border);
-          border-top: 2px solid var(--dhps-accent, var(--background-modifier-border));
+          box-shadow:
+            inset 0 2px 0 0 color-mix(in oklab, var(--dhps-accent, var(--trans-faint-30)) 70%, transparent),
+            var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
           min-width: 0;
+          -electron-corner-smoothing: var(--corner-smoothing, 60%);
         }
         .dh-period-summaries .dhps-card-head {
           display: flex;
@@ -1071,26 +1144,26 @@ let analyticsSectionEl = null;
           gap: 8px;
         }
         .dh-period-summaries .dhps-card-label {
-          font-size: 0.73rem;
-          font-weight: 600;
-          color: var(--text-muted);
+          font-size: 0.74rem;
+          font-weight: var(--font-semi-medium, 500);
+          color: var(--icon-color, var(--text-muted));
         }
         .dh-period-summaries .dhps-delta {
           font-size: 0.7rem;
-          font-weight: 650;
-          padding: 1px 5px;
-          border-radius: 4px;
+          font-weight: var(--font-semi-medium, 500);
+          padding: 2px 7px;
+          border-radius: var(--pill-radius, var(--radius-l, 18px));
           white-space: nowrap;
-          background: var(--background-secondary);
+          background: var(--pill-background, var(--code-background));
           color: var(--text-muted);
         }
         .dh-period-summaries .dhps-delta.is-good {
-          color: #4aab80;
-          background: #4aab801a;
+          color: var(--color-green, #4aab80);
+          background: color-mix(in oklab, var(--color-green, #4aab80) 14%, transparent);
         }
         .dh-period-summaries .dhps-delta.is-bad {
-          color: #d85b57;
-          background: #d85b571a;
+          color: var(--color-red, #d85b57);
+          background: color-mix(in oklab, var(--color-red, #d85b57) 14%, transparent);
         }
         .dh-period-summaries .dhps-card-main {
           display: flex;
@@ -1100,10 +1173,10 @@ let analyticsSectionEl = null;
           flex-wrap: wrap;
         }
         .dh-period-summaries .dhps-card-val {
-          font-size: 1.18rem;
-          font-weight: 700;
+          font-size: 1.2rem;
+          font-weight: var(--font-bold, 700);
           line-height: 1.2;
-          color: var(--text-normal);
+          color: var(--color-base-100, var(--text-normal));
         }
         .dh-period-summaries .dhps-card-unit {
           font-size: 0.72rem;
@@ -1113,9 +1186,9 @@ let analyticsSectionEl = null;
           display: flex;
           flex-direction: column;
           gap: 3px;
-          margin-top: 2px;
-          padding-top: 5px;
-          border-top: 1px solid var(--background-modifier-border);
+          margin-top: 3px;
+          padding-top: 6px;
+          border-top: 1px solid var(--trans-faint-10, var(--background-modifier-border));
           font-size: 0.72rem;
         }
         .dh-period-summaries .dhps-row {
@@ -1129,13 +1202,13 @@ let analyticsSectionEl = null;
         }
         .dh-period-summaries .dhps-row-v {
           color: var(--text-normal);
-          font-weight: 600;
+          font-weight: var(--font-semi-medium, 500);
           text-align: right;
         }
         .dh-period-summaries a.dhps-note-link {
-          color: var(--text-accent);
+          color: var(--color-accent-1, var(--text-accent));
           text-decoration: none;
-          font-weight: 650;
+          font-weight: var(--font-semibold, 600);
           cursor: pointer;
         }
         .dh-period-summaries a.dhps-note-link:hover {
@@ -1156,9 +1229,9 @@ let analyticsSectionEl = null;
         .dh-period-summaries .dhps-dist-swatch {
           width: 100%;
           height: 7px;
-          border-radius: 2px;
+          border-radius: 3px;
           background: var(--step-color);
-          opacity: 0.22;
+          opacity: 0.2;
         }
         .dh-period-summaries .dhps-dist-step.has-count .dhps-dist-swatch {
           opacity: 1;
@@ -1166,17 +1239,19 @@ let analyticsSectionEl = null;
         .dh-period-summaries .dhps-dist-num {
           font-size: 0.63rem;
           line-height: 1;
-          color: var(--text-muted);
+          color: var(--text-faint);
         }
         .dh-period-summaries .dhps-dist-step.has-count .dhps-dist-num {
           color: var(--text-normal);
-          font-weight: 650;
+          font-weight: var(--font-semi-medium, 500);
         }
         .dh-period-summaries .dhps-subbox {
-          padding: 10px 12px;
-          border-radius: 8px;
+          padding: 11px 13px;
+          border: none;
+          border-radius: var(--radius-sm, 10px);
           background: var(--background-primary);
-          border: 1px solid var(--background-modifier-border);
+          box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+          -electron-corner-smoothing: var(--corner-smoothing, 60%);
         }
         .dh-period-summaries .dhps-subbox-head {
           display: flex;
@@ -1188,21 +1263,21 @@ let analyticsSectionEl = null;
         }
         .dh-period-summaries .dhps-subbox-title {
           font-size: 0.76rem;
-          font-weight: 650;
-          color: var(--text-muted);
+          font-weight: var(--font-semi-medium, 500);
+          color: var(--icon-color, var(--text-muted));
         }
         .dh-period-summaries .dhps-subbox-hint {
           font-size: 0.7rem;
           color: var(--text-faint);
         }
-.dh-period-summaries .dhps-bars {
+        .dh-period-summaries .dhps-bars {
           display: grid;
           gap: 4px;
           align-items: end;
           width: 100%;
           padding-top: 2px;
         }
-.dh-period-summaries .dhps-bar-col,
+        .dh-period-summaries .dhps-bar-col,
         .dh-period-summaries button.dhps-bar-col {
           display: flex !important;
           flex-direction: column !important;
@@ -1232,34 +1307,34 @@ let analyticsSectionEl = null;
           flex-direction: column;
           justify-content: flex-end;
           align-items: center;
-          border-radius: 5px;
-          background: color-mix(in srgb, var(--text-normal) 4%, transparent);
+          border-radius: var(--radius-xs, 6px);
+          background: var(--trans-faint-05, color-mix(in srgb, var(--text-normal) 4%, transparent));
           overflow: hidden;
-          transition: background-color 0.14s ease;
+          transition: background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
         }
         .dh-period-summaries button.dhps-bar-col.is-clickable:hover .dhps-bar-track {
-          background: color-mix(in srgb, var(--text-normal) 9%, transparent);
+          background: var(--trans-faint-20, var(--background-modifier-hover));
         }
         .dh-period-summaries .dhps-bar-col.is-future .dhps-bar-track {
           opacity: 0.35;
         }
         .dh-period-summaries .dhps-bar-fill {
           width: 100%;
-          border-radius: 4px 4px 2px 2px;
+          border-radius: 5px 5px 2px 2px;
           background: var(--bar-color);
-          opacity: 0.86;
+          opacity: 0.88;
           display: flex;
           align-items: flex-start;
           justify-content: center;
           padding-top: 2px;
-          transition: opacity 0.14s ease, transform 0.14s ease;
+          transition: opacity var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
         }
         .dh-period-summaries button.dhps-bar-col.is-clickable:hover .dhps-bar-fill {
           opacity: 1;
         }
         .dh-period-summaries .dhps-bar-val {
           font-size: 0.62rem;
-          font-weight: 700;
+          font-weight: var(--font-bold, 700);
           line-height: 1;
           color: #141619;
           user-select: none;
@@ -1279,8 +1354,8 @@ let analyticsSectionEl = null;
           user-select: none;
         }
         .dh-period-summaries .dhps-bar-col.is-today .dhps-bar-day {
-          color: var(--interactive-accent);
-          font-weight: 700;
+          color: var(--color-accent-1, var(--interactive-accent));
+          font-weight: var(--font-bold, 700);
         }
         @media (max-width: 640px) {
           .dh-period-summaries .dhps-bars {
@@ -1301,12 +1376,15 @@ let analyticsSectionEl = null;
         .dh-period-summaries .dhps-habit-chip {
           display: flex;
           flex-direction: column;
-          gap: 3px;
-          padding: 8px 10px;
-          border-radius: 7px;
-          background: var(--background-secondary);
-          border: 1px solid var(--background-modifier-border);
-          border-left: 3px solid var(--h-color);
+          gap: 4px;
+          padding: 9px 11px;
+          border: none;
+          border-radius: var(--radius-s, 8px);
+          background: var(--trans-faint-05, var(--background-secondary));
+          box-shadow:
+            inset 2.5px 0 0 0 color-mix(in oklab, var(--h-color) 85%, transparent),
+            inset 0 0 0 0.5px var(--trans-faint-10, transparent);
+          -electron-corner-smoothing: var(--corner-smoothing, 60%);
         }
         .dh-period-summaries .dhps-habit-top {
           display: flex;
@@ -1316,12 +1394,12 @@ let analyticsSectionEl = null;
         }
         .dh-period-summaries .dhps-habit-name {
           font-size: 0.76rem;
-          font-weight: 650;
-          color: var(--text-normal);
+          font-weight: var(--font-semibold, 600);
+          color: var(--color-base-100, var(--text-normal));
         }
         .dh-period-summaries .dhps-habit-rate {
           font-size: 0.78rem;
-          font-weight: 700;
+          font-weight: var(--font-bold, 700);
           color: var(--h-color);
         }
         .dh-period-summaries .dhps-habit-meta {
@@ -1338,6 +1416,7 @@ let analyticsSectionEl = null;
           gap: 6px;
         }
         .dh-period-summaries button.dhps-mcol {
+          appearance: none;
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -1347,44 +1426,48 @@ let analyticsSectionEl = null;
           height: auto;
           margin: 0;
           padding: 6px 4px;
-          border-radius: 7px;
-          border: 1px solid var(--background-modifier-border);
-          background: var(--background-secondary);
+          border: none;
+          border-radius: var(--radius-s, 8px);
+          background: var(--trans-faint-05, var(--background-secondary));
+          box-shadow: inset 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border));
           color: var(--text-normal);
           font-family: inherit;
           cursor: pointer;
-          box-shadow: none;
-          transition: border-color 0.14s ease, transform 0.14s ease, background-color 0.14s ease;
+          -electron-corner-smoothing: var(--corner-smoothing, 60%);
+          transition:
+            box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+            transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+            background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
         }
         .dh-period-summaries button.dhps-mcol:hover:not(:disabled) {
-          border-color: var(--interactive-accent);
+          background: var(--trans-faint-10, var(--background-modifier-hover));
+          box-shadow: 0 0 0 1px var(--color-accent-3, var(--interactive-accent));
           transform: translateY(-1px);
         }
         .dh-period-summaries button.dhps-mcol:disabled {
-          opacity: 0.35;
+          opacity: 0.32;
           cursor: default;
         }
         .dh-period-summaries button.dhps-mcol.is-selected {
-          outline: 2px solid var(--interactive-accent);
-          outline-offset: 1px;
+          box-shadow: var(--shadow-input-active, 0 0 0 2px var(--interactive-accent));
         }
         .dh-period-summaries button.dhps-mcol.is-best {
-          border-color: #4aab80;
-          background: #4aab8014;
+          background: color-mix(in oklab, var(--color-green, #4aab80) 12%, transparent);
+          box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-green, #4aab80) 55%, transparent);
         }
         .dh-period-summaries button.dhps-mcol.is-worst {
-          border-color: #d85b57;
-          background: #d85b5714;
+          background: color-mix(in oklab, var(--color-red, #d85b57) 12%, transparent);
+          box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-red, #d85b57) 55%, transparent);
         }
         .dh-period-summaries .dhps-mcol-name {
           font-size: 0.69rem;
-          font-weight: 650;
-          color: var(--text-muted);
+          font-weight: var(--font-semi-medium, 500);
+          color: var(--icon-color, var(--text-muted));
           text-transform: capitalize;
         }
         .dh-period-summaries .dhps-mcol-score {
           font-size: 0.84rem;
-          font-weight: 700;
+          font-weight: var(--font-bold, 700);
           line-height: 1.1;
         }
         .dh-period-summaries .dhps-mcol-energy {
@@ -1393,20 +1476,20 @@ let analyticsSectionEl = null;
         }
         .dh-period-summaries .dhps-mcol-tag {
           font-size: 0.58rem;
-          font-weight: 700;
-          padding: 0 4px;
-          border-radius: 3px;
+          font-weight: var(--font-semibold, 600);
+          padding: 1px 5px;
+          border-radius: var(--radius-l, 18px);
           line-height: 1.3;
         }
         .dh-period-summaries .dhps-mcol-tag.is-best {
-          color: #4aab80;
-          background: #4aab8022;
+          color: var(--color-green, #4aab80);
+          background: color-mix(in oklab, var(--color-green, #4aab80) 18%, transparent);
         }
         .dh-period-summaries .dhps-mcol-tag.is-worst {
-          color: #d85b57;
-          background: #d85b5722;
+          color: var(--color-red, #d85b57);
+          background: color-mix(in oklab, var(--color-red, #d85b57) 18%, transparent);
         }
-.dh-period-summaries .dhps-year-heatmap {
+        .dh-period-summaries .dhps-year-heatmap {
           display: flex;
           flex-direction: column;
           gap: 4px;
@@ -1437,8 +1520,8 @@ let analyticsSectionEl = null;
         }
         .dh-period-summaries .dhps-yh-label {
           font-size: 0.7rem;
-          font-weight: 600;
-          color: var(--text-muted);
+          font-weight: var(--font-semi-medium, 500);
+          color: var(--icon-color, var(--text-muted));
           text-transform: capitalize;
           white-space: nowrap;
           user-select: none;
@@ -1450,10 +1533,10 @@ let analyticsSectionEl = null;
           width: 100%;
           height: 18px;
           border-radius: 4px;
-          background: color-mix(in srgb, var(--text-normal) 4%, transparent);
-          border: 1px solid transparent;
+          background: var(--trans-faint-05, color-mix(in srgb, var(--text-normal) 4%, transparent));
+          border: none;
           box-sizing: border-box;
-          transition: opacity 0.12s ease, transform 0.12s ease;
+          transition: opacity var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
         }
         .dh-period-summaries .dhps-yh-cell.is-invalid {
           background: transparent;
@@ -1463,30 +1546,32 @@ let analyticsSectionEl = null;
         }
         .dh-period-summaries .dhps-yh-cell.has-entry {
           cursor: pointer;
-          border-style: dashed;
-          border-color: var(--text-faint);
-          background: var(--background-primary);
+          box-shadow: inset 0 0 0 1px var(--trans-faint-30, var(--text-faint));
+          background: var(--trans-faint-10, var(--background-primary));
         }
         .dh-period-summaries .dhps-yh-cell.has-score {
           cursor: pointer;
-          border-style: solid;
-          border-color: transparent;
+          box-shadow: none;
           background: var(--cell-color);
-          opacity: 0.86;
+          opacity: 0.88;
         }
         .dh-period-summaries .dhps-yh-cell.has-score:hover {
           opacity: 1;
         }
         .dh-period-summaries .dhps-yh-val {
           font-size: 0.62rem;
-          font-weight: 700;
+          font-weight: var(--font-bold, 700);
           line-height: 1;
           color: #141619;
           user-select: none;
         }
         .dh-period-summaries .dhps-yh-cell.is-today {
-          outline: 1.5px solid var(--interactive-accent);
-          outline-offset: 1px;
+          box-shadow: 0 0 0 1.5px var(--interactive-accent);
+        }
+        body.is-mobile .dh-period-summaries button.dhps-nav-btn,
+        body.is-mobile .dh-period-summaries select.dhps-select {
+          height: 36px;
+          min-width: 36px;
         }
         @media (max-width: 680px) {
           .dh-period-summaries .dhps-yh-val {
@@ -2461,6 +2546,20 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         display: flex;
         flex-direction: column;
         min-width: 0;
+        border: none !important;
+        border-radius: var(--radius-ml, 14px) !important;
+        background: var(--trans-faint-05, var(--background-secondary)) !important;
+        box-shadow:
+          var(--glass-base-m, none),
+          0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
+          var(--shadow-setting-items, none) !important;
+        -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      }
+      .dh-habits-v2 .dh-habit .dh-dot.is-unknown {
+        border: none !important;
+        outline: none !important;
+        background: var(--trans-faint-05, transparent) !important;
+        box-shadow: inset 0 0 0 1px var(--trans-faint-25, var(--background-modifier-border)) !important;
       }
       .dh-habits-v2 .dhhv-info {
         display: flex;
@@ -2470,11 +2569,13 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         gap: 6px 10px;
         min-height: 32px;
         margin: 8px 0;
-        padding: 6px 8px;
-        border: 1px solid var(--background-modifier-border);
-        border-radius: 6px;
+        padding: 7px 10px;
+        border: none;
+        border-radius: var(--radius-s, 8px);
         background: var(--background-primary);
+        box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
         font-size: 0.76rem;
+        -electron-corner-smoothing: var(--corner-smoothing, 60%);
       }
       .dh-habits-v2 .dhhv-footer {
         display: flex;
@@ -2483,39 +2584,44 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         padding-top: 9px;
       }
       .dh-habits-v2 button.dhhv-more {
+        appearance: none;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 5px;
-        min-height: 30px;
+        min-height: 28px;
         height: auto;
         margin: 0;
-        padding: 4px 9px;
-        border: 1px solid transparent;
-        border-radius: 6px;
+        padding: 4px 10px;
+        border: none;
+        border-radius: var(--radius-l, 18px);
         box-shadow: none;
         background: transparent;
-        color: var(--text-muted);
+        color: var(--icon-color, var(--text-muted));
         font-family: inherit;
-        font-size: 0.73rem;
+        font-size: 0.74rem;
+        font-weight: var(--font-semi-medium, 500);
         line-height: 1.3;
         cursor: pointer;
-        transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+        transition:
+          color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+          background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+          box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
       }
       .dh-habits-v2 button.dhhv-more:hover,
       .dh-habits-v2 button.dhhv-more[aria-expanded="true"] {
-        border-color: var(--background-modifier-border);
-        background: var(--background-primary);
+        background: var(--control-icon-background, var(--background-primary));
+        box-shadow: var(--control-icon-shadow, none);
         color: var(--habit-color, var(--text-normal));
       }
       .dh-habits-v2 button.dhhv-more:focus-visible {
-        outline: 2px solid var(--habit-color, var(--interactive-accent));
-        outline-offset: 2px;
+        box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent));
+        outline: none;
       }
       .dh-habits-v2 .dhhv-chevron {
         display: inline-block;
         font-size: 0.65rem;
-        transition: transform 160ms ease;
+        transition: transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
       }
       .dh-habits-v2 button.dhhv-more[aria-expanded="true"] .dhhv-chevron {
         transform: rotate(180deg);
@@ -2524,31 +2630,41 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         position: fixed;
         z-index: 10000;
         box-sizing: border-box;
-        width: 318px;
+        width: 320px;
         max-width: calc(100vw - 20px);
         max-height: 75vh;
         overflow: auto;
-        padding: 12px 14px;
-        border: 1px solid var(--dhhv-accent);
-        border-radius: 9px;
-        background: var(--background-primary);
+        scrollbar-width: none;
+        padding: 13px 15px;
+        border: 1px solid var(--menu-border-color, var(--trans-faint-30, var(--background-modifier-border)));
+        border-radius: var(--menu-radius, var(--radius-ml, 14px));
+        background: var(--modal-small-background, var(--background-primary-alt, var(--background-primary)));
+        backdrop-filter: var(--blur-m, blur(12px));
+        -webkit-backdrop-filter: var(--blur-m, blur(12px));
         color: var(--text-normal);
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
+        box-shadow: var(--glass-base-l, none), var(--menu-shadow, 0 10px 28px rgba(0, 0, 0, 0.28));
         font-family: var(--font-interface);
         font-size: 0.76rem;
-        line-height: 1.38;
+        line-height: 1.4;
         overflow-wrap: anywhere;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transform: translateY(4px);
-        transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
+        transform: scale(1.03) translateY(4px);
+        -electron-corner-smoothing: var(--corner-smoothing, 60%);
+        transition:
+          opacity var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+          transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+          visibility var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+      }
+      .dhhv-popover-v2::-webkit-scrollbar {
+        display: none;
       }
       .dhhv-popover-v2.is-open {
         opacity: 1;
         visibility: visible;
         pointer-events: auto;
-        transform: translateY(0);
+        transform: scale(1) translateY(0);
       }
       .dhhv-popover-v2 .dhhv-pop-head {
         display: flex;
@@ -2556,23 +2672,24 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         align-items: baseline;
         gap: 8px;
         margin-bottom: 8px;
-        padding-bottom: 6px;
-        border-bottom: 1px solid var(--background-modifier-border);
+        padding-bottom: 7px;
+        border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border));
       }
       .dhhv-popover-v2 .dhhv-pop-title {
         color: var(--dhhv-accent);
-        font-size: 0.83rem;
-        font-weight: 650;
+        font-size: 0.85rem;
+        font-weight: var(--font-semibold, 600);
+        font-variation-settings: "opsz" 24;
       }
       .dhhv-popover-v2 .dhhv-pop-period {
-        color: var(--text-muted);
+        color: var(--icon-color, var(--text-muted));
         font-size: 0.69rem;
         white-space: nowrap;
       }
       .dhhv-popover-v2 .dhhv-pop-section {
         margin-top: 8px;
-        padding-top: 7px;
-        border-top: 1px solid var(--background-modifier-border);
+        padding-top: 8px;
+        border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
       }
       .dhhv-popover-v2 .dhhv-pop-section:first-of-type {
         margin-top: 0;
@@ -2581,11 +2698,11 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
       }
       .dhhv-popover-v2 .dhhv-pop-sec-title {
         margin-bottom: 4px;
-        color: var(--text-muted);
+        color: var(--icon-color, var(--text-muted));
         font-size: 0.68rem;
-        font-weight: 650;
+        font-weight: var(--font-semibold, 600);
         text-transform: uppercase;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.05em;
       }
       .dhhv-popover-v2 .dhhv-pop-row {
         display: flex;
@@ -2598,18 +2715,18 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         color: var(--text-muted);
       }
       .dhhv-popover-v2 .dhhv-pop-value {
-        font-weight: 650;
-        color: var(--text-normal);
+        font-weight: var(--font-semibold, 600);
+        color: var(--color-base-100, var(--text-normal));
         text-align: right;
         font-variant-numeric: tabular-nums;
       }
       .dhhv-popover-v2 .dhhv-pop-change-box {
-        padding: 6px 8px;
-        border-radius: 6px;
-        background: var(--background-secondary);
-        border: 1px solid var(--background-modifier-border);
+        padding: 7px 9px;
+        border: none;
+        border-radius: var(--radius-s, 8px);
+        background: var(--trans-faint-10, var(--background-secondary));
         font-size: 0.74rem;
-        line-height: 1.35;
+        line-height: 1.38;
       }
       .dhhv-popover-v2 .dhhv-pop-obs-list {
         display: flex;
@@ -2624,7 +2741,7 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         padding-left: 11px;
         color: var(--text-normal);
         font-size: 0.74rem;
-        line-height: 1.35;
+        line-height: 1.38;
       }
       .dhhv-popover-v2 .dhhv-pop-obs-item::before {
         content: "•";
@@ -2632,7 +2749,7 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         left: 0;
         top: 0;
         color: var(--dhhv-accent);
-        font-weight: 700;
+        font-weight: var(--font-bold, 700);
       }
       .dhhv-popover-v2 .dhhv-pop-muted {
         color: var(--text-muted);
@@ -2645,10 +2762,14 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         flex-wrap: wrap;
         gap: 6px;
         margin-top: 8px;
-        padding-top: 7px;
-        border-top: 1px dashed var(--background-modifier-border);
-        color: var(--text-muted);
+        padding-top: 8px;
+        border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+        color: var(--icon-color, var(--text-muted));
         font-size: 0.7rem;
+      }
+      body.is-mobile .dh-habits-v2 button.dhhv-more {
+        min-height: 36px;
+        padding: 6px 12px;
       }
     `;
 
