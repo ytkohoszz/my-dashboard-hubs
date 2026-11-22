@@ -997,8 +997,8 @@ let selectedISO =
   .dashboard-home .dh-metric-control {
     display: flex;
     align-items: baseline;
-    gap: 4px;
-    min-height: 28px;
+    gap: 2px;
+    min-height: 26px;
   }
   .dashboard-home .dh-metric-readonly-val {
     font-size: 1rem;
@@ -1006,12 +1006,15 @@ let selectedISO =
     font-variant-numeric: tabular-nums;
     color: var(--color-base-100, var(--text-normal));
     line-height: 1.35;
+    margin-right: 2px;
   }
   .dashboard-home .dh-metric-sizer {
-    display: inline-grid;
-    align-items: baseline;
+    position: relative;
+    display: inline-block;
+    vertical-align: baseline;
     margin-left: -3px;
-    max-width: 100%;
+    padding: 1px 3px;
+    max-width: calc(100% - 34px);
     font-size: 1rem;
     font-weight: var(--font-semibold, 600);
     font-variant-numeric: tabular-nums;
@@ -1019,26 +1022,26 @@ let selectedISO =
   }
   .dashboard-home .dh-metric-sizer::after {
     content: attr(data-val);
-    grid-area: 1 / 1;
     visibility: hidden;
     white-space: pre;
-    padding: 1px 3px;
     font: inherit;
     font-variant-numeric: inherit;
+    line-height: inherit;
     pointer-events: none;
   }
   .dashboard-home .dh-metric-sizer > .dh-metric-input {
-    grid-area: 1 / 1;
+    position: absolute;
+    inset: 0;
     width: 100% !important;
+    height: 100% !important;
     min-width: 0 !important;
-    height: auto !important;
     min-height: 0 !important;
     margin: 0 !important;
     padding: 1px 3px !important;
+    box-sizing: border-box !important;
     font: inherit !important;
     font-variant-numeric: inherit !important;
     line-height: inherit !important;
-    vertical-align: baseline;
     text-align: left;
     border-radius: var(--radius-xs, 6px) !important;
     border: none !important;
@@ -1056,34 +1059,31 @@ let selectedISO =
     box-shadow: none !important;
   }
   .dashboard-home .dh-sleep-card {
-    grid-column: span 2;
-  }
-  .dashboard-home .dh-sleep-unified {
-    display: flex;
-    align-items: center;
+    grid-row: span 2;
     justify-content: space-between;
-    gap: 12px;
-    min-height: 28px;
+    gap: 8px;
   }
-  .dashboard-home .dh-sleep-dur {
-    display: inline-flex;
-    align-items: baseline;
+  .dashboard-home .dh-sleep-top-block {
+    display: flex;
+    flex-direction: column;
     gap: 4px;
-    flex-shrink: 0;
   }
   .dashboard-home .dh-sleep-divider {
-    width: 1px;
-    height: 18px;
+    width: 100%;
+    height: 1px;
     background: var(--trans-faint-20, var(--background-modifier-border));
-    flex-shrink: 0;
+  }
+  .dashboard-home .dh-sleep-sched {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
   .dashboard-home .dh-sleep-pair {
     display: grid;
-    grid-template-columns: minmax(52px, 1fr) auto minmax(52px, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
     gap: 6px;
-    flex: 1;
-    max-width: 210px;
+    width: 100%;
     min-height: 26px;
   }
   .dashboard-home .dh-sleep-sep {
@@ -2038,17 +2038,18 @@ try {
 
 const renderSleepUnifiedCard = (m) => {
       const card = metricsGrid.createDiv({ cls: "dh-metric-item dh-sleep-card" });
-      const top = card.createDiv({ cls: "dh-metric-top" });
-      top.createSpan({ cls: "dh-metric-label", text: "Сон и режим" });
+      const topBlock = card.createDiv({ cls: "dh-sleep-top-block" });
+      const top = topBlock.createDiv({ cls: "dh-metric-top" });
+      top.createSpan({ cls: "dh-metric-label", text: "Сон" });
       const statusSpan = top.createSpan({ cls: "dh-metric-status" });
 
-      const bodyRow = card.createDiv({ cls: "dh-sleep-unified" });
-      const durWrap = bodyRow.createEl("label", { cls: "dh-sleep-dur" });
+      const durWrap = topBlock.createEl("label", { cls: "dh-metric-control" });
       const sizer = durWrap.createSpan({ cls: "dh-metric-sizer" });
       const sleepInput = sizer.createEl("input", {
         cls: "dh-metric-input",
         attr: {
           type: "text",
+          size: "1",
           inputmode: "decimal",
           placeholder: m.placeholder,
           "aria-label": `${m.label}, ${m.unit}`
@@ -2056,8 +2057,11 @@ const renderSleepUnifiedCard = (m) => {
       });
       durWrap.createSpan({ cls: "dh-metric-unit", text: m.unit });
 
-      bodyRow.createDiv({ cls: "dh-sleep-divider" });
-      const pair = bodyRow.createDiv({ cls: "dh-sleep-pair" });
+      card.createDiv({ cls: "dh-sleep-divider" });
+
+      const schedWrap = card.createDiv({ cls: "dh-sleep-sched" });
+      schedWrap.createSpan({ cls: "dh-metric-label", text: "Режим" });
+      const pair = schedWrap.createDiv({ cls: "dh-sleep-pair" });
 
       const errorEl = card.createDiv({ cls: "dh-metric-error" });
       errorEl.style.display = "none";
@@ -2358,9 +2362,10 @@ const renderSleepUnifiedCard = (m) => {
       };
     }
 
-    renderSleepUnifiedCard(INPUT_METRICS[1]); // Сон и режим (span 2)
+    renderInputMetricCard(INPUT_METRICS[2]); // Чтение
+    renderSleepUnifiedCard(INPUT_METRICS[1]); // Сон и режим (столбец span 2)
 
-    // РЯД 2: Фокус (1), Чтение (1), Соцсети (1), Шаги (1)
+    // РЯД 2: Фокус (1), Соцсети (1), Шаги (1)
     {
       const focusPlugin = getFocusPlugin();
       const activeSession = focusPlugin?.session;
@@ -2495,7 +2500,6 @@ const renderSleepUnifiedCard = (m) => {
       };
     }
 
-    renderInputMetricCard(INPUT_METRICS[2]); // Чтение
     renderInputMetricCard(INPUT_METRICS[3]); // Соцсети (мин)
     renderInputMetricCard(INPUT_METRICS[4]); // Шаги
 
