@@ -73,16 +73,29 @@ function getValuesCompassPlugin() {
   return app.plugins?.plugins?.["my-values-compass"] ?? null;
 }
 
-function openValuesCompassFromHome() {
+function openValuesCompassFromHome(tab = "map", domainId) {
   const plugin = getValuesCompassPlugin();
   if (!plugin || typeof plugin.activateView !== "function") {
     notify("Включи плагин «Values Compass» (my-values-compass) в настройках Obsidian.");
     return;
   }
   try {
-    plugin.activateView("today");
+    plugin.activateView(tab, domainId);
   } catch (err) {
     notify("Не удалось открыть Компас ценностей: " + (err instanceof Error ? err.message : String(err)));
+  }
+}
+
+function openValuesReviewFromHome(domainId) {
+  const plugin = getValuesCompassPlugin();
+  if (!plugin || typeof plugin.openReviewModal !== "function") {
+    notify("Обнови и включи плагин «Values Compass» (my-values-compass).");
+    return;
+  }
+  try {
+    plugin.openReviewModal({ initialTab: "fear", domainId });
+  } catch (err) {
+    notify("Не удалось открыть Разбор: " + (err instanceof Error ? err.message : String(err)));
   }
 }
 
@@ -365,16 +378,6 @@ const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) ||
       icon: "🧊",
       color: "var(--color-blue, #599ed6)",
       badge: notes3D > 0 ? String(notes3D) : ""
-    },
-    {
-      title: "Ценности",
-      icon: "🧭",
-      color: "var(--color-cyan, #69b5aa)",
-      badge: (() => {
-        const count = getValuesCompassPlugin()?.store?.getLogsByDate?.(todayISO)?.length || 0;
-        return count > 0 ? String(count) : "";
-      })(),
-      onClick: () => openValuesCompassFromHome()
     }
   ];
 
@@ -2773,6 +2776,699 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
 }
 
 // ========================================================
+// 2.5. ОСТРОВ «ЦЕННОСТИ» (ЕЖЕДНЕВНЫЙ ВВОД + ФОКУС ИЗ my-values-compass)
+// ========================================================
+{
+  const vcPlugin = getValuesCompassPlugin();
+  const vcStore = vcPlugin?.store;
+
+  if (vcStore) {
+    const activeISO =
+      typeof window.__dhHomeSelectedDateISO === "string" &&
+      /^\d{4}-\d{2}-\d{2}$/.test(window.__dhHomeSelectedDateISO)
+        ? window.__dhHomeSelectedDateISO
+        : todayISO;
+    const isSelectedToday = activeISO === todayISO;
+
+    const visibleDomains = vcStore.getDomains(false) || [];
+    const focusDomains = vcStore.getFocusDomains() || [];
+    const dayLogs = vcStore.getLogsByDate(activeISO) || [];
+    const daySavoring = vcStore.getSavoringByDate(activeISO);
+
+    if (!window.__dhValuesHomeUi) {
+      window.__dhValuesHomeUi = { selectedDomainId: "", isNewStep: false };
+    }
+    const vcUi = window.__dhValuesHomeUi;
+
+    if (!visibleDomains.some(d => d.id === vcUi.selectedDomainId)) {
+      const fallback = focusDomains[0] || visibleDomains[0];
+      vcUi.selectedDomainId = fallback ? fallback.id : "";
+    }
+
+    const root = dv.container.createDiv({ cls: "dh dh-values-island" });
+
+    const vcStyle = root.createEl("style");
+    vcStyle.textContent = `
+    /* === Остров «Ценности» на главной (Velocity 2.1.0) === */
+    .dashboard-home .dh-values-island {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding: calc(var(--vl-layout-padding, 8px) * 2) calc(var(--vl-layout-padding, 8px) * 2 + 2px);
+      margin: 0 0 22px 0 !important;
+      border: none !important;
+      border-radius: calc(var(--radius-ml, 14px) + 2px) !important;
+      background: var(--trans-faint-05, var(--background-secondary)) !important;
+      box-shadow:
+        var(--glass-base-m, none),
+        0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
+        var(--shadow-setting-items, 0 4px 12px rgba(0, 0, 0, 0.1)) !important;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      box-sizing: border-box;
+    }
+    .dashboard-home .dh-values-island * {
+      box-sizing: border-box;
+    }
+    .dashboard-home .dh-values-island button.dhv-btn {
+      appearance: none;
+      -webkit-appearance: none;
+      border: none;
+      outline: none;
+      box-shadow: none;
+      contain: content;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--text-normal);
+      font-family: var(--font-interface);
+      font-size: 0.82rem;
+      font-weight: var(--font-semi-medium, 500);
+      line-height: 1.2;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      transition:
+        background-color var(--anim-super-smooth, 75ms ease-out),
+        color var(--anim-super-smooth, 75ms ease-out),
+        box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+        filter var(--anim-super-smooth, 75ms ease-out);
+    }
+
+    /* Шапка острова */
+    .dashboard-home .dhv-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding-bottom: 11px;
+      border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+    }
+    .dashboard-home .dhv-head-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dashboard-home .dhv-title {
+      font-size: 0.98rem;
+      font-weight: var(--font-semibold, 600);
+      font-variation-settings: "opsz" 24;
+      letter-spacing: -0.01em;
+      color: var(--color-base-100, var(--text-normal));
+    }
+    .dashboard-home .dhv-count-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 20px;
+      padding: 0 7px;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      background: var(--background-primary);
+      box-shadow: 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border));
+      font-size: 0.74rem;
+      font-weight: var(--font-semibold, 600);
+      font-variant-numeric: tabular-nums;
+      color: var(--icon-color, var(--text-muted));
+      text-box-trim: trim-both;
+      text-box-edge: cap alphabetic;
+    }
+    .dashboard-home .dhv-date-note {
+      font-size: 0.75rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-faint);
+    }
+    .dashboard-home .dhv-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .dashboard-home .dh-values-island button.dhv-nav-link {
+      height: 28px;
+      padding: 0 10px;
+      border-radius: var(--radius-s, 8px);
+      color: var(--icon-color, var(--text-muted));
+      font-size: 0.79rem;
+      text-box-trim: trim-both;
+      text-box-edge: cap alphabetic;
+    }
+    .dashboard-home .dh-values-island button.dhv-nav-link:hover {
+      background: var(--background-modifier-hover);
+      color: var(--text-normal);
+    }
+    .dashboard-home .dh-values-island button.dhv-nav-link:active {
+      filter: opacity(65%);
+    }
+    .dashboard-home .dh-values-island button.dhv-icon-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-xxl, 22px);
+      color: var(--control-icon-color, var(--icon-color, var(--text-muted)));
+      flex-shrink: 0;
+    }
+    .dashboard-home .dh-values-island button.dhv-icon-btn:hover {
+      background: var(--control-icon-background, var(--background-modifier-hover));
+      color: var(--text-normal);
+      box-shadow: var(--control-icon-shadow, none);
+    }
+    .dashboard-home .dh-values-island button.dhv-icon-btn:active > svg {
+      transform: scale3d(0.8, 0.8, 0.8);
+    }
+
+    /* Полоска фокуса (Level 2) */
+    .dashboard-home .dhv-focus-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+    }
+    .dashboard-home .dhv-focus-card {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      padding: 10px 13px;
+      border-radius: var(--radius-sm, 10px);
+      background: var(--background-primary);
+      box-shadow:
+        inset 2.5px 0 0 0 color-mix(in oklab, var(--interactive-accent) 85%, transparent),
+        var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    }
+    .dashboard-home .dhv-focus-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .dashboard-home .dhv-focus-top:hover .dhv-focus-name {
+      color: var(--color-accent-1, var(--text-accent));
+    }
+    .dashboard-home .dhv-focus-name-wrap {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-width: 0;
+    }
+    .dashboard-home .dhv-focus-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--interactive-accent);
+      flex-shrink: 0;
+    }
+    .dashboard-home .dhv-focus-name {
+      font-size: 0.85rem;
+      font-weight: var(--font-semibold, 600);
+      color: var(--color-base-100, var(--text-normal));
+      transition: color var(--anim-super-smooth, 75ms ease-out);
+    }
+    .dashboard-home .dhv-focus-arrow {
+      font-size: 0.75rem;
+      color: var(--text-faint);
+    }
+    .dashboard-home .dhv-focus-summary {
+      font-size: 0.81rem;
+      line-height: 1.42;
+      color: var(--icon-color, var(--text-muted));
+    }
+    .dashboard-home .dhv-focus-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-top: 6px;
+      border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+    }
+    .dashboard-home .dhv-step-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.8rem;
+      color: var(--text-normal);
+      cursor: pointer;
+      min-height: 22px;
+    }
+    .dashboard-home .dhv-step-item input[type="checkbox"] {
+      margin: 0;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    /* Поле быстрого ввода и чипы сфер */
+    .dashboard-home .dhv-composer {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+    .dashboard-home .dhv-composer-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 3px;
+      margin: -3px;
+    }
+    .dashboard-home .dh-values-island input.dhv-input {
+      flex: 1 1 auto;
+      width: 100% !important;
+      height: 34px !important;
+      padding: 0 12px !important;
+      border: none !important;
+      outline: none !important;
+      border-radius: var(--input-radius, var(--radius-s, 8px)) !important;
+      background: var(--background-primary) !important;
+      color: var(--text-normal) !important;
+      font-family: var(--font-interface);
+      font-size: 0.85rem !important;
+      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border))) !important;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      transition: box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+    }
+    .dashboard-home .dh-values-island input.dhv-input:focus {
+      box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent)) !important;
+    }
+    .dashboard-home .dh-values-island input.dhv-input::placeholder {
+      color: var(--text-faint);
+    }
+    .dashboard-home .dh-values-island button.dhv-chip {
+      height: 28px;
+      padding: 0 11px;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      background: var(--background-primary);
+      color: var(--icon-color, var(--text-muted));
+      font-size: 0.78rem;
+      box-shadow: 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border));
+      flex-shrink: 0;
+      text-box-trim: trim-both;
+      text-box-edge: cap alphabetic;
+    }
+    .dashboard-home .dh-values-island button.dhv-chip:hover {
+      background: var(--interactive-hover);
+      color: var(--text-normal);
+    }
+    .dashboard-home .dh-values-island button.dhv-chip.is-active {
+      background: var(--color-accent-4, var(--background-modifier-active-hover));
+      color: var(--color-accent-1, var(--text-accent));
+      box-shadow:
+        var(--glass-base, none),
+        inset 0 0 0 1px var(--color-accent-3, var(--interactive-accent));
+    }
+    .dashboard-home .dh-values-island button.dhv-newstep-btn {
+      height: 34px;
+      padding: 0 11px;
+    }
+    .dashboard-home .dh-values-island button.dhv-submit-btn {
+      width: 34px;
+      height: 34px;
+      flex-shrink: 0;
+      border-radius: var(--radius-s, 8px);
+      background: var(--interactive-accent);
+      color: var(--text-on-accent);
+      box-shadow: var(--shadow-button, none);
+    }
+    .dashboard-home .dh-values-island button.dhv-submit-btn:hover {
+      filter: brightness(1.0625);
+    }
+    .dashboard-home .dh-values-island button.dhv-submit-btn:active {
+      filter: brightness(1.0625) opacity(70%);
+    }
+    .dashboard-home .dhv-chips-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    /* Лог записанных шагов (показывается только когда есть записи) */
+    .dashboard-home .dhv-logs {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .dashboard-home .dhv-log-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 11px;
+      border-radius: var(--radius-sm, 10px);
+      background: var(--background-primary);
+      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    }
+    .dashboard-home .dhv-log-body {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 7px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .dashboard-home .dhv-tag {
+      display: inline-flex;
+      align-items: center;
+      height: 20px;
+      padding: 0 8px;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      background: var(--trans-faint-05, var(--background-secondary));
+      box-shadow: 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border));
+      font-size: 0.72rem;
+      font-weight: var(--font-semi-medium, 500);
+      color: var(--icon-color, var(--text-muted));
+      flex-shrink: 0;
+      text-box-trim: trim-both;
+      text-box-edge: cap alphabetic;
+    }
+    .dashboard-home .dhv-newstep-tag {
+      display: inline-flex;
+      align-items: center;
+      height: 20px;
+      padding: 0 7px;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      background: color-mix(in oklab, var(--color-green, #4aab80) 16%, transparent);
+      color: var(--color-green, #4aab80);
+      font-size: 0.71rem;
+      font-weight: var(--font-semi-medium, 500);
+      flex-shrink: 0;
+      text-box-trim: trim-both;
+      text-box-edge: cap alphabetic;
+    }
+    .dashboard-home .dhv-log-text {
+      font-size: 0.84rem;
+      line-height: 1.38;
+      color: var(--text-normal);
+      word-break: break-word;
+    }
+    .dashboard-home .dhv-log-del {
+      opacity: 0.35;
+    }
+    .dashboard-home .dhv-log-item:hover .dhv-log-del {
+      opacity: 1;
+    }
+
+    /* Нижняя строка: Момент присутствия (в рифму с «Главным событием») */
+    .dashboard-home .dhv-savoring-row {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 3px 3px;
+      margin: 0 -3px -3px;
+      border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+    }
+    .dashboard-home .dhv-savoring-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: var(--font-ui-small, 13px);
+      font-weight: var(--font-semi-medium, 500);
+      color: var(--icon-color, var(--text-muted));
+      white-space: nowrap;
+    }
+    .dashboard-home .dhv-savoring-saved {
+      font-size: 0.72rem;
+      color: var(--color-green, #4aab80);
+      min-width: 10px;
+    }
+
+    /* Адаптация под узкие экраны и iPadOS */
+    @media (max-width: 560px) {
+      .dashboard-home .dhv-savoring-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+      .dashboard-home .dhv-composer-row {
+        flex-wrap: wrap;
+      }
+      .dashboard-home .dhv-composer-row input.dhv-input {
+        flex: 1 1 100%;
+      }
+    }
+    body.is-mobile .dashboard-home .dh-values-island input.dhv-input,
+    body.is-tablet .dashboard-home .dh-values-island input.dhv-input,
+    body.is-mobile .dashboard-home .dh-values-island button.dhv-newstep-btn,
+    body.is-tablet .dashboard-home .dh-values-island button.dhv-newstep-btn,
+    body.is-mobile .dashboard-home .dh-values-island button.dhv-submit-btn,
+    body.is-tablet .dashboard-home .dh-values-island button.dhv-submit-btn {
+      height: 38px !important;
+    }
+    body.is-mobile .dashboard-home .dh-values-island button.dhv-submit-btn,
+    body.is-tablet .dashboard-home .dh-values-island button.dhv-submit-btn {
+      width: 38px;
+    }
+    body.is-mobile .dashboard-home .dh-values-island button.dhv-chip,
+    body.is-tablet .dashboard-home .dh-values-island button.dhv-chip {
+      height: 34px;
+      padding: 0 12px;
+    }
+    body.is-mobile .dashboard-home .dh-values-island button.dhv-nav-link,
+    body.is-tablet .dashboard-home .dh-values-island button.dhv-nav-link {
+      height: 34px;
+      padding: 0 11px;
+    }
+    body.is-mobile .dashboard-home .dh-values-island button.dhv-icon-btn,
+    body.is-tablet .dashboard-home .dh-values-island button.dhv-icon-btn {
+      width: 36px;
+      height: 36px;
+    }
+    body.is-mobile .dashboard-home .dhv-log-del,
+    body.is-tablet .dashboard-home .dhv-log-del {
+      opacity: 0.8;
+    }
+    `;
+
+    // --- Шапка ---
+    const head = root.createDiv({ cls: "dhv-head" });
+    const headLeft = head.createDiv({ cls: "dhv-head-left" });
+    headLeft.createSpan({ cls: "dhv-title", text: "Ценности" });
+
+    if (dayLogs.length > 0) {
+      headLeft.createSpan({
+        cls: "dhv-count-pill",
+        text: String(dayLogs.length),
+        attr: { title: "Записано действий за выбранный день" }
+      });
+    }
+    if (!isSelectedToday) {
+      const [yy, mm, dd] = activeISO.split("-");
+      headLeft.createSpan({
+        cls: "dhv-date-note",
+        text: `за ${dd}.${mm}.${yy}`
+      });
+    }
+
+    const nav = head.createDiv({ cls: "dhv-nav" });
+
+    const mapBtn = nav.createEl("button", {
+      cls: "dhv-btn dhv-nav-link",
+      text: "Карта",
+      attr: { type: "button", title: "Открыть Карту сфер и целей" }
+    });
+    mapBtn.onclick = () => openValuesCompassFromHome("map");
+
+    const analyticsBtn = nav.createEl("button", {
+      cls: "dhv-btn dhv-nav-link",
+      text: "Динамика",
+      attr: { type: "button", title: "Открыть Динамику и ритм" }
+    });
+    analyticsBtn.onclick = () => openValuesCompassFromHome("analytics");
+
+    const reviewBtn = nav.createEl("button", {
+      cls: "dhv-btn dhv-icon-btn",
+      attr: { type: "button", title: "Разбор (FEAR, распаковка, репетиция)" }
+    });
+    reviewBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>`;
+    reviewBtn.onclick = () => openValuesReviewFromHome(focusDomains[0]?.id);
+
+    // --- Полоска активного фокуса ---
+    if (focusDomains.length > 0) {
+      const focusGrid = root.createDiv({ cls: "dhv-focus-list" });
+      for (const domain of focusDomains) {
+        const fCard = focusGrid.createDiv({ cls: "dhv-focus-card" });
+
+        const fTop = fCard.createDiv({
+          cls: "dhv-focus-top",
+          attr: { title: "Открыть сферу на Карте" }
+        });
+        const nameWrap = fTop.createDiv({ cls: "dhv-focus-name-wrap" });
+        nameWrap.createSpan({ cls: "dhv-focus-dot" });
+        nameWrap.createSpan({ cls: "dhv-focus-name", text: domain.name });
+        fTop.createSpan({ cls: "dhv-focus-arrow", text: "↗" });
+        fTop.onclick = () => openValuesCompassFromHome("map", domain.id);
+
+        if (domain.compassSummary) {
+          fCard.createDiv({ cls: "dhv-focus-summary", text: domain.compassSummary });
+        }
+
+        // Ближайшие невыполненные шаги из immediate / short целей (макс. 4, чтобы не перегружать)
+        const pendingSteps = [];
+        const domainGoals = (vcStore.getGoalsByDomain(domain.id) || []).filter(
+          g => g.status === "active" && (g.horizon === "immediate" || g.horizon === "short")
+        );
+        for (const g of domainGoals) {
+          for (const s of g.steps || []) {
+            if (!s.done) pendingSteps.push({ goal: g, step: s });
+          }
+        }
+
+        if (pendingSteps.length > 0) {
+          const stepsWrap = fCard.createDiv({ cls: "dhv-focus-steps" });
+          for (const { goal, step } of pendingSteps.slice(0, 4)) {
+            const label = stepsWrap.createEl("label", { cls: "dhv-step-item" });
+            const cb = label.createEl("input", { attr: { type: "checkbox" } });
+            label.createSpan({ text: step.text });
+            cb.onchange = async () => {
+              const nowDone = await vcStore.toggleGoalStep(goal.id, step.id);
+              if (nowDone) {
+                await vcStore.addLog({
+                  domainId: domain.id,
+                  goalId: goal.id,
+                  text: step.text,
+                  isNewStep: false,
+                  date: activeISO
+                });
+                notify("Шаг выполнен и записан в ценности");
+              }
+            };
+          }
+        }
+      }
+    }
+
+    // --- Быстрый ввод действия ---
+    if (visibleDomains.length > 0) {
+      const composer = root.createDiv({ cls: "dhv-composer" });
+      const row = composer.createDiv({ cls: "dhv-composer-row" });
+
+      const actionInput = row.createEl("input", {
+        cls: "dhv-input",
+        attr: {
+          type: "text",
+          placeholder: isSelectedToday
+            ? "Что сделал сегодня в согласии со своими ценностями?"
+            : "Записать ценностное действие за этот день..."
+        }
+      });
+
+      const newStepBtn = row.createEl("button", {
+        cls: "dhv-btn dhv-chip dhv-newstep-btn" + (vcUi.isNewStep ? " is-active" : ""),
+        attr: { type: "button", title: "Отметить, если попробовал что-то новое" }
+      });
+      newStepBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg><span>Новый шаг</span>`;
+      newStepBtn.onclick = () => {
+        vcUi.isNewStep = !vcUi.isNewStep;
+        newStepBtn.classList.toggle("is-active", vcUi.isNewStep);
+      };
+
+      const submitBtn = row.createEl("button", {
+        cls: "dhv-btn dhv-submit-btn",
+        attr: { type: "button", "aria-label": "Записать действие" }
+      });
+      submitBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`;
+
+      const commitAction = async () => {
+        const text = actionInput.value.trim();
+        if (!text || !vcUi.selectedDomainId) return;
+        actionInput.value = "";
+        const isNew = vcUi.isNewStep;
+        vcUi.isNewStep = false;
+        await vcStore.addLog({
+          domainId: vcUi.selectedDomainId,
+          text,
+          isNewStep: isNew,
+          date: activeISO
+        });
+      };
+
+      submitBtn.onclick = () => { void commitAction(); };
+      actionInput.onkeydown = e => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          void commitAction();
+        }
+      };
+
+      // Чипы сфер (фокусные первыми)
+      const sortedDomains = [...visibleDomains].sort((a, b) =>
+        a.isFocus === b.isFocus ? 0 : a.isFocus ? -1 : 1
+      );
+      const chipsWrap = composer.createDiv({ cls: "dhv-chips-strip" });
+      for (const domain of sortedDomains) {
+        const chip = chipsWrap.createEl("button", {
+          cls: "dhv-btn dhv-chip" + (domain.id === vcUi.selectedDomainId ? " is-active" : ""),
+          attr: { type: "button" }
+        });
+        if (domain.isFocus) chip.createSpan({ cls: "dhv-focus-dot" });
+        chip.createSpan({ text: domain.name });
+        chip.onclick = () => {
+          vcUi.selectedDomainId = domain.id;
+          chipsWrap.querySelectorAll(".dhv-chip").forEach(el => el.classList.remove("is-active"));
+          chip.classList.add("is-active");
+        };
+      }
+    }
+
+    // --- Список действий за день (без пустой заглушки, если 0) ---
+    if (dayLogs.length > 0) {
+      const logsWrap = root.createDiv({ cls: "dhv-logs" });
+      for (const entry of dayLogs) {
+        const domain = vcStore.getDomainById(entry.domainId);
+        const item = logsWrap.createDiv({ cls: "dhv-log-item" });
+
+        const body = item.createDiv({ cls: "dhv-log-body" });
+        body.createSpan({ cls: "dhv-tag", text: domain?.name || "Сфера" });
+        if (entry.isNewStep) {
+          body.createSpan({ cls: "dhv-newstep-tag", text: "Новый шаг" });
+        }
+        body.createSpan({ cls: "dhv-log-text", text: entry.text });
+
+        const delBtn = item.createEl("button", {
+          cls: "dhv-btn dhv-icon-btn dhv-log-del",
+          attr: { type: "button", title: "Удалить запись" }
+        });
+        delBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        delBtn.onclick = () => { void vcStore.deleteLog(entry.id); };
+      }
+    }
+
+    // --- Момент присутствия ---
+    const savRow = root.createDiv({ cls: "dhv-savoring-row" });
+    const savLabel = savRow.createDiv({ cls: "dhv-savoring-label" });
+    savLabel.createSpan({ text: "Момент присутствия" });
+    const savSaved = savLabel.createSpan({ cls: "dhv-savoring-saved" });
+
+    const savInput = savRow.createEl("input", {
+      cls: "dhv-input",
+      attr: {
+        type: "text",
+        placeholder: "Что сегодня удалось по-настоящему заметить или прожить…"
+      }
+    });
+    savInput.value = daySavoring?.text || "";
+
+    const commitSavoring = async () => {
+      const next = savInput.value.trim();
+      const prev = daySavoring?.text || "";
+      if (next === prev) return;
+      await vcStore.saveSavoring(next, activeISO);
+      savSaved.setText("✓");
+      setTimeout(() => { if (savSaved.isConnected) savSaved.setText(""); }, 1600);
+    };
+
+    savInput.onblur = () => { void commitSavoring(); };
+    savInput.onkeydown = e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        savInput.blur();
+      } else if (e.key === "Escape") {
+        savInput.value = daySavoring?.text || "";
+        savInput.blur();
+      }
+    };
+  }
+}
+
+// ========================================================
 // 3. БЛОК «НЕДАВНО В РАБОТЕ» (РАСКРЫВАЮЩИЙСЯ СПИСОК)
 // ========================================================
 {
@@ -2908,8 +3604,9 @@ if (!hostContainer.dataset.dhHomeBound) {
       return;
     }
     if (file && file.extension && file.extension !== "md") return;
-    // Не перерисовываем во время активного ввода текста в поле главной
+    // Не перерисовываем во время активного ввода текста в поле главной или в острове ценностей
     if (window.__dhTodayDrafts?.activeKey && document.activeElement?.closest?.(".dh-today")) return;
+    if (document.activeElement?.closest?.(".dh-values-island")) return;
     scheduleHomeRender(220);
   };
 
