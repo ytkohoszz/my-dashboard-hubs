@@ -902,25 +902,152 @@ let analyticsSectionEl = null;
       const analytics = root.createDiv({ cls: "dh-diary-analytics" });
       analyticsSectionEl = analytics;
       const styles = analytics.createEl("style");
-      styles.textContent = [
-        ".dashboard-home .dh-diary-analytics { margin: 16px 0; padding: calc(var(--vl-layout-padding, 8px) + 6px) calc(var(--vl-layout-padding, 8px) + 8px); border: none; border-radius: calc(var(--radius-ml, 14px) + 2px); background: var(--trans-faint-05, var(--background-secondary)); box-shadow: var(--glass-base-m, none), 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)), var(--shadow-setting-items, none); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
-        ".dashboard-home .dh-diary-analytics .dda-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }",
-        ".dashboard-home .dh-diary-analytics .dda-title { font-weight: var(--font-semibold, 600); font-variation-settings: 'opsz' 24; font-size: 0.96rem; color: var(--color-base-100, var(--text-normal)); }",
-        ".dashboard-home .dh-diary-analytics button.dda-btn { appearance: none; min-height: var(--input-height, 28px); padding: 0 12px; border: none; border-radius: var(--input-radius, var(--radius-s, 8px)); box-shadow: none; font-size: 0.78rem; font-weight: var(--font-semi-medium, 500); cursor: pointer; background: var(--interactive-normal); color: var(--text-normal); -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: background-color var(--anim-super-smooth, 75ms ease-out), color var(--anim-super-smooth, 75ms ease-out); }",
-        ".dashboard-home .dh-diary-analytics button.dda-btn:hover { background: var(--interactive-hover); color: var(--color-accent-1, var(--text-accent)); }",
-        ".dashboard-home .dh-diary-analytics .dda-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; margin-top: 12px; }",
-        ".dashboard-home .dh-diary-analytics .dda-card { padding: 10px 12px; background: var(--background-primary); border: none; border-radius: var(--radius-sm, 10px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); min-width: 0; font-size: 0.78rem; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
-        ".dashboard-home .dh-diary-analytics .dda-card-title { font-weight: var(--font-semibold, 600); color: var(--color-base-100, var(--text-normal)); margin-bottom: 3px; }",
-        ".dashboard-home .dh-diary-analytics .dda-meta { color: var(--text-muted); font-size: 0.72rem; line-height: 1.38; font-variant-numeric: tabular-nums; }",
-        "body.is-mobile .dashboard-home .dh-diary-analytics button.dda-btn { min-height: 36px; padding: 0 14px; }"
-      ].join("\n");
+      styles.textContent = `
+        .dashboard-home .dh-diary-analytics {
+          margin: 16px 0;
+          padding: calc(var(--vl-layout-padding, 8px) + 6px) calc(var(--vl-layout-padding, 8px) + 8px);
+          border: none;
+          border-radius: calc(var(--radius-ml, 14px) + 2px);
+          background: var(--trans-faint-05, var(--background-secondary));
+          box-shadow:
+            var(--glass-base-m, none),
+            0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
+            var(--shadow-setting-items, none);
+          -electron-corner-smoothing: var(--corner-smoothing, 60%);
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .dashboard-home .dh-diary-analytics .dda-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .dashboard-home .dh-diary-analytics .dda-head-left {
+          display: flex;
+          align-items: baseline;
+          gap: 8px;
+          min-width: 0;
+        }
+        .dashboard-home .dh-diary-analytics .dda-title {
+          font-size: 0.92rem;
+          font-weight: var(--font-semibold, 600);
+          font-variation-settings: "opsz" 24;
+          color: var(--color-base-100, var(--text-normal));
+        }
+        .dashboard-home .dh-diary-analytics .dda-period {
+          font-size: 0.72rem;
+          color: var(--text-faint);
+          font-variant-numeric: tabular-nums;
+          white-space: nowrap;
+        }
+        .dashboard-home .dh-diary-analytics button.dda-btn {
+          appearance: none;
+          border: none;
+          outline: none;
+          box-shadow: none;
+          contain: content;
+          height: 28px;
+          padding: 0 11px;
+          border-radius: var(--radius-s, 8px);
+          background: var(--interactive-normal);
+          color: var(--text-normal);
+          font-family: var(--font-interface);
+          font-size: 0.74rem;
+          font-weight: var(--font-semi-medium, 500);
+          text-box-trim: trim-both;
+          text-box-edge: cap alphabetic;
+          cursor: pointer;
+          -electron-corner-smoothing: var(--corner-smoothing, 60%);
+          transition:
+            background-color var(--anim-super-smooth, 75ms ease-out),
+            color var(--anim-super-smooth, 75ms ease-out);
+        }
+        .dashboard-home .dh-diary-analytics button.dda-btn:hover {
+          background: var(--interactive-hover);
+          color: var(--color-accent-1, var(--text-accent));
+        }
+        .dashboard-home .dh-diary-analytics button.dda-btn:active {
+          filter: opacity(65%);
+        }
+        .dashboard-home .dh-diary-analytics .dda-list {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+          gap: 8px;
+        }
+        .dashboard-home .dh-diary-analytics .dda-card {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          padding: 9px 12px;
+          border: none;
+          border-radius: var(--radius-sm, 10px);
+          background: var(--background-primary);
+          box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+          min-width: 0;
+          -electron-corner-smoothing: var(--corner-smoothing, 60%);
+        }
+        .dashboard-home .dh-diary-analytics .dda-card-label {
+          font-size: 0.78rem;
+          font-weight: var(--font-semi-medium, 500);
+          color: var(--text-normal);
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .dashboard-home .dh-diary-analytics .dda-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 3px 8px;
+          border-radius: var(--pill-radius, var(--radius-l, 18px));
+          font-size: 0.72rem;
+          font-weight: var(--font-bold, 700);
+          font-variant-numeric: tabular-nums;
+          text-box-trim: trim-both;
+          text-box-edge: cap alphabetic;
+          white-space: nowrap;
+          flex-shrink: 0;
+          -electron-corner-smoothing: var(--corner-smoothing, 60%);
+          color: var(--icon-color, var(--text-muted));
+          background: var(--trans-faint-10, var(--background-secondary));
+          box-shadow: inset 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border));
+        }
+        .dashboard-home .dh-diary-analytics .dda-badge.is-up {
+          color: var(--color-green, #4aab80);
+          background: color-mix(in oklab, var(--color-green, #4aab80) 14%, transparent);
+          box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--color-green, #4aab80) 35%, transparent);
+        }
+        .dashboard-home .dh-diary-analytics .dda-badge.is-down {
+          color: var(--color-red, #d85b57);
+          background: color-mix(in oklab, var(--color-red, #d85b57) 14%, transparent);
+          box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--color-red, #d85b57) 35%, transparent);
+        }
+        .dashboard-home .dh-diary-analytics .dda-empty {
+          font-size: 0.76rem;
+          color: var(--text-faint);
+          padding: 2px 0;
+        }
+        body.is-mobile .dashboard-home .dh-diary-analytics button.dda-btn,
+        body.is-tablet .dashboard-home .dh-diary-analytics button.dda-btn {
+          min-height: 36px;
+          height: 36px;
+          padding: 0 14px;
+          font-size: 0.8rem;
+        }
+      `;
 
       const head = analytics.createDiv({ cls: "dda-head" });
-      head.createSpan({ cls: "dda-title", text: "📊 Связи и аналитика привычек" });
-      const action = head.createEl("button", { cls: "dda-btn", text: "Открыть аналитику →", attr: { type: "button" } });
+      const headLeft = head.createDiv({ cls: "dda-head-left" });
+      headLeft.createSpan({ cls: "dda-title", text: "Аналитика связей" });
+      const periodEl = headLeft.createSpan({ cls: "dda-period" });
+      const action = head.createEl("button", { cls: "dda-btn", text: "Открыть →", attr: { type: "button" } });
 
       const host = analytics.createDiv({ cls: "dda-list" });
-      const note = analytics.createDiv({ cls: "dda-meta", attr: { style: "margin-top: 8px;" } });
 
       const getPlugin = () => app.plugins?.plugins?.["my-correlation-analytics"] || window.__myCorrelationAnalytics;
       const notifyUser = text => { try { new Notice(text); } catch { console.log(text); } };
@@ -935,43 +1062,54 @@ let analyticsSectionEl = null;
         catch (error) { notifyUser("Не удалось открыть аналитику: " + String(error)); }
       };
 
+      const addCard = (label, badgeText, isUp, tooltip) => {
+        const card = host.createDiv({ cls: "dda-card", attr: { title: tooltip } });
+        card.createSpan({ cls: "dda-card-label", text: label });
+        card.createSpan({ cls: `dda-badge ${isUp ? "is-up" : "is-down"}`, text: badgeText });
+      };
+
       try {
         const plugin = getPlugin();
         if (!plugin || typeof plugin.getReport !== "function") {
-          host.createDiv({ text: "Включи плагин my-correlation-analytics для просмотра инсайтов." });
+          host.createDiv({ cls: "dda-empty", text: "Включи плагин my-correlation-analytics." });
         } else {
           const report = plugin.getReport(30);
           const count = Number.isFinite(report.totalRecords) ? report.totalRecords : 0;
-          note.textContent = `Выборка: последние 30 дней (${count} записей). Наблюдаемые ассоциации.`;
+          periodEl.textContent = `30 дн. · ${count} зап.`;
 
-          const habits = Array.isArray(report.topHabitImpacts) ? report.topHabitImpacts : [];
           const corr = Array.isArray(report.topCorrelations) ? report.topCorrelations : [];
+          const habits = Array.isArray(report.topHabitImpacts) ? report.topHabitImpacts : [];
           let shown = 0;
 
-          for (const item of habits) {
+          for (const item of corr) {
             if (shown >= 2) break;
-            if (Math.abs(item.delta) < 0.2) continue;
-            const c = host.createDiv({ cls: "dda-card" });
-            c.createDiv({ cls: "dda-card-title", text: `${item.habitName} → ${item.targetMetric === "score" ? "Оценка" : "Энергия"}` });
-            c.createDiv({ cls: "dda-meta", text: `Разница средних: ${item.delta > 0 ? "+" : ""}${item.delta.toFixed(1)} балла (${item.countTrue + item.countFalse} дн.)` });
+            if (Math.abs(item.r) < 0.25) continue;
+            const badge = item.valueBadge ?? `r = ${item.r > 0 ? "+" : ""}${item.r.toFixed(2)}`;
+            const isUp = item.isPositive ?? item.r > 0;
+            addCard(item.label, badge, isUp, `${item.label} · n = ${item.sampleCount} дн.`);
             shown++;
           }
 
-          for (const item of corr) {
+          for (const item of habits) {
             if (shown >= 3) break;
-            if (Math.abs(item.r) < 0.25) continue;
-            const c = host.createDiv({ cls: "dda-card" });
-            c.createDiv({ cls: "dda-card-title", text: item.label });
-            c.createDiv({ cls: "dda-meta", text: `Корреляция r = ${item.r > 0 ? "+" : ""}${item.r.toFixed(2)} (${item.sampleCount} дн.)` });
+            if (Math.abs(item.delta) < 0.2) continue;
+            const target = item.targetMetric === "score" ? "Оценка" : "Энергия";
+            const isUp = item.delta > 0;
+            addCard(
+              `${item.habitName} → ${target}`,
+              `${isUp ? "+" : ""}${item.delta.toFixed(1)}`,
+              isUp,
+              `С привычкой: ${item.avgWhenTrue.toFixed(1)} / Без: ${item.avgWhenFalse.toFixed(1)} (n = ${item.countTrue + item.countFalse} дн.)`
+            );
             shown++;
           }
 
           if (!shown) {
-            host.createDiv({ text: "Данные накапливаются. Полный отчёт доступен по кнопке выше." });
+            host.createDiv({ cls: "dda-empty", text: "Мало данных за 30 дней." });
           }
         }
-      } catch (err) {
-        host.createDiv({ text: "Плагин аналитики подгружается..." });
+      } catch {
+        host.createDiv({ cls: "dda-empty", text: "Загрузка аналитики..." });
       }
     }
 
