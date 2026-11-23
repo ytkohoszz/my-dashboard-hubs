@@ -3584,7 +3584,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
   /* Сетка карточек */
   .dashboard-home .dhp-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 8px;
   }
   .dashboard-home .dhp-card {
@@ -3618,11 +3618,6 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     min-width: 0;
     flex: 1 1 auto;
   }
-  .dashboard-home .dhp-card-icon {
-    font-size: 0.98rem;
-    line-height: 1;
-    flex-shrink: 0;
-  }
   .dashboard-home .dhp-card-dot {
     width: 7px;
     height: 7px;
@@ -3639,10 +3634,9 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
   .dashboard-home .dhp-card-title {
     font-size: 0.86rem;
     font-weight: var(--font-semibold, 600);
+    line-height: 1.3;
     color: var(--color-base-100, var(--text-normal));
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
   }
   .dashboard-home .dhp-card-sub {
     font-size: 0.72rem;
@@ -3676,7 +3670,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
   }
   .dashboard-home .dhp-form-row-meta {
     display: grid;
-    grid-template-columns: 74px 1fr auto;
+    grid-template-columns: 1fr auto;
     align-items: center;
     gap: 8px;
   }
@@ -3953,12 +3947,6 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     };
 
     const row2 = form.createDiv({ cls: "dhp-form-row-meta" });
-    const iconInput = row2.createEl("input", {
-      cls: "dhp-input",
-      attr: { type: "text", maxlength: "4", placeholder: "Значок" }
-    });
-    iconInput.value = editingItem?.icon || "";
-
     const groupInput = row2.createEl("input", {
       cls: "dhp-input",
       attr: { type: "text", placeholder: "Группа (например: Dev, Учёба)" }
@@ -4010,7 +3998,6 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
         title: titleVal,
         path: pathVal,
         group: groupInput.value.trim(),
-        icon: iconInput.value.trim(),
         color: pinState.draftColor || "accent"
       };
 
@@ -4098,11 +4085,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       };
 
       const main = card.createDiv({ cls: "dhp-card-main" });
-      if (item.icon) {
-        main.createSpan({ cls: "dhp-card-icon", text: item.icon });
-      } else {
-        main.createSpan({ cls: "dhp-card-dot" });
-      }
+      main.createSpan({ cls: "dhp-card-dot" });
 
       const textWrap = main.createDiv({ cls: "dhp-card-text" });
       textWrap.createDiv({ cls: "dhp-card-title", text: item.title });
