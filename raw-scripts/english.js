@@ -1623,50 +1623,26 @@ async function renderHub() {
 
       const topGrid = todayPanel.createDiv({ cls: "dhe-today-bar" });
 
+      const dueAccent = wordsData.dueScheduled > 0 ? "var(--color-orange, #e5a158)" : "var(--color-green, #4aab80)";
       const dueBox = topGrid.createDiv({
         cls: "dhe-stat-box",
-        attr: { style: "border-top: 2px solid " + (wordsData.dueScheduled > 0 ? "#e5a158" : "#4aab80") + ";" }
+        attr: { style: "box-shadow: inset 0 2px 0 0 color-mix(in oklab, " + dueAccent + " 85%, transparent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));" }
       });
-      dueBox.createDiv({ cls: "dhe-stat-label", text: "К повторению" });
-      const dueValRow = dueBox.createDiv({ cls: "dhe-stat-val-row" });
-      dueValRow.createSpan({
+      dueBox.createDiv({ cls: "dhe-stat-label", text: "Повторение" });
+      dueBox.createDiv({
         cls: "dhe-stat-val",
         text: String(wordsData.dueScheduled),
-        attr: { style: "color: " + (wordsData.dueScheduled > 0 ? "#e5a158" : "#4aab80") + ";" }
-      });
-      dueValRow.createSpan({
-        text: wordsData.dueScheduled === 0 ? "Очередь закрыта ✓" : "карт. по расписанию",
-        attr: { style: "font-size: 0.72rem; color: var(--text-muted);" }
-      });
-      dueBox.createDiv({
-        cls: "dhe-stat-hint",
-        text: wordsData.newDirections > 0
-          ? "+ " + wordsData.newDirections + " новых карт. в запасе"
-          : "Новых карточек в очереди нет"
+        attr: { style: "color: " + dueAccent + ";" }
       });
 
       const isTargetMet = savedTodayCount >= currentTarget;
+      const doneAccent = isTargetMet ? "var(--color-green, #4aab80)" : "var(--color-blue, #599ed6)";
       const doneBox = topGrid.createDiv({
         cls: "dhe-stat-box",
-        attr: { style: "border-top: 2px solid " + (isTargetMet ? "#4aab80" : "#599ed6") + ";" }
+        attr: { style: "box-shadow: inset 0 2px 0 0 color-mix(in oklab, " + doneAccent + " 85%, transparent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));" }
       });
-      doneBox.createDiv({ cls: "dhe-stat-label", text: "Повторений сегодня" });
-      const doneValRow = doneBox.createDiv({ cls: "dhe-stat-val-row" });
-      doneValRow.createSpan({ cls: "dhe-stat-val", text: String(savedTodayCount) });
-      if (ui.showDailyTargetLine) {
-        doneValRow.createSpan({
-          text: "цель " + currentTarget,
-          attr: {
-            style: "font-size: 0.71rem; font-weight: 600; color: " + (isTargetMet ? "#4aab80" : "var(--text-muted)") + ";"
-          }
-        });
-      }
-      doneBox.createDiv({
-        cls: "dhe-stat-hint",
-        text: wordsData.reviewedTodayEntries > 0
-          ? "Затронуто записей сегодня: " + wordsData.reviewedTodayEntries
-          : "Оценённые показы карточек за день"
-      });
+      doneBox.createDiv({ cls: "dhe-stat-label", text: "Повторение сегодня" });
+      doneBox.createDiv({ cls: "dhe-stat-val", text: String(savedTodayCount) });
 
 
       const actionsBox = topGrid.createDiv({ cls: "dhe-actions-box" });
@@ -2229,22 +2205,6 @@ createMiniStat(
         }
 
         const rightW = wRow.createDiv({ attr: { style: "display: flex; align-items: center; gap: 6px; flex-shrink: 0;" } });
-        if (cw.sourceCfi && book.epubPath) {
-          const jumpBtn = rightW.createEl("button", {
-            cls: "dh-chip",
-            text: "📖 К месту",
-            attr: {
-              type: "button",
-              title: "Открыть книгу на том месте, где встретилось это слово",
-              style: "font-size: 0.66rem; padding: 1px 6px; height: 19px; color: #e5a158; border-color: #e5a15855; cursor: pointer;"
-            }
-          });
-          jumpBtn.onclick = e => {
-            e.stopPropagation();
-            openBookInEpubPlugin(book.epubPath, cw.sourceCfi);
-          };
-        }
-
         rightW.createSpan({
           text: "стр. " + cw.lineNumber,
           attr: { style: "font-size: 0.68rem; color: var(--text-faint); white-space: nowrap;" }
@@ -2355,10 +2315,6 @@ createMiniStat(
         const subParts = [];
         if (book.author) subParts.push(book.author);
         if (book.genre) subParts.push(book.genre);
-        if (book.lastReadISO) {
-          const fmtLast = dv.date(book.lastReadISO)?.toFormat("dd.MM.yyyy") || book.lastReadISO;
-          subParts.push("чтение: " + fmtLast);
-        }
         if (subParts.length) {
           titleCol.createDiv({
             text: subParts.join(" · "),
@@ -2614,8 +2570,6 @@ createMiniStat(
         if (book.genre) doneSub.push(book.genre);
         if (book.finishedISO) {
           doneSub.push("завершено: " + (dv.date(book.finishedISO)?.toFormat("dd.MM.yyyy") || book.finishedISO));
-        } else if (book.lastReadISO) {
-          doneSub.push("чтение: " + (dv.date(book.lastReadISO)?.toFormat("dd.MM.yyyy") || book.lastReadISO));
         }
         if (doneSub.length) {
           titleCol.createDiv({
@@ -3280,12 +3234,12 @@ createMiniStat(
       quoteBody.setText("«" + q.text + "»");
 
       const footer = card.createDiv({
-        attr: { style: "display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; border-top: 1px solid var(--background-modifier-border); padding-top: 7px;" }
+        attr: { style: "display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border)); padding-top: 8px;" }
       });
 
-      const metaLeft = footer.createDiv({ attr: { style: "min-width: 0; flex: 1;" } });
+      const metaLeft = footer.createDiv({ attr: { style: "min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px;" } });
       const titleLine = metaLeft.createDiv({
-        attr: { style: "font-size: 0.79rem; font-weight: 600; color: var(--text-normal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" }
+        attr: { style: "font-size: 0.8rem; font-weight: var(--font-semibold, 600); line-height: 1.35; color: var(--color-base-100, var(--text-normal)); overflow-wrap: anywhere;" }
       });
 
       const iconPrefix = isBook ? "📖 " : (q.category === "Мысль" ? "💡 " : "🗂️ ");
@@ -3294,7 +3248,7 @@ createMiniStat(
         const linkEl = titleLine.createEl("a", {
           cls: "internal-link",
           text: q.displayTitle,
-          attr: { href: q.resolvedBook.path, style: "color: var(--text-normal); text-decoration: none;" }
+          attr: { href: q.resolvedBook.path, style: "color: inherit; text-decoration: none;" }
         });
         linkEl.onclick = e => {
           e.preventDefault();
@@ -3312,27 +3266,14 @@ createMiniStat(
       if (dateFormatted) subParts.push(dateFormatted);
       if (q.duplicateOfLine) subParts.push("похожа на стр. " + q.duplicateOfLine);
 
-      metaLeft.createDiv({
-        text: subParts.join(" · "),
-        attr: { style: "font-size: 0.71rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" }
-      });
-
-      const rightFooter = footer.createDiv({ attr: { style: "display: flex; align-items: center; gap: 5px; flex-shrink: 0;" } });
-
-      if (isBook && q.resolvedBook && q.resolvedBook.epubPath && q.quoteCfi) {
-        const jumpQuoteBtn = rightFooter.createEl("button", {
-          cls: "dh-chip",
-          text: "📖 К месту",
-          attr: {
-            type: "button",
-            title: "Открыть книгу на месте этой цитаты",
-            style: "font-size: 0.68rem; padding: 1px 6px; height: 20px; color: #e5a158; border-color: #e5a15855; cursor: pointer;"
-          }
+      if (subParts.length) {
+        metaLeft.createDiv({
+          text: subParts.join(" · "),
+          attr: { style: "font-size: 0.72rem; line-height: 1.35; color: var(--text-muted); overflow-wrap: anywhere;" }
         });
-        jumpQuoteBtn.onclick = () => {
-          openBookInEpubPlugin(q.resolvedBook.epubPath, q.quoteCfi);
-        };
       }
+
+      const rightFooter = footer.createDiv({ attr: { style: "display: flex; align-items: center; gap: 4px; flex-shrink: 0;" } });
 
       if (!isBook && q.displayStatus) {
         const badgeColor = STATUS_COLORS[q.displayStatus] || accentColor;
@@ -3402,7 +3343,7 @@ createMiniStat(
     } else {
       const cardsGrid = quotesSection.createDiv({
         attr: {
-          style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(" + (ui.showRandom ? "100%" : "285px") + ", 1fr)); gap: 10px;"
+          style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(" + (ui.showRandom ? "100%" : "320px") + ", 1fr)); gap: 10px;"
         }
       });
       displayedQuotes.forEach(q => renderQuoteCard(cardsGrid, q));
