@@ -86,19 +86,6 @@ function openValuesCompassFromHome(tab = "map", domainId) {
   }
 }
 
-function openValuesReviewFromHome(domainId) {
-  const plugin = getValuesCompassPlugin();
-  if (!plugin || typeof plugin.openReviewModal !== "function") {
-    notify("Обнови и включи плагин «Values Compass» (my-values-compass).");
-    return;
-  }
-  try {
-    plugin.openReviewModal({ initialTab: "fear", domainId });
-  } catch (err) {
-    notify("Не удалось открыть Разбор: " + (err instanceof Error ? err.message : String(err)));
-  }
-}
-
 function openFocusTrackerFromHome(initialProject) {
   const plugin = getFocusPlugin();
   if (!plugin || typeof plugin.openFocusModal !== "function") {
@@ -3272,13 +3259,6 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       attr: { type: "button", title: "Открыть Динамику и ритм" }
     });
     analyticsBtn.onclick = () => openValuesCompassFromHome("analytics");
-
-    const reviewBtn = nav.createEl("button", {
-      cls: "dhv-btn dhv-icon-btn",
-      attr: { type: "button", title: "Разбор (FEAR, распаковка, репетиция)" }
-    });
-    reviewBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>`;
-    reviewBtn.onclick = () => openValuesReviewFromHome(focusDomains[0]?.id);
 
     // --- Полоска активного фокуса ---
     if (focusDomains.length > 0) {
