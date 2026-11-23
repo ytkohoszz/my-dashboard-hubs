@@ -1369,101 +1369,6 @@ let selectedISO =
     box-shadow: none;
   }
 
-  /* === Блок «Недавно в работе» (Velocity Table + Island) === */
-  .dashboard-home .dh-recent-work {
-    margin: 15px 0 25px 0;
-  }
-  .dashboard-home .dh-recent-work details.dh-recent-details {
-    padding: calc(var(--vl-layout-padding, 8px) + 6px) calc(var(--vl-layout-padding, 8px) + 10px);
-    background: var(--setting-item-background, var(--background-secondary));
-    border: none;
-    border-radius: calc(var(--radius-ml, 14px) + 2px);
-    box-shadow: var(--shadow-setting-items, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
-    -electron-corner-smoothing: var(--corner-smoothing, 60%);
-  }
-  .dashboard-home .dh-recent-work details.dh-recent-details > summary {
-    list-style: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    user-select: none;
-  }
-  .dashboard-home .dh-recent-work details.dh-recent-details > summary::-webkit-details-marker {
-    display: none;
-  }
-  .dashboard-home .dh-recent-work details.dh-recent-details[open] > summary {
-    margin-bottom: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border));
-  }
-  .dashboard-home .dh-recent-title {
-    font-size: var(--font-ui-medium, 15px);
-    font-weight: var(--font-semibold, 600);
-    font-variation-settings: "opsz" 24;
-    color: var(--color-base-100, var(--text-normal));
-  }
-  .dashboard-home .dh-recent-toggle {
-    font-size: 0.76rem;
-    font-weight: var(--font-semi-medium, 500);
-    color: var(--icon-color, var(--text-muted));
-  }
-  .dashboard-home .dh-recent-empty {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    padding: 12px;
-    text-align: center;
-  }
-  .dashboard-home table.dh-recent-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: var(--table-text-size, 0.86rem);
-  }
-  .dashboard-home table.dh-recent-table thead th {
-    border: none;
-    border-bottom: 2px solid var(--table-header-border-color, var(--hr-color, var(--background-modifier-border)));
-    padding: 6px 10px;
-    text-align: start;
-    color: var(--table-header-color, var(--icon-color));
-    font-size: var(--font-ui-smaller, 12px);
-    font-weight: var(--table-header-weight, var(--font-medium));
-  }
-  .dashboard-home table.dh-recent-table thead th:last-child {
-    width: 140px;
-    text-align: end;
-  }
-  .dashboard-home table.dh-recent-table tbody tr {
-    cursor: pointer;
-    transition: background-color var(--anim-super-smooth, 75ms ease-out);
-  }
-  .dashboard-home table.dh-recent-table tbody tr:nth-child(even) {
-    background: var(--table-row-bg, var(--trans-faint-00, transparent));
-  }
-  .dashboard-home table.dh-recent-table tbody tr:hover {
-    background: var(--background-modifier-hover);
-  }
-  .dashboard-home table.dh-recent-table tbody td {
-    border: none;
-    border-left: 1px solid var(--table-border-color, var(--trans-faint-20, var(--background-modifier-border)));
-    padding: 8px 10px;
-  }
-  .dashboard-home table.dh-recent-table tbody td:first-child {
-    border-left: none;
-    font-weight: var(--font-semi-medium, 500);
-  }
-  .dashboard-home table.dh-recent-table tbody td a.internal-link {
-    color: var(--color-accent-1, var(--text-accent));
-    text-decoration: none;
-  }
-  .dashboard-home table.dh-recent-table tbody td.dh-recent-time {
-    text-align: end;
-    color: var(--text-muted);
-    font-size: 0.78rem;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-  }
-
   /* === Адаптивность и iPadOS / Touch === */
   body.is-mobile .dashboard-home button.dh-date-nav-btn {
     width: 36px;
@@ -3449,92 +3354,829 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
 }
 
 // ========================================================
-// 3. БЛОК «НЕДАВНО В РАБОТЕ» (РАСКРЫВАЮЩИЙСЯ СПИСОК)
+// 3. ОСТРОВ «БЫСТРЫЙ ДОСТУП» (ЗАКРЕПЛЁННЫЕ ЗАМЕТКИ, СИНХРОН В _system/home-pins.json)
 // ========================================================
 {
-  const LIMIT = 8;
+  const PINS_FILE_PATH = "_system/home-pins.json";
+  const PIN_COLORS = [
+    { id: "accent", label: "Акцент", css: "var(--interactive-accent)" },
+    { id: "blue", label: "Синий", css: "var(--color-blue, #599ed6)" },
+    { id: "cyan", label: "Бирюзовый", css: "var(--color-cyan, #69b5aa)" },
+    { id: "green", label: "Зелёный", css: "var(--color-green, #4aab80)" },
+    { id: "orange", label: "Оранжевый", css: "var(--color-orange, #e5a158)" },
+    { id: "purple", label: "Фиолетовый", css: "var(--color-purple, #9c83e8)" },
+    { id: "red", label: "Красный", css: "var(--color-red, #d85b57)" }
+  ];
+  const colorById = id => (PIN_COLORS.find(c => c.id === id) || PIN_COLORS[0]).css;
 
-  if (!window.__dhRecentWorkState) {
-    window.__dhRecentWorkState = { isOpen: false };
+  if (!window.__dhHomePinsState) {
+    window.__dhHomePinsState = {
+      loaded: false,
+      loading: false,
+      items: [],
+      editMode: false,
+      formOpen: false,
+      editingId: null,
+      activeGroup: "all",
+      draftColor: "accent"
+    };
   }
-  const uiState = window.__dhRecentWorkState;
+  const pinState = window.__dhHomePinsState;
 
-  const stampOf = p => {
-    try { return p.file.mtime?.toMillis?.() ?? 0; } catch { return 0; }
+  async function ensurePinsFolder() {
+    const parts = PINS_FILE_PATH.split("/");
+    parts.pop();
+    let acc = "";
+    for (const part of parts) {
+      acc = acc ? `${acc}/${part}` : part;
+      if (!(await app.vault.adapter.exists(acc))) {
+        await app.vault.adapter.mkdir(acc);
+      }
+    }
+  }
+
+  async function persistPins() {
+    try {
+      await ensurePinsFolder();
+      await app.vault.adapter.write(
+        PINS_FILE_PATH,
+        JSON.stringify({ version: 1, items: pinState.items }, null, 2)
+      );
+    } catch (err) {
+      notify("Не удалось сохранить закладки: " + (err?.message || err));
+    }
+  }
+
+  if (!pinState.loaded && !pinState.loading) {
+    pinState.loading = true;
+    (async () => {
+      try {
+        if (await app.vault.adapter.exists(PINS_FILE_PATH)) {
+          const raw = await app.vault.adapter.read(PINS_FILE_PATH);
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed?.items)) {
+            pinState.items = parsed.items;
+          }
+        }
+      } catch (err) {
+        console.log("[Home Pins] Load error:", err);
+      } finally {
+        pinState.loaded = true;
+        pinState.loading = false;
+        scheduleHomeRender(30);
+      }
+    })();
+  }
+
+  const root = dv.container.createDiv({ cls: "dh dh-pins-island" });
+
+  const pinStyle = root.createEl("style");
+  pinStyle.textContent = `
+  /* === Остров «Быстрый доступ» (Velocity 2.1.0) === */
+  .dashboard-home .dh-pins-island {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: calc(var(--vl-layout-padding, 8px) * 2) calc(var(--vl-layout-padding, 8px) * 2 + 2px);
+    margin: 0 0 26px 0 !important;
+    border: none !important;
+    border-radius: calc(var(--radius-ml, 14px) + 2px) !important;
+    background: var(--trans-faint-05, var(--background-secondary)) !important;
+    box-shadow:
+      var(--glass-base-m, none),
+      0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
+      var(--shadow-setting-items, 0 4px 12px rgba(0, 0, 0, 0.1)) !important;
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    box-sizing: border-box;
+  }
+  .dashboard-home .dh-pins-island * {
+    box-sizing: border-box;
+  }
+  .dashboard-home .dh-pins-island button.dhp-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    contain: content;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--text-normal);
+    font-family: var(--font-interface);
+    font-size: 0.8rem;
+    font-weight: var(--font-semi-medium, 500);
+    line-height: 1.2;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    transition:
+      background-color var(--anim-super-smooth, 75ms ease-out),
+      color var(--anim-super-smooth, 75ms ease-out),
+      box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+      filter var(--anim-super-smooth, 75ms ease-out);
+  }
+  .dashboard-home .dhp-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+  }
+  .dashboard-home .dhp-head-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dashboard-home .dhp-title {
+    font-size: 0.98rem;
+    font-weight: var(--font-semibold, 600);
+    font-variation-settings: "opsz" 24;
+    letter-spacing: -0.01em;
+    color: var(--color-base-100, var(--text-normal));
+  }
+  .dashboard-home .dhp-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: var(--pill-radius, var(--radius-l, 18px));
+    background: var(--background-primary);
+    box-shadow: 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border));
+    font-size: 0.74rem;
+    font-weight: var(--font-semibold, 600);
+    font-variant-numeric: tabular-nums;
+    color: var(--icon-color, var(--text-muted));
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
+  }
+  .dashboard-home .dhp-head-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .dashboard-home .dh-pins-island button.dhp-action-btn {
+    height: 28px;
+    padding: 0 10px;
+    border-radius: var(--radius-s, 8px);
+    color: var(--icon-color, var(--text-muted));
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
+  }
+  .dashboard-home .dh-pins-island button.dhp-action-btn:hover,
+  .dashboard-home .dh-pins-island button.dhp-action-btn.is-active {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+  }
+  .dashboard-home .dh-pins-island button.dhp-icon-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-xxl, 22px);
+    color: var(--control-icon-color, var(--icon-color, var(--text-muted)));
+    flex-shrink: 0;
+  }
+  .dashboard-home .dh-pins-island button.dhp-icon-btn:hover,
+  .dashboard-home .dh-pins-island button.dhp-icon-btn.is-active {
+    background: var(--control-icon-background, var(--background-modifier-hover));
+    color: var(--text-normal);
+    box-shadow: var(--control-icon-shadow, none);
+  }
+  .dashboard-home .dh-pins-island button.dhp-icon-btn.is-danger:hover {
+    color: var(--color-red, #d85b57);
+  }
+
+  /* Фильтр по группам */
+  .dashboard-home .dhp-groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .dashboard-home .dh-pins-island button.dhp-chip {
+    height: 26px;
+    padding: 0 10px;
+    border-radius: var(--pill-radius, var(--radius-l, 18px));
+    background: var(--background-primary);
+    color: var(--icon-color, var(--text-muted));
+    font-size: 0.76rem;
+    box-shadow: 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border));
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
+  }
+  .dashboard-home .dh-pins-island button.dhp-chip:hover {
+    background: var(--interactive-hover);
+    color: var(--text-normal);
+  }
+  .dashboard-home .dh-pins-island button.dhp-chip.is-active {
+    background: var(--color-accent-4, var(--background-modifier-active-hover));
+    color: var(--color-accent-1, var(--text-accent));
+    box-shadow:
+      var(--glass-base, none),
+      inset 0 0 0 1px var(--color-accent-3, var(--interactive-accent));
+  }
+
+  /* Сетка карточек */
+  .dashboard-home .dhp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 8px;
+  }
+  .dashboard-home .dhp-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 48px;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm, 10px);
+    background: var(--background-primary);
+    box-shadow:
+      inset 2.5px 0 0 0 color-mix(in oklab, var(--pin-color, var(--interactive-accent)) 85%, transparent),
+      var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+    cursor: pointer;
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    transition:
+      background-color var(--anim-super-smooth, 75ms ease-out),
+      box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+  }
+  .dashboard-home .dhp-card:hover {
+    background: color-mix(in oklab, var(--pin-color, var(--interactive-accent)) 7%, var(--background-primary));
+    box-shadow:
+      inset 2.5px 0 0 0 var(--pin-color, var(--interactive-accent)),
+      0 0 0 0.5px color-mix(in oklab, var(--pin-color, var(--interactive-accent)) 45%, transparent);
+  }
+  .dashboard-home .dhp-card-main {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .dashboard-home .dhp-card-icon {
+    font-size: 0.98rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .dashboard-home .dhp-card-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--pin-color, var(--interactive-accent));
+    flex-shrink: 0;
+  }
+  .dashboard-home .dhp-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .dashboard-home .dhp-card-title {
+    font-size: 0.86rem;
+    font-weight: var(--font-semibold, 600);
+    color: var(--color-base-100, var(--text-normal));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dashboard-home .dhp-card-sub {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dashboard-home .dhp-card-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  /* Форма добавления / редактирования */
+  .dashboard-home .dhp-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm, 10px);
+    background: var(--background-primary);
+    box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)));
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+  }
+  .dashboard-home .dhp-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .dashboard-home .dhp-form-row-meta {
+    display: grid;
+    grid-template-columns: 74px 1fr auto;
+    align-items: center;
+    gap: 8px;
+  }
+  .dashboard-home .dhp-suggest-wrap {
+    position: relative;
+  }
+  .dashboard-home .dh-pins-island input.dhp-input {
+    width: 100% !important;
+    height: 34px !important;
+    padding: 0 11px !important;
+    border: none !important;
+    outline: none !important;
+    border-radius: var(--input-radius, var(--radius-s, 8px)) !important;
+    background: var(--trans-faint-05, var(--background-secondary)) !important;
+    color: var(--text-normal) !important;
+    font-family: var(--font-interface);
+    font-size: 0.84rem !important;
+    box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border))) !important;
+    transition: box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+  }
+  .dashboard-home .dh-pins-island input.dhp-input:focus {
+    box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent)) !important;
+  }
+  .dashboard-home .dh-pins-island input.dhp-input::placeholder {
+    color: var(--text-faint);
+  }
+  .dashboard-home .dhp-suggest-list {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 4px);
+    z-index: 30;
+    max-height: 210px;
+    overflow-y: auto;
+    scrollbar-width: none;
+    padding: 4px;
+    border-radius: var(--menu-radius, var(--radius-m, 12px));
+    background: var(--modal-small-background, var(--background-primary-alt, var(--background-secondary)));
+    backdrop-filter: var(--blur-m, blur(12px));
+    -webkit-backdrop-filter: var(--blur-m, blur(12px));
+    border: 1px solid var(--menu-border-color, var(--trans-faint-30, var(--background-modifier-border)));
+    box-shadow: var(--glass-base-l, none), var(--menu-shadow, 0 10px 28px rgba(0, 0, 0, 0.28));
+  }
+  .dashboard-home .dhp-suggest-list::-webkit-scrollbar {
+    display: none;
+  }
+  .dashboard-home .dhp-suggest-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 7px 10px;
+    border-radius: var(--radius-xs, 6px);
+    cursor: pointer;
+  }
+  .dashboard-home .dhp-suggest-item:hover {
+    background: var(--background-modifier-hover);
+  }
+  .dashboard-home .dhp-suggest-name {
+    font-size: 0.83rem;
+    font-weight: var(--font-semi-medium, 500);
+    color: var(--text-normal);
+  }
+  .dashboard-home .dhp-suggest-path {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .dashboard-home .dhp-colors {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 2px;
+  }
+  .dashboard-home .dh-pins-island button.dhp-swatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: var(--swatch-color);
+    opacity: 0.72;
+  }
+  .dashboard-home .dh-pins-island button.dhp-swatch:hover {
+    opacity: 1;
+  }
+  .dashboard-home .dh-pins-island button.dhp-swatch.is-active {
+    opacity: 1;
+    box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 3.5px var(--swatch-color);
+  }
+  .dashboard-home .dhp-form-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .dashboard-home .dh-pins-island button.dhp-btn-normal {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: var(--radius-s, 8px);
+    background: var(--interactive-normal);
+    color: var(--text-normal);
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
+  }
+  .dashboard-home .dh-pins-island button.dhp-btn-normal:hover {
+    background: var(--interactive-hover);
+  }
+  .dashboard-home .dh-pins-island button.dhp-btn-cta {
+    height: 30px;
+    padding: 0 14px;
+    border-radius: var(--radius-s, 8px);
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    box-shadow: var(--shadow-button, none);
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
+  }
+  .dashboard-home .dh-pins-island button.dhp-btn-cta:hover {
+    filter: brightness(1.0625);
+  }
+  .dashboard-home .dhp-empty {
+    padding: 12px 14px;
+    border-radius: var(--radius-sm, 10px);
+    background: var(--background-primary);
+    box-shadow: inset 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border));
+    font-size: 0.82rem;
+    color: var(--text-faint);
+  }
+
+  @media (max-width: 620px) {
+    .dashboard-home .dhp-form-row,
+    .dashboard-home .dhp-form-row-meta {
+      grid-template-columns: 1fr;
+    }
+  }
+  body.is-mobile .dashboard-home .dh-pins-island input.dhp-input,
+  body.is-tablet .dashboard-home .dh-pins-island input.dhp-input {
+    height: 38px !important;
+  }
+  body.is-mobile .dashboard-home .dh-pins-island button.dhp-action-btn,
+  body.is-tablet .dashboard-home .dh-pins-island button.dhp-action-btn,
+  body.is-mobile .dashboard-home .dh-pins-island button.dhp-btn-normal,
+  body.is-tablet .dashboard-home .dh-pins-island button.dhp-btn-normal,
+  body.is-mobile .dashboard-home .dh-pins-island button.dhp-btn-cta,
+  body.is-tablet .dashboard-home .dh-pins-island button.dhp-btn-cta,
+  body.is-mobile .dashboard-home .dh-pins-island button.dhp-chip,
+  body.is-tablet .dashboard-home .dh-pins-island button.dhp-chip {
+    height: 36px;
+  }
+  body.is-mobile .dashboard-home .dh-pins-island button.dhp-icon-btn,
+  body.is-tablet .dashboard-home .dh-pins-island button.dhp-icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+  body.is-mobile .dashboard-home .dh-pins-island button.dhp-swatch,
+  body.is-tablet .dashboard-home .dh-pins-island button.dhp-swatch {
+    width: 24px;
+    height: 24px;
+  }
+  `;
+
+  // --- Шапка ---
+  const head = root.createDiv({ cls: "dhp-head" });
+  const headLeft = head.createDiv({ cls: "dhp-head-left" });
+  headLeft.createSpan({ cls: "dhp-title", text: "Быстрый доступ" });
+  if (pinState.items.length > 0) {
+    headLeft.createSpan({ cls: "dhp-count", text: String(pinState.items.length) });
+  }
+
+  const headActions = head.createDiv({ cls: "dhp-head-actions" });
+
+  if (pinState.items.length > 0) {
+    const editToggle = headActions.createEl("button", {
+      cls: "dhp-btn dhp-action-btn" + (pinState.editMode ? " is-active" : ""),
+      text: pinState.editMode ? "Готово" : "Изменить",
+      attr: { type: "button" }
+    });
+    editToggle.onclick = () => {
+      pinState.editMode = !pinState.editMode;
+      if (!pinState.editMode) {
+        pinState.formOpen = false;
+        pinState.editingId = null;
+      }
+      renderHomeDashboard();
+    };
+  }
+
+  const addBtn = headActions.createEl("button", {
+    cls: "dhp-btn dhp-action-btn" + (pinState.formOpen && !pinState.editingId ? " is-active" : ""),
+    text: "+ Заметка",
+    attr: { type: "button" }
+  });
+  addBtn.onclick = () => {
+    if (pinState.formOpen && !pinState.editingId) {
+      pinState.formOpen = false;
+    } else {
+      pinState.formOpen = true;
+      pinState.editingId = null;
+      pinState.draftColor = "accent";
+    }
+    renderHomeDashboard();
   };
 
-  const recentPages = dv.pages().array()
-    .filter(p => p.file.path !== dv.currentFilePath)
-    .sort((a, b) => stampOf(b) - stampOf(a))
-    .slice(0, LIMIT);
+  // --- Форма добавления / редактирования ---
+  if (pinState.formOpen) {
+    const editingItem = pinState.editingId
+      ? pinState.items.find(i => i.id === pinState.editingId) || null
+      : null;
+    if (editingItem) pinState.draftColor = editingItem.color || "accent";
 
-  const root = dv.container.createDiv({ cls: "dh dh-recent-work" });
-  const details = root.createEl("details", { cls: "dh-panel dh-recent-details" });
-  details.open = Boolean(uiState.isOpen);
+    const form = root.createDiv({ cls: "dhp-form" });
 
-  const summary = details.createEl("summary");
-  summary.onmousedown = e => e.preventDefault();
+    const row1 = form.createDiv({ cls: "dhp-form-row" });
 
-  summary.createDiv({ cls: "dh-recent-title", text: "Недавно в работе" });
-  const toggleHint = summary.createSpan({
-    cls: "dh-recent-toggle",
-    text: details.open ? "Свернуть ▲" : "Развернуть ▾"
-  });
+    const suggestWrap = row1.createDiv({ cls: "dhp-suggest-wrap" });
+    const pathInput = suggestWrap.createEl("input", {
+      cls: "dhp-input",
+      attr: { type: "text", placeholder: "Найти заметку в хранилище…" }
+    });
+    pathInput.value = editingItem?.path || "";
 
-  const listContainer = details.createDiv();
-  let isRendered = false;
+    const titleInput = row1.createEl("input", {
+      cls: "dhp-input",
+      attr: { type: "text", placeholder: "Название на карточке" }
+    });
+    titleInput.value = editingItem?.title || "";
 
-  function renderList() {
-    isRendered = true;
-    listContainer.empty();
+    const suggestList = suggestWrap.createDiv({ cls: "dhp-suggest-list" });
+    suggestList.style.display = "none";
 
-    if (!recentPages.length) {
-      listContainer.createDiv({ cls: "dh-recent-empty", text: "Недавних заметок пока нет." });
-      return;
-    }
+    const updateSuggestions = () => {
+      const q = pathInput.value.trim().toLowerCase();
+      const files = app.vault.getMarkdownFiles();
+      const matches = (q
+        ? files.filter(f =>
+            f.basename.toLowerCase().includes(q) || f.path.toLowerCase().includes(q)
+          )
+        : files
+      )
+        .sort((a, b) => {
+          if (q) {
+            const aStarts = a.basename.toLowerCase().startsWith(q) ? 0 : 1;
+            const bStarts = b.basename.toLowerCase().startsWith(q) ? 0 : 1;
+            if (aStarts !== bStarts) return aStarts - bStarts;
+          }
+          return (b.stat?.mtime || 0) - (a.stat?.mtime || 0);
+        })
+        .slice(0, 6);
 
-    const tableEl = listContainer.createEl("table", { cls: "dh-table dh-recent-table" });
-    const thead = tableEl.createEl("thead");
-    const trH = thead.createEl("tr");
-    trH.createEl("th", { text: "Заметка" });
-    trH.createEl("th", { text: "Изменена" });
+      suggestList.replaceChildren();
+      if (matches.length === 0) {
+        suggestList.style.display = "none";
+        return;
+      }
 
-    const tbody = tableEl.createEl("tbody");
-    const todayStr = moment().format("YYYY-MM-DD");
-    const yesterdayStr = moment().subtract(1, "days").format("YYYY-MM-DD");
-
-    recentPages.forEach(p => {
-      const tr = tbody.createEl("tr");
-
-      const tdName = tr.createEl("td");
-      tdName.createEl("a", {
-        cls: "internal-link",
-        text: p.file.name,
-        attr: { href: p.file.path }
+      matches.forEach(file => {
+        const opt = suggestList.createDiv({ cls: "dhp-suggest-item" });
+        opt.createDiv({ cls: "dhp-suggest-name", text: file.basename });
+        opt.createDiv({ cls: "dhp-suggest-path", text: file.path });
+        opt.onmousedown = e => {
+          e.preventDefault();
+          pathInput.value = file.path;
+          if (!titleInput.value.trim()) titleInput.value = file.basename;
+          suggestList.style.display = "none";
+          titleInput.focus();
+        };
       });
-      tr.onclick = (e) => {
-        e.preventDefault();
-        app.workspace.openLinkText(p.file.path, dv.currentFilePath, e.ctrlKey || e.metaKey);
+      suggestList.style.display = "block";
+    };
+
+    pathInput.onfocus = updateSuggestions;
+    pathInput.oninput = updateSuggestions;
+    pathInput.onblur = () => {
+      setTimeout(() => { if (suggestList.isConnected) suggestList.style.display = "none"; }, 120);
+    };
+
+    const row2 = form.createDiv({ cls: "dhp-form-row-meta" });
+    const iconInput = row2.createEl("input", {
+      cls: "dhp-input",
+      attr: { type: "text", maxlength: "4", placeholder: "Значок" }
+    });
+    iconInput.value = editingItem?.icon || "";
+
+    const groupInput = row2.createEl("input", {
+      cls: "dhp-input",
+      attr: { type: "text", placeholder: "Группа (например: Dev, Учёба)" }
+    });
+    groupInput.value = editingItem?.group || "";
+
+    const colorsWrap = row2.createDiv({ cls: "dhp-colors" });
+    PIN_COLORS.forEach(col => {
+      const sw = colorsWrap.createEl("button", {
+        cls: "dhp-btn dhp-swatch" + (pinState.draftColor === col.id ? " is-active" : ""),
+        attr: { type: "button", title: col.label }
+      });
+      sw.style.setProperty("--swatch-color", col.css);
+      sw.onclick = () => {
+        pinState.draftColor = col.id;
+        colorsWrap.querySelectorAll(".dhp-swatch").forEach(el => el.classList.remove("is-active"));
+        sw.classList.add("is-active");
+      };
+    });
+
+    const footer = form.createDiv({ cls: "dhp-form-footer" });
+    const cancelBtn = footer.createEl("button", {
+      cls: "dhp-btn dhp-btn-normal",
+      text: "Отмена",
+      attr: { type: "button" }
+    });
+    cancelBtn.onclick = () => {
+      pinState.formOpen = false;
+      pinState.editingId = null;
+      renderHomeDashboard();
+    };
+
+    const saveBtn = footer.createEl("button", {
+      cls: "dhp-btn dhp-btn-cta",
+      text: editingItem ? "Сохранить" : "Добавить",
+      attr: { type: "button" }
+    });
+
+    const submitPin = async () => {
+      const pathVal = pathInput.value.trim();
+      const titleVal = titleInput.value.trim() || pathVal.replace(/\.md$/i, "").split("/").pop() || "";
+      if (!pathVal || !titleVal) {
+        notify("Выбери заметку и укажи название");
+        return;
+      }
+
+      const payload = {
+        id: editingItem ? editingItem.id : "pin_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6),
+        title: titleVal,
+        path: pathVal,
+        group: groupInput.value.trim(),
+        icon: iconInput.value.trim(),
+        color: pinState.draftColor || "accent"
       };
 
-      const tdTime = tr.createEl("td", { cls: "dh-recent-time" });
-      const m = moment(stampOf(p));
-      const mDay = m.format("YYYY-MM-DD");
-      let timeLabel = m.format("DD.MM HH:mm");
-      if (mDay === todayStr) timeLabel = `Сегодня, ${m.format("HH:mm")}`;
-      else if (mDay === yesterdayStr) timeLabel = `Вчера, ${m.format("HH:mm")}`;
+      if (editingItem) {
+        const idx = pinState.items.findIndex(i => i.id === editingItem.id);
+        if (idx !== -1) pinState.items[idx] = payload;
+      } else {
+        pinState.items.push(payload);
+      }
 
-      tdTime.setText(timeLabel);
+      pinState.formOpen = false;
+      pinState.editingId = null;
+      await persistPins();
+      renderHomeDashboard();
+    };
+
+    saveBtn.onclick = () => { void submitPin(); };
+    titleInput.onkeydown = e => {
+      if (e.key === "Enter") { e.preventDefault(); void submitPin(); }
+    };
+    groupInput.onkeydown = e => {
+      if (e.key === "Enter") { e.preventDefault(); void submitPin(); }
+    };
+
+    requestAnimationFrame(() => {
+      if (editingItem) titleInput.focus();
+      else pathInput.focus();
     });
   }
 
-  details.ontoggle = () => {
-    uiState.isOpen = details.open;
-    toggleHint.setText(details.open ? "Свернуть ▲" : "Развернуть ▾");
-    if (details.open && !isRendered) renderList();
-  };
+  // --- Группы-фильтры (показываются только если заданы группы) ---
+  const uniqueGroups = [...new Set(pinState.items.map(i => i.group).filter(Boolean))];
+  if (pinState.activeGroup !== "all" && !uniqueGroups.includes(pinState.activeGroup)) {
+    pinState.activeGroup = "all";
+  }
 
-  if (details.open) renderList();
+  if (uniqueGroups.length > 0) {
+    const groupsRow = root.createDiv({ cls: "dhp-groups" });
+    const allChip = groupsRow.createEl("button", {
+      cls: "dhp-btn dhp-chip" + (pinState.activeGroup === "all" ? " is-active" : ""),
+      text: "Все",
+      attr: { type: "button" }
+    });
+    allChip.onclick = () => {
+      pinState.activeGroup = "all";
+      renderHomeDashboard();
+    };
+
+    uniqueGroups.forEach(grp => {
+      const chip = groupsRow.createEl("button", {
+        cls: "dhp-btn dhp-chip" + (pinState.activeGroup === grp ? " is-active" : ""),
+        text: grp,
+        attr: { type: "button" }
+      });
+      chip.onclick = () => {
+        pinState.activeGroup = grp;
+        renderHomeDashboard();
+      };
+    });
+  }
+
+  // --- Сетка карточек ---
+  const visiblePins = pinState.activeGroup === "all"
+    ? pinState.items
+    : pinState.items.filter(i => i.group === pinState.activeGroup);
+
+  if (pinState.items.length === 0 && !pinState.formOpen) {
+    root.createDiv({
+      cls: "dhp-empty",
+      text: "Закрепи заметки, к которым часто возвращаешься (например, команды релиза плагинов)."
+    });
+  } else if (visiblePins.length > 0) {
+    const grid = root.createDiv({ cls: "dhp-grid" });
+
+    visiblePins.forEach(item => {
+      const card = grid.createDiv({
+        cls: "dhp-card",
+        attr: { title: item.path }
+      });
+      card.style.setProperty("--pin-color", colorById(item.color));
+
+      card.onclick = e => {
+        if (pinState.editMode) return;
+        app.workspace.openLinkText(item.path, dv.currentFilePath, e.ctrlKey || e.metaKey);
+      };
+
+      const main = card.createDiv({ cls: "dhp-card-main" });
+      if (item.icon) {
+        main.createSpan({ cls: "dhp-card-icon", text: item.icon });
+      } else {
+        main.createSpan({ cls: "dhp-card-dot" });
+      }
+
+      const textWrap = main.createDiv({ cls: "dhp-card-text" });
+      textWrap.createDiv({ cls: "dhp-card-title", text: item.title });
+      if (item.group && pinState.activeGroup === "all") {
+        textWrap.createDiv({ cls: "dhp-card-sub", text: item.group });
+      }
+
+      if (pinState.editMode) {
+        const tools = card.createDiv({ cls: "dhp-card-tools" });
+        const fullIdx = pinState.items.findIndex(x => x.id === item.id);
+
+        if (fullIdx > 0) {
+          const leftBtn = tools.createEl("button", {
+            cls: "dhp-btn dhp-icon-btn",
+            text: "‹",
+            attr: { type: "button", title: "Сдвинуть влево" }
+          });
+          leftBtn.onclick = async e => {
+            e.stopPropagation();
+            const tmp = pinState.items[fullIdx - 1];
+            pinState.items[fullIdx - 1] = pinState.items[fullIdx];
+            pinState.items[fullIdx] = tmp;
+            await persistPins();
+            renderHomeDashboard();
+          };
+        }
+
+        if (fullIdx !== -1 && fullIdx < pinState.items.length - 1) {
+          const rightBtn = tools.createEl("button", {
+            cls: "dhp-btn dhp-icon-btn",
+            text: "›",
+            attr: { type: "button", title: "Сдвинуть вправо" }
+          });
+          rightBtn.onclick = async e => {
+            e.stopPropagation();
+            const tmp = pinState.items[fullIdx + 1];
+            pinState.items[fullIdx + 1] = pinState.items[fullIdx];
+            pinState.items[fullIdx] = tmp;
+            await persistPins();
+            renderHomeDashboard();
+          };
+        }
+
+        const editBtn = tools.createEl("button", {
+          cls: "dhp-btn dhp-icon-btn",
+          attr: { type: "button", title: "Редактировать" }
+        });
+        editBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>`;
+        editBtn.onclick = e => {
+          e.stopPropagation();
+          pinState.formOpen = true;
+          pinState.editingId = item.id;
+          renderHomeDashboard();
+        };
+
+        const delBtn = tools.createEl("button", {
+          cls: "dhp-btn dhp-icon-btn is-danger",
+          attr: { type: "button", title: "Удалить" }
+        });
+        delBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        delBtn.onclick = async e => {
+          e.stopPropagation();
+          pinState.items = pinState.items.filter(x => x.id !== item.id);
+          if (pinState.editingId === item.id) {
+            pinState.editingId = null;
+            pinState.formOpen = false;
+          }
+          if (pinState.items.length === 0) pinState.editMode = false;
+          await persistPins();
+          renderHomeDashboard();
+        };
+      }
+    });
+  }
 }
 
   if (scroller) {
@@ -3587,6 +4229,7 @@ if (!hostContainer.dataset.dhHomeBound) {
     // Не перерисовываем во время активного ввода текста в поле главной или в острове ценностей
     if (window.__dhTodayDrafts?.activeKey && document.activeElement?.closest?.(".dh-today")) return;
     if (document.activeElement?.closest?.(".dh-values-island")) return;
+    if (document.activeElement?.closest?.(".dh-pins-island")) return;
     scheduleHomeRender(220);
   };
 
