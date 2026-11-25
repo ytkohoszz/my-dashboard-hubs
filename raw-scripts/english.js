@@ -134,8 +134,6 @@ function ensureHubState() {
     onlyFavoriteBooks: false,
     finishedBooksOpen: true,
     doneBooksSort: "date",
-    lastSyncedPagesDate: null,
-    lastSyncedPagesCount: -1,
 
     isQuoteFormOpen: false,
     quoteFormType: "Книга",
@@ -193,6 +191,8 @@ for (const key of Object.keys(ui)) {
     key === "isTrainerFullscreen" ||
     key === "lastSyncedDiaryDate" ||
     key === "lastSyncedDiaryCount" ||
+    key === "lastSyncedPagesDate" ||
+    key === "lastSyncedPagesCount" ||
     key === "progressEditBookPath"
   ) {
     delete ui[key];
@@ -702,150 +702,6 @@ async function fetchTranslations(word) {
   throw lastErr || new Error("сервисы перевода временно недоступны");
 }
 
-// --- Автосинхронизация прочитанных страниц и привычки «чтение» с Ежедневником (единый ключ с home.js) ---
-const SHARED_READING_STATE_KEY = "dh_shared_book_reading_v2";
-const AUTO_READING_PREFIX = "dh_english_auto_reading_v1:";
-const MANUAL_HABITS_PREFIX = "dh_today_manual_habits_v1:";
-const DIARY_PAGES_FIELD = "страниц_прочитано";
-const DIARY_READING_FIELD = "чтение";
-
-const readLsJson = key => {
-  try {
-    const raw = window.localStorage?.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-};
-const writeLsJson = (key, val) => {
-  try { window.localStorage?.setItem(key, JSON.stringify(val)); } catch {}
-};
-
-function bookEffectivePages(b) {
-  const total = b.totalPages !== null && b.totalPages > 0 ? b.totalPages : null;
-  const read = b.readPages !== null && b.readPages >= 0 ? b.readPages : null;
-  const finished = b.status === "Прочитано" || (total !== null && read !== null && read >= total);
-  if (finished && total !== null) return { pages: total, finished: true };
-  return { pages: read, finished };
-}
-
-function computeReadPagesToday(books, todayDate) {
-  const todayISO = todayDate.toISODate();
-  const yesterdayISO = todayDate.minus({ days: 1 }).toISODate();
-  const dayStartMs = todayDate.toMillis();
-
-  let state = readLsJson(SHARED_READING_STATE_KEY);
-  if (!state || typeof state !== "object") {
-    state = { dateISO: "", baselines: {}, snapshotDateISO: "", snapshotValues: {}, manualOverridePages: null };
-  }
-  if (!state.baselines || typeof state.baselines !== "object") state.baselines = {};
-  if (!state.snapshotValues || typeof state.snapshotValues !== "object") state.snapshotValues = {};
-
-  const currentBooks = [];
-  books.forEach(b => {
-    const e = bookEffectivePages(b);
-    if (e.pages === null) return;
-    const f = app.vault.getAbstractFileByPath(b.path);
-    const fm = f ? (app.metadataCache.getFileCache(f)?.frontmatter || {}) : {};
-    const posTimeRaw = String(fm.позиция_время ?? "").trim();
-    const posDateISO = /^\d{4}-\d{2}-\d{2}/.test(posTimeRaw) ? posTimeRaw.slice(0, 10) : "";
-    const touchedToday = b.lastReadISO === todayISO || posDateISO === todayISO;
-    const createdToday = Boolean(f?.stat && f.stat.ctime >= dayStartMs);
-
-    currentBooks.push({
-      path: b.path,
-      curRead: e.pages,
-      isFinished: e.finished,
-      touchedToday,
-      createdToday
-    });
-  });
-
-  if (state.dateISO !== todayISO) {
-    const nextBaselines = {};
-    const hasYesterdaySnapshot = state.snapshotDateISO === yesterdayISO;
-
-    for (const b of currentBooks) {
-      const snapVal = state.snapshotValues[b.path];
-      if (hasYesterdaySnapshot && typeof snapVal === "number" && Number.isFinite(snapVal)) {
-        nextBaselines[b.path] = Math.min(snapVal, b.curRead);
-      } else if (b.touchedToday && typeof snapVal === "number" && Number.isFinite(snapVal)) {
-        nextBaselines[b.path] = Math.min(snapVal, b.curRead);
-      } else if (!b.isFinished && b.createdToday && b.touchedToday) {
-        nextBaselines[b.path] = 0;
-      } else {
-        nextBaselines[b.path] = b.curRead;
-      }
-    }
-
-    state.dateISO = todayISO;
-    state.baselines = nextBaselines;
-    state.manualOverridePages = null;
-  }
-
-  let autoBookPages = 0;
-  const nextSnapshotValues = {};
-
-  for (const b of currentBooks) {
-    let baseVal = state.baselines[b.path];
-    if (typeof baseVal !== "number" || !Number.isFinite(baseVal)) {
-      baseVal = !b.isFinished && b.createdToday ? 0 : b.curRead;
-      state.baselines[b.path] = baseVal;
-    } else if (b.curRead < baseVal) {
-      baseVal = b.curRead;
-      state.baselines[b.path] = baseVal;
-    } else if (!b.touchedToday && b.curRead > baseVal && state.snapshotDateISO !== todayISO && state.snapshotDateISO !== yesterdayISO) {
-      baseVal = b.curRead;
-      state.baselines[b.path] = baseVal;
-    }
-
-    autoBookPages += Math.max(0, b.curRead - baseVal);
-    nextSnapshotValues[b.path] = b.curRead;
-  }
-
-  state.snapshotDateISO = todayISO;
-  state.snapshotValues = nextSnapshotValues;
-  writeLsJson(SHARED_READING_STATE_KEY, state);
-
-  const manualOverridePages =
-    typeof state.manualOverridePages === "number" &&
-    Number.isFinite(state.manualOverridePages) &&
-    state.manualOverridePages >= 0
-      ? Math.round(state.manualOverridePages)
-      : null;
-
-  return {
-    autoBookPages,
-    manualOverridePages,
-    effectivePages: manualOverridePages !== null ? manualOverridePages : autoBookPages
-  };
-}
-
-// true — пользователь уже вручную трогал привычку «чтение» сегодня (ключ веду не я, формат разбираю с запасом)
-function isReadingHabitHandledManually(iso) {
-  let raw = null;
-  try { raw = window.localStorage?.getItem(MANUAL_HABITS_PREFIX + iso); } catch { return false; }
-  if (raw === null || raw === "") return false;
-
-  let v = raw;
-  try { v = JSON.parse(raw); } catch {}
-
-  if (Array.isArray(v)) return v.includes(DIARY_READING_FIELD);
-  if (v && typeof v === "object") {
-    if (!(DIARY_READING_FIELD in v)) return false;
-    const x = v[DIARY_READING_FIELD];
-    return !(x === true || x === "true" || x === 1);
-  }
-  return String(v).includes(DIARY_READING_FIELD);
-}
-
-const hasAutoReadingMark = iso => {
-  try { return window.localStorage?.getItem(AUTO_READING_PREFIX + iso) === "1"; } catch { return false; }
-};
-const setAutoReadingMark = iso => {
-  try { window.localStorage?.setItem(AUTO_READING_PREFIX + iso, "1"); } catch {}
-};
-
 async function openFileAtLine(filePath, lineIndex) {
   await app.workspace.openLinkText(filePath, dv.currentFilePath, false);
   setTimeout(() => {
@@ -1211,16 +1067,15 @@ async function toggleBookFavorite(book) {
 
 function createBookFavButton(parentEl, book) {
   const btn = parentEl.createEl("button", {
-    cls: "dh-chip",
-    text: book.isFavorite ? "♥\uFE0E" : "♡\uFE0E",
+    cls: "dhe-icon-btn" + (book.isFavorite ? " is-fav" : ""),
     attr: {
       type: "button",
       title: book.isFavorite ? "Убрать из любимых" : "Добавить в любимые",
-      "aria-pressed": String(Boolean(book.isFavorite)),
-      style: "font-size: 0.8rem; padding: 1px 6px; height: 20px; cursor: pointer; border-color: transparent; background: transparent; color: " +
-        (book.isFavorite ? STATUS_COLORS["Любимое"] : "var(--text-muted)") + ";"
+      "aria-label": book.isFavorite ? "Убрать из любимых" : "Добавить в любимые",
+      "aria-pressed": String(Boolean(book.isFavorite))
     }
   });
+  renderLucideIcon(btn, "heart", 14);
   btn.onclick = async () => {
     btn.disabled = true;
     try {
@@ -1291,27 +1146,50 @@ const root = dv.container.createDiv({ cls: "dh dh-english-hub" });
 const HUB_CSS_TEXT = [
   ".dh-english-page .dh-english-hub, .dashboard-home .dh-english-hub { --dhe-ease: var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)); display: flex; flex-direction: column; gap: 16px; margin: 8px 0 28px 0; box-sizing: border-box; }",
   ".dashboard-home .dh-english-hub button, .dashboard-home .dh-english-hub select { touch-action: manipulation; }",
+  ".dashboard-home .dh-english-hub .dhe-ico { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 0; }",
+  ".dashboard-home .dh-english-hub .dhe-ico svg { display: block; }",
   ".dashboard-home .dh-english-hub .dhe-panel { padding: calc(var(--vl-layout-padding, 8px) * 2); background: var(--trans-faint-05, var(--background-secondary)); border: none; border-radius: calc(var(--radius-ml, 14px) + 2px); box-shadow: var(--glass-base-m, none), 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)), var(--shadow-setting-items, none); box-sizing: border-box; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+  ".dashboard-home .dh-english-hub .dhe-subpanel { padding: 12px 14px; background: var(--background-primary); border: none; border-radius: var(--radius-m, 12px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border))); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+  ".dashboard-home .dh-english-hub .dhe-empty-state { padding: 14px 16px; text-align: center; color: var(--text-muted); font-size: 0.82rem; background: var(--background-primary); border: none; border-radius: var(--radius-sm, 10px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+  ".dashboard-home .dh-english-hub .dhe-filter-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; padding: 8px 11px; margin-bottom: 12px; background: var(--background-primary); border: none; border-radius: var(--radius-sm, 10px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+  ".dashboard-home .dh-english-hub .dhe-words-drawer { padding: 9px 11px; background: var(--trans-faint-05, var(--background-secondary)); border: none; border-radius: var(--radius-s, 8px); box-shadow: 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)); display: flex; flex-direction: column; gap: 5px; max-height: 210px; overflow-y: auto; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
   ".dashboard-home .dh-english-hub .dhe-section-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 12px; }",
-  ".dashboard-home .dh-english-hub .dhe-section-title { font-size: 0.98rem; font-weight: var(--font-semibold, 600); font-variation-settings: 'opsz' 24; color: var(--color-base-100, var(--text-normal)); display: inline-flex; align-items: baseline; gap: 8px; }",
-  ".dashboard-home .dh-english-hub .dhe-section-sub { font-size: 0.75rem; font-weight: var(--font-semi-medium, 500); color: var(--icon-color, var(--text-muted)); }",
-  ".dashboard-home .dh-english-hub .dhe-today-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 10px; align-items: stretch; }",
-  ".dashboard-home .dh-english-hub .dhe-stat-box { padding: 11px 13px; background: var(--background-primary); border: none !important; border-radius: var(--radius-sm, 10px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); display: flex; flex-direction: column; justify-content: space-between; gap: 4px; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+  ".dashboard-home .dh-english-hub .dhe-section-title { font-size: 0.98rem; font-weight: var(--font-semibold, 600); font-variation-settings: 'opsz' 24; color: var(--color-base-100, var(--text-normal)); display: inline-flex; align-items: center; gap: 8px; }",
+  ".dashboard-home .dh-english-hub .dhe-section-sub { font-size: 0.75rem; font-weight: var(--font-semi-medium, 500); color: var(--icon-color, var(--text-muted)); display: inline-flex; align-items: center; gap: 5px; }",
+  ".dashboard-home .dh-english-hub .dhe-today-bar { display: grid; grid-template-columns: minmax(220px, 1.35fr) minmax(220px, 1fr); gap: 10px; align-items: stretch; }",
+  ".dashboard-home .dh-english-hub .dhe-stat-box { padding: 12px 14px; background: var(--background-primary); border: none !important; border-radius: var(--radius-sm, 10px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); display: flex; flex-direction: column; justify-content: space-between; gap: 6px; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+  ".dashboard-home .dh-english-hub .dhe-stat-box.is-met { box-shadow: inset 0 2px 0 0 color-mix(in oklab, var(--color-green, #4aab80) 80%, transparent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); }",
+  ".dashboard-home .dh-english-hub .dhe-stat-label-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }",
   ".dashboard-home .dh-english-hub .dhe-stat-label { font-size: 0.74rem; font-weight: var(--font-semi-medium, 500); color: var(--icon-color, var(--text-muted)); }",
+  ".dashboard-home .dh-english-hub .dhe-rhythm-status { font-size: 0.71rem; font-weight: var(--font-semi-medium, 500); color: var(--text-muted); font-variant-numeric: tabular-nums; }",
+  ".dashboard-home .dh-english-hub .dhe-rhythm-status.is-met { color: var(--color-green, #4aab80); }",
   ".dashboard-home .dh-english-hub .dhe-stat-val-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }",
-  ".dashboard-home .dh-english-hub .dhe-stat-val { font-size: 1.38rem; font-weight: var(--font-bold, 700); color: var(--color-base-100, var(--text-normal)); font-variant-numeric: tabular-nums; line-height: 1.15; }",
-  ".dashboard-home .dh-english-hub .dhe-stat-hint { font-size: 0.71rem; color: var(--text-muted); line-height: 1.28; }",
-  ".dashboard-home .dh-english-hub .dhe-actions-box { padding: 11px 13px; background: var(--background-primary); border: none; border-radius: var(--radius-sm, 10px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); display: flex; flex-direction: column; justify-content: center; gap: 8px; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+  ".dashboard-home .dh-english-hub .dhe-rhythm-numbers { display: inline-flex; align-items: baseline; gap: 5px; font-variant-numeric: tabular-nums; }",
+  ".dashboard-home .dh-english-hub .dhe-stat-val { font-size: 1.42rem; font-weight: var(--font-bold, 700); color: var(--color-base-100, var(--text-normal)); font-variant-numeric: tabular-nums; line-height: 1.1; }",
+  ".dashboard-home .dh-english-hub .dhe-stat-goal { font-size: 0.88rem; font-weight: var(--font-semi-medium, 500); color: var(--text-muted); }",
+  ".dashboard-home .dh-english-hub .dhe-rhythm-pct { font-size: 0.76rem; font-weight: var(--font-semibold, 600); color: var(--text-muted); font-variant-numeric: tabular-nums; }",
+  ".dashboard-home .dh-english-hub .dhe-rhythm-track { height: 5px; width: 100%; background: var(--trans-faint-15, var(--background-modifier-border)); border-radius: 99px; overflow: hidden; }",
+  ".dashboard-home .dh-english-hub .dhe-rhythm-fill { height: 100%; border-radius: 99px; transition: width 0.25s var(--dhe-ease); }",
+  ".dashboard-home .dh-english-hub .dhe-stat-hint { font-size: 0.72rem; color: var(--text-muted); line-height: 1.3; font-variant-numeric: tabular-nums; }",
+  ".dashboard-home .dh-english-hub .dhe-actions-box { padding: 12px 14px; background: var(--background-primary); border: none; border-radius: var(--radius-sm, 10px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); display: flex; flex-direction: column; justify-content: center; gap: 8px; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
   ".dashboard-home .dh-english-hub .dhe-actions-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }",
-  ".dashboard-home .dh-english-hub button.dhe-btn-primary { appearance: none; flex: 1.3; min-width: 125px; height: 34px; font-size: 0.81rem; font-weight: var(--font-normal-linux, var(--font-semi-medium, 500)); padding: 0 12px; border: none; border-radius: var(--input-radius, var(--radius-s, 8px)); background: var(--interactive-accent); color: var(--text-on-accent); box-shadow: var(--shadow-button, none); cursor: pointer; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: filter var(--anim-duration-moderate, 200ms) var(--dhe-ease); }",
+  ".dashboard-home .dh-english-hub button.dhe-btn-primary { appearance: none; flex: 1.3; min-width: 125px; height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.81rem; font-weight: var(--font-normal-linux, var(--font-semi-medium, 500)); padding: 0 12px; border: none; border-radius: var(--input-radius, var(--radius-s, 8px)); background: var(--interactive-accent); color: var(--text-on-accent); box-shadow: var(--shadow-button, none); cursor: pointer; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: filter var(--anim-duration-moderate, 200ms) var(--dhe-ease); }",
   ".dashboard-home .dh-english-hub button.dhe-btn-primary:hover { filter: brightness(1.0625); }",
   ".dashboard-home .dh-english-hub button.dhe-btn-primary:active { filter: brightness(1.0625) opacity(70%); }",
-  ".dashboard-home .dh-english-hub button.dhe-btn-secondary { appearance: none; flex: 1; min-width: 105px; height: 34px; font-size: 0.8rem; font-weight: var(--font-semi-medium, 500); padding: 0 12px; border: none; border-radius: var(--input-radius, var(--radius-s, 8px)); background: var(--interactive-normal); color: var(--text-normal); box-shadow: none; cursor: pointer; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: background-color var(--anim-super-smooth, 75ms ease-out), color var(--anim-super-smooth, 75ms ease-out), box-shadow var(--anim-duration-fast, 150ms) var(--dhe-ease); }",
+  ".dashboard-home .dh-english-hub button.dhe-btn-secondary { appearance: none; flex: 1; min-width: 105px; height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: var(--font-semi-medium, 500); padding: 0 12px; border: none; border-radius: var(--input-radius, var(--radius-s, 8px)); background: var(--interactive-normal); color: var(--text-normal); box-shadow: none; cursor: pointer; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: background-color var(--anim-super-smooth, 75ms ease-out), color var(--anim-super-smooth, 75ms ease-out), box-shadow var(--anim-duration-fast, 150ms) var(--dhe-ease); }",
   ".dashboard-home .dh-english-hub button.dhe-btn-secondary:hover { background: var(--interactive-hover); }",
   ".dashboard-home .dh-english-hub button.dhe-btn-secondary.is-active { background: var(--color-accent-4, var(--background-modifier-active-hover)); color: var(--color-accent-1, var(--text-accent)); box-shadow: inset 0 0 0 1px var(--color-accent-3, transparent); }",
-  ".dashboard-home .dh-english-hub button.dh-chip { appearance: none; border: none !important; border-radius: var(--pill-radius, var(--radius-l, 18px)); background: var(--background-primary); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border))); color: var(--text-muted); font-weight: var(--font-semi-medium, 500); transition: background-color var(--anim-duration-fast, 150ms) var(--dhe-ease), box-shadow var(--anim-duration-fast, 150ms) var(--dhe-ease), color var(--anim-duration-fast, 150ms) var(--dhe-ease); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+  ".dashboard-home .dh-english-hub button.dhe-btn-cta-sm { appearance: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 13px; border: none; border-radius: var(--input-radius, var(--radius-s, 8px)); background: var(--interactive-accent); color: var(--text-on-accent); font-size: 0.8rem; font-weight: var(--font-semi-medium, 500); box-shadow: var(--shadow-button, none); cursor: pointer; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: filter var(--anim-duration-fast, 150ms) var(--dhe-ease); }",
+  ".dashboard-home .dh-english-hub button.dhe-btn-cta-sm:hover { filter: brightness(1.0625); }",
+  ".dashboard-home .dh-english-hub button.dh-chip { appearance: none; display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: none !important; border-radius: var(--pill-radius, var(--radius-l, 18px)); background: var(--background-primary); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border))); color: var(--text-muted); font-weight: var(--font-semi-medium, 500); transition: background-color var(--anim-duration-fast, 150ms) var(--dhe-ease), box-shadow var(--anim-duration-fast, 150ms) var(--dhe-ease), color var(--anim-duration-fast, 150ms) var(--dhe-ease); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
   ".dashboard-home .dh-english-hub button.dh-chip:hover { color: var(--text-normal); background: var(--trans-faint-10, var(--background-modifier-hover)); box-shadow: 0 0 0 1px var(--trans-faint-40, var(--background-modifier-border)); }",
   ".dashboard-home .dh-english-hub button.dh-chip.is-active { background: var(--color-accent-4, var(--background-modifier-active-hover)); color: var(--color-accent-1, var(--text-accent)); box-shadow: inset 0 0 0 1px var(--color-accent-3, var(--interactive-accent)); }",
+  ".dashboard-home .dh-english-hub button.dh-chip.is-fav-filter:not(.is-active) { color: var(--color-red, #e06c75); }",
+  ".dashboard-home .dh-english-hub button.dhe-icon-btn { appearance: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; min-width: 26px; min-height: 26px; padding: 0; border: none; border-radius: var(--radius-xxl, 22px); background: transparent; color: var(--icon-color, var(--text-muted)); box-shadow: none; cursor: pointer; transition: background-color var(--anim-duration-fast, 150ms) var(--dhe-ease), color var(--anim-duration-fast, 150ms) var(--dhe-ease), transform var(--anim-duration-fast, 150ms) var(--dhe-ease); }",
+  ".dashboard-home .dh-english-hub button.dhe-icon-btn:hover { background: var(--trans-faint-10, var(--background-modifier-hover)); color: var(--text-normal); }",
+  ".dashboard-home .dh-english-hub button.dhe-icon-btn:active { transform: scale(0.9); }",
+  ".dashboard-home .dh-english-hub button.dhe-icon-btn.is-fav { color: var(--color-red, #e06c75); }",
+  ".dashboard-home .dh-english-hub button.dhe-icon-btn.is-fav svg { fill: currentColor; }",
   ".dashboard-home .dh-english-hub button.dhe-book-read-btn { appearance: none; flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; padding: 0 16px; border: none; border-radius: var(--input-radius, var(--radius-s, 8px)); font-size: 0.85rem; font-weight: var(--font-semibold, 600); cursor: pointer; background: color-mix(in oklab, var(--color-green, #4aab80) 18%, var(--background-primary)); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-green, #4aab80) 48%, transparent); color: var(--color-green, #4aab80); -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: background-color var(--anim-duration-fast, 150ms) var(--dhe-ease), color var(--anim-duration-fast, 150ms) var(--dhe-ease), transform var(--anim-duration-fast, 150ms) var(--dhe-ease); }",
   ".dashboard-home .dh-english-hub button.dhe-book-read-btn:hover { background: var(--color-green, #4aab80); color: #141619; box-shadow: var(--glass-base, none); }",
   ".dashboard-home .dh-english-hub button.dhe-book-read-btn:active { transform: scale(0.985); }",
@@ -1319,10 +1197,12 @@ const HUB_CSS_TEXT = [
   ".dashboard-home .dh-english-hub .dhe-book-card.is-finished { background: color-mix(in oklab, var(--color-green, #4aab80) 6%, var(--background-primary)); }",
   ".dashboard-home .dh-english-hub .dhe-quote-card { padding: 13px 15px; background: var(--background-primary); border: none; border-radius: var(--radius-sm, 10px); box-shadow: inset 2.5px 0 0 0 color-mix(in oklab, var(--quote-accent, #e5a158) 85%, transparent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); display: flex; flex-direction: column; justify-content: space-between; gap: 9px; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
   ".dashboard-home .dh-english-hub .dhe-quote-card.is-editing { box-shadow: var(--shadow-input-active, 0 0 0 2px var(--quote-accent, var(--interactive-accent))); }",
+  ".dashboard-home .dh-english-hub .dhe-quote-source { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: var(--font-semibold, 600); line-height: 1.35; color: var(--color-base-100, var(--text-normal)); overflow-wrap: anywhere; }",
   ".dashboard-home .dh-english-hub input:not([type='checkbox']), .dashboard-home .dh-english-hub select, .dashboard-home .dh-english-hub textarea { border: none !important; outline: none !important; border-radius: var(--input-radius, var(--radius-s, 8px)); background-color: var(--background-primary); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border))); transition: box-shadow var(--anim-duration-fast, 150ms) var(--dhe-ease); }",
   ".dashboard-home .dh-english-hub input:not([type='checkbox']):focus, .dashboard-home .dh-english-hub select:focus, .dashboard-home .dh-english-hub textarea:focus { box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent)) !important; }",
   ".dashboard-home .dh-english-hub .dhe-chart-tiles { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }",
   ".dashboard-home .dh-english-hub .dhe-smooth-tile { display: inline-flex; align-items: center; gap: 10px; padding: 6px 13px; border: none; border-radius: var(--radius-m, 12px); background: var(--background-primary); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+  ".dashboard-home .dh-english-hub .dhe-smooth-tile.is-active-target { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-green, #4aab80) 45%, transparent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); }",
   ".dashboard-home .dh-english-hub .dhe-smooth-label { font-size: 0.72rem; font-weight: var(--font-semi-medium, 500); color: var(--icon-color, var(--text-muted)); white-space: nowrap; }",
   ".dashboard-home .dh-english-hub .dhe-smooth-val { font-size: 0.94rem; font-weight: var(--font-bold, 700); color: var(--color-base-100, var(--text-normal)); font-variant-numeric: tabular-nums; white-space: nowrap; }",
   ".dashboard-home .dh-english-hub .dhe-target-controls { display: inline-flex; align-items: center; gap: 4px; }",
@@ -1333,16 +1213,21 @@ const HUB_CSS_TEXT = [
   ".dashboard-home .dh-english-hub .dhe-details { margin-top: 10px; padding: 9px 13px; background: var(--background-primary); border: none; border-radius: var(--radius-sm, 10px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
   ".dashboard-home .dh-english-hub .dhe-details > summary { font-size: 0.78rem; font-weight: var(--font-semi-medium, 500); color: var(--icon-color, var(--text-muted)); cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; list-style: none; }",
   ".dashboard-home .dh-english-hub .dhe-details > summary::-webkit-details-marker { display: none; }",
+  ".dashboard-home .dh-english-hub .dhe-details > summary .dhe-chevron { transition: transform var(--anim-duration-fast, 150ms) var(--dhe-ease); }",
+  ".dashboard-home .dh-english-hub .dhe-details[open] > summary .dhe-chevron { transform: rotate(180deg); }",
   ".dashboard-home .dh-english-hub .dhe-details[open] > summary { color: var(--color-base-100, var(--text-normal)); margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border)); }",
   ".dashboard-home .dh-english-hub .dhe-stats-breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px; }",
   ".dashboard-home .dh-english-hub .dhe-mini-stat { padding: 7px 9px; background: var(--trans-faint-05, var(--background-secondary)); border: none; border-radius: var(--radius-s, 8px); box-shadow: inset 0 0 0 0.5px var(--trans-faint-10, transparent); display: flex; flex-direction: column; gap: 2px; }",
-  "body.is-mobile .dashboard-home .dh-english-hub button.dhe-btn-primary, body.is-mobile .dashboard-home .dh-english-hub button.dhe-btn-secondary { height: 38px; }",
-  "body.is-mobile .dashboard-home .dh-english-hub button.dh-chip { min-height: 32px; }",
-  "body.is-mobile .dashboard-home .dh-english-hub button.dhe-step-btn { width: 32px; height: 32px; min-height: 32px; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-english-hub button.dhe-btn-primary, :is(body.is-mobile, body.is-tablet) .dashboard-home .dh-english-hub button.dhe-btn-secondary { height: 40px; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-english-hub button.dhe-btn-cta-sm { height: 36px; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-english-hub button.dh-chip { min-height: 36px; padding-top: 5px; padding-bottom: 5px; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-english-hub button.dhe-icon-btn { width: 36px; height: 36px; min-width: 36px; min-height: 36px; background: var(--trans-faint-05, transparent); }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-english-hub button.dhe-book-read-btn { min-height: 40px; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-english-hub button.dhe-step-btn { width: 34px; height: 34px; min-height: 34px; }",
   "@media (max-width: 640px) {",
   "  .dashboard-home .dh-english-hub .dhe-panel { padding: 12px; }",
-  "  .dashboard-home .dh-english-hub .dhe-today-bar { grid-template-columns: 1fr 1fr; gap: 8px; }",
-  "  .dashboard-home .dh-english-hub .dhe-actions-box { grid-column: 1 / -1; padding: 10px; }",
+  "  .dashboard-home .dh-english-hub .dhe-today-bar { grid-template-columns: 1fr; gap: 8px; }",
+  "  .dashboard-home .dh-english-hub .dhe-actions-box { padding: 10px; }",
   "}"
 ].join("\n");
 
@@ -1353,22 +1238,26 @@ function injectEnglishHubStyles(targetContainer = root) {
 
 function renderNewBookForm(parentEl, onCreated) {
   const box = parentEl.createDiv({
-    cls: "dhe-panel",
+    cls: "dhe-subpanel",
     attr: {
-      style: "padding: 12px 14px; margin-top: 10px; margin-bottom: 12px; background: var(--background-primary); border-radius: 8px; border: 1px solid var(--background-modifier-border); border-left: 3px solid #e5a158;"
+      style: "margin-top: 10px; margin-bottom: 12px; box-shadow: inset 2.5px 0 0 0 color-mix(in oklab, var(--color-orange, #e5a158) 85%, transparent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)));"
     }
   });
 
   const head = box.createDiv({
     attr: { style: "display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;" }
   });
-  head.createSpan({ text: "📖 Новая книга", attr: { style: "font-size: 0.85rem; font-weight: 600; color: var(--text-normal);" } });
+  const headTitle = head.createSpan({
+    attr: { style: "display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: 600; color: var(--text-normal);" }
+  });
+  renderLucideIcon(headTitle, "book-open", 14);
+  headTitle.createSpan({ text: "Новая книга" });
 
   const closeBtn = head.createEl("button", {
     cls: "dh-chip",
-    text: "✕ Отмена",
-    attr: { type: "button", style: "font-size: 0.72rem; padding: 2px 8px; cursor: pointer;" }
+    attr: { type: "button", style: "font-size: 0.72rem; padding: 2px 9px; cursor: pointer;" }
   });
+  setBtnIconLabel(closeBtn, "x", "Отмена", 12);
   closeBtn.onclick = () => {
     ui.isNewBookDrawerOpen = false;
     renderHub();
@@ -1534,46 +1423,6 @@ async function renderHub() {
       savedTodayCount = Math.max(prevSaved, srTodayCount);
     }
 
-// Файл: raw-scripts/english.js
-// Заменяет: блок 3b внутри функции renderHub() (строки 770–801)
-
-    // 3b. Автосинхронизация страниц_прочитано и привычки «чтение» (единое правило приоритета с home.js)
-    if (diaryPage) {
-      try {
-        const syncRes = computeReadPagesToday(books, todayDate);
-        const targetPages = syncRes.manualOverridePages !== null
-          ? syncRes.manualOverridePages
-          : (syncRes.autoBookPages > 0 ? syncRes.autoBookPages : null);
-
-        const prevPages = typeof diaryPage[DIARY_PAGES_FIELD] === "number" ? diaryPage[DIARY_PAGES_FIELD] : null;
-        const readingAlreadyOn = diaryPage[DIARY_READING_FIELD] === true || String(diaryPage[DIARY_READING_FIELD]).toLowerCase() === "true";
-
-        const needPagesWrite = targetPages !== null && targetPages !== prevPages &&
-          (ui.lastSyncedPagesDate !== todayISO || ui.lastSyncedPagesCount !== targetPages);
-        const needReadingWrite = targetPages !== null && targetPages >= 1 && !readingAlreadyOn &&
-          !hasAutoReadingMark(todayISO) && !isReadingHabitHandledManually(todayISO);
-
-        if (needPagesWrite || needReadingWrite) {
-          const dFilePages = app.vault.getAbstractFileByPath(diaryPage.file.path);
-          if (dFilePages) {
-            if (needPagesWrite) {
-              ui.lastSyncedPagesDate = todayISO;
-              ui.lastSyncedPagesCount = targetPages;
-            }
-            if (needReadingWrite) setAutoReadingMark(todayISO);
-            setTimeout(() => {
-              app.fileManager.processFrontMatter(dFilePages, fm => {
-                if (needPagesWrite) fm[DIARY_PAGES_FIELD] = targetPages;
-                if (needReadingWrite) fm[DIARY_READING_FIELD] = true;
-              }).catch(e => console.log(e));
-            }, 150);
-          }
-        }
-      } catch (e) {
-        console.log("Ошибка автосинхронизации чтения:", e);
-      }
-    }
-
     const wordsByBookPath = new Map();
     if (wordsData) {
       wordsData.cards.forEach(c => {
@@ -1613,9 +1462,10 @@ async function renderHub() {
 
       const fileLink = headRightLinks.createEl("a", {
         cls: "internal-link dhe-section-sub",
-        text: "📄 " + wordsFile.basename + " (" + wordsData.totalEntries + " зап.)",
         attr: { href: wordsFile.path, style: "text-decoration: none;" }
       });
+      renderLucideIcon(fileLink, "file-text", 13);
+      fileLink.createSpan({ text: wordsFile.basename + " (" + wordsData.totalEntries + " зап.)" });
       fileLink.onclick = e => {
         e.preventDefault();
         app.workspace.openLinkText(wordsFile.path, dv.currentFilePath, e.ctrlKey || e.metaKey);
@@ -1623,54 +1473,79 @@ async function renderHub() {
 
       const topGrid = todayPanel.createDiv({ cls: "dhe-today-bar" });
 
-      const dueAccent = wordsData.dueScheduled > 0 ? "var(--color-orange, #e5a158)" : "var(--color-green, #4aab80)";
-      const dueBox = topGrid.createDiv({
-        cls: "dhe-stat-box",
-        attr: { style: "box-shadow: inset 0 2px 0 0 color-mix(in oklab, " + dueAccent + " 85%, transparent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));" }
-      });
-      dueBox.createDiv({ cls: "dhe-stat-label", text: "Повторение" });
-      dueBox.createDiv({
-        cls: "dhe-stat-val",
-        text: String(wordsData.dueScheduled),
-        attr: { style: "color: " + dueAccent + ";" }
-      });
-
       const isTargetMet = savedTodayCount >= currentTarget;
-      const doneAccent = isTargetMet ? "var(--color-green, #4aab80)" : "var(--color-blue, #599ed6)";
-      const doneBox = topGrid.createDiv({
-        cls: "dhe-stat-box",
-        attr: { style: "box-shadow: inset 0 2px 0 0 color-mix(in oklab, " + doneAccent + " 85%, transparent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));" }
-      });
-      doneBox.createDiv({ cls: "dhe-stat-label", text: "Повторение сегодня" });
-      doneBox.createDiv({ cls: "dhe-stat-val", text: String(savedTodayCount) });
+      const rhythmPct = currentTarget > 0 ? Math.min(100, Math.round((savedTodayCount / currentTarget) * 100)) : 0;
+      const remainingToTarget = Math.max(0, currentTarget - savedTodayCount);
+      const rhythmAccent = isTargetMet ? "var(--color-green, #4aab80)" : "var(--color-blue, #599ed6)";
 
+      const rhythmBox = topGrid.createDiv({
+        cls: "dhe-stat-box" + (isTargetMet ? " is-met" : "")
+      });
+
+      const rhythmHead = rhythmBox.createDiv({ cls: "dhe-stat-label-row" });
+      rhythmHead.createSpan({ cls: "dhe-stat-label", text: "Ритм сегодня" });
+      rhythmHead.createSpan({
+        cls: "dhe-rhythm-status" + (isTargetMet ? " is-met" : ""),
+        text: isTargetMet ? "Цель закрыта" : "осталось " + remainingToTarget
+      });
+
+      const rhythmValRow = rhythmBox.createDiv({ cls: "dhe-stat-val-row" });
+      const rhythmNums = rhythmValRow.createDiv({ cls: "dhe-rhythm-numbers" });
+      rhythmNums.createSpan({
+        cls: "dhe-stat-val",
+        text: String(savedTodayCount),
+        attr: { style: isTargetMet ? "color: " + rhythmAccent + ";" : "" }
+      });
+      rhythmNums.createSpan({
+        cls: "dhe-stat-goal",
+        text: "/ " + currentTarget
+      });
+      rhythmValRow.createSpan({
+        cls: "dhe-rhythm-pct",
+        text: rhythmPct + "%"
+      });
+
+      const rhythmTrack = rhythmBox.createDiv({ cls: "dhe-rhythm-track" });
+      rhythmTrack.createDiv({
+        cls: "dhe-rhythm-fill",
+        attr: { style: "width: " + rhythmPct + "%; background: " + rhythmAccent + ";" }
+      });
+
+      const queueParts = [
+        wordsData.dueScheduled > 0
+          ? "К повторению всего: " + wordsData.dueScheduled
+          : "Очередь по расписанию закрыта"
+      ];
+      if (wordsData.newDirections > 0) {
+        queueParts.push("новых: " + wordsData.newDirections);
+      }
+      rhythmBox.createDiv({
+        cls: "dhe-stat-hint",
+        text: queueParts.join(" · ")
+      });
 
       const actionsBox = topGrid.createDiv({ cls: "dhe-actions-box" });
       const actionsRow = actionsBox.createDiv({ cls: "dhe-actions-row" });
 
-      const reviewBtnLabel = wordsData.dueScheduled > 0
-        ? "▶ Карточки (" + wordsData.dueScheduled + ")"
-        : "▶ Карточки";
-
       const reviewBtn = actionsRow.createEl("button", {
         cls: "dh-btn mod-cta dhe-btn-primary",
-        text: reviewBtnLabel,
         attr: {
           type: "button",
           title: "Открыть английские карточки в my-sr-trainer",
           "aria-label": "Открыть английские карточки"
         }
       });
+      setBtnIconLabel(reviewBtn, "play", "Карточки", 13);
       reviewBtn.onclick = () => openEnglishTrainer();
 
       const toggleAddWordBtn = actionsRow.createEl("button", {
         cls: "dhe-btn-secondary" + (ui.isWordFormOpen ? " is-active" : ""),
-        text: ui.isWordFormOpen ? "✕ Скрыть форму" : "+ Слово",
         attr: {
           type: "button",
           "aria-expanded": String(ui.isWordFormOpen)
         }
       });
+      setBtnIconLabel(toggleAddWordBtn, ui.isWordFormOpen ? "x" : "plus", ui.isWordFormOpen ? "Скрыть форму" : "Слово", 14);
       toggleAddWordBtn.onclick = () => {
         ui.isWordFormOpen = !ui.isWordFormOpen;
         if (ui.isWordFormOpen) focusWordInputAfterRender = true;
@@ -1717,9 +1592,9 @@ async function renderHub() {
 
         const trBtn = mainInputsRow.createEl("button", {
           cls: "dh-chip",
-          text: "🌐 Перевести",
           attr: { type: "button", style: "font-size: 0.8rem; height: 32px; padding: 0 12px; white-space: nowrap; cursor: pointer;" }
         });
+        setBtnIconLabel(trBtn, "languages", "Перевести", 13);
 
         const ruInput = mainInputsRow.createEl("input", {
           attr: {
@@ -1764,7 +1639,7 @@ async function renderHub() {
 
         sortedBooksForWord.forEach(b => {
           const opt = sourceBookSelect.createEl("option", {
-            text: (b.status === "Читаю" ? "📖 " : "") + b.title,
+            text: b.title + (b.status === "Читаю" ? " (читаю)" : ""),
             value: b.path
           });
           if (ui.wordDraft.bookPath === b.path) opt.selected = true;
@@ -1792,7 +1667,7 @@ async function renderHub() {
           }
           dupHint.style.display = "block";
           list.slice(0, 3).forEach(c => {
-            dupHint.createDiv({ text: "⚠️ Уже есть в базе: " + c.front + " ::: " + c.back + " (строка " + c.lineNumber + ")" });
+            dupHint.createDiv({ text: "Уже есть в базе: " + c.front + " ::: " + c.back + " (строка " + c.lineNumber + ")" });
           });
         };
 
@@ -1853,7 +1728,7 @@ async function renderHub() {
           }
           if (trBtn.disabled) return;
           trBtn.disabled = true;
-          trBtn.setText("⏳...");
+          trBtn.setText("Перевожу…");
           try {
             const groups = await fetchTranslations(en);
             if (!groups.length) {
@@ -1875,7 +1750,7 @@ async function renderHub() {
             notify("Не удалось получить перевод: " + e.message + ". Впиши вручную.");
           } finally {
             trBtn.disabled = false;
-            trBtn.setText("🌐 Перевести");
+            setBtnIconLabel(trBtn, "languages", "Перевести", 13);
           }
         };
 
@@ -1993,7 +1868,7 @@ async function renderHub() {
       summaryEl.createSpan({
         text: "Статистика базы · Закреплено " + maturePct + "% (" + wordsData.matureDirections + " из " + totalCards + " карт. · словарных записей: " + wordsData.totalEntries + ")"
       });
-      summaryEl.createSpan({ text: "▾", attr: { style: "font-size: 0.7rem;" } });
+      renderLucideIcon(summaryEl, "chevron-down", 14, "dhe-chevron");
 
       if (totalCards > 0) {
         const barTrack = statsDetails.createDiv({
@@ -2095,14 +1970,13 @@ createMiniStat(
       }
 
       const gStartBtn = gActions.createEl("button", {
-        cls: "dh-btn mod-cta",
-        text: "▶ Грамматика",
+        cls: "dh-btn mod-cta dhe-btn-cta-sm",
         attr: {
           type: "button",
-          title: "Открыть адаптивную сессию в my-grammar-trainer",
-          style: "font-size: 0.8rem; height: 30px; padding: 0 14px; cursor: pointer;"
+          title: "Открыть адаптивную сессию в my-grammar-trainer"
         }
       });
+      setBtnIconLabel(gStartBtn, "play", "Грамматика", 13);
       gStartBtn.onclick = () => openGrammarTrainer("smart");
 
       if (gSnap && Array.isArray(gSnap.weakestTopics) && gSnap.weakestTopics.length > 0) {
@@ -2165,11 +2039,7 @@ createMiniStat(
 
     function renderBookWordsDrawer(bCard, book, linkedWords) {
       const wCount = linkedWords.length;
-      const wordsDrawer = bCard.createDiv({
-        attr: {
-          style: "padding: 8px 10px; background: var(--background-secondary); border-radius: 6px; border: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: 5px; max-height: 210px; overflow-y: auto;"
-        }
-      });
+      const wordsDrawer = bCard.createDiv({ cls: "dhe-words-drawer" });
       const drawerHead = wordsDrawer.createDiv({
         attr: { style: "display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;" }
       });
@@ -2181,12 +2051,12 @@ createMiniStat(
       const drawerBtns = drawerHead.createDiv({ attr: { style: "display: flex; gap: 4px;" } });
       const trainBookWordsBtn = drawerBtns.createEl("button", {
         cls: "dh-chip",
-        text: "▶ Тренировать",
         attr: {
           type: "button",
-          style: "font-size: 0.69rem; font-weight: 600; padding: 1px 8px; height: 21px; color: #4aab80; border-color: #4aab8055; cursor: pointer;"
+          style: "font-size: 0.69rem; font-weight: 600; padding: 1px 9px; height: 22px; color: var(--color-green, #4aab80); cursor: pointer;"
         }
       });
+      setBtnIconLabel(trainBookWordsBtn, "play", "Тренировать", 11);
       trainBookWordsBtn.onclick = () => {
         openEnglishTrainer("BOOK", book.path);
       };
@@ -2226,28 +2096,29 @@ createMiniStat(
     const readingHeadActions = readingHeader.createDiv({ attr: { style: "display: flex; gap: 6px; align-items: center; flex-wrap: wrap;" } });
     if (favBooksTotal > 0 || favFilterOn) {
       const favBooksChip = readingHeadActions.createEl("button", {
-        cls: "dh-chip" + (favFilterOn ? " is-active" : ""),
-        text: "♥\uFE0E Любимые (" + favBooksTotal + ")",
+        cls: "dh-chip is-fav-filter" + (favFilterOn ? " is-active" : ""),
         attr: {
           type: "button",
           title: favFilterOn ? "Показать все книги" : "Показать только любимые книги",
           "aria-pressed": String(favFilterOn),
-          style: "font-size: 0.74rem; padding: 2px 10px; cursor: pointer;" + (favFilterOn ? "" : " color: " + STATUS_COLORS["Любимое"] + ";")
+          style: "font-size: 0.74rem; padding: 3px 10px; cursor: pointer;"
         }
       });
+      setBtnIconLabel(favBooksChip, "heart", "Любимые (" + favBooksTotal + ")", 12);
       favBooksChip.onclick = () => {
         ui.onlyFavoriteBooks = !ui.onlyFavoriteBooks;
         renderHub();
       };
     }
 
+    const isAddBookOpen = ui.isNewBookDrawerOpen && ui.newBookDrawerContext === "reading";
     const addBookTopBtn = readingHeadActions.createEl("button", {
-      cls: "dh-chip" + (ui.isNewBookDrawerOpen && ui.newBookDrawerContext === "reading" ? " is-active" : ""),
-      text: ui.isNewBookDrawerOpen && ui.newBookDrawerContext === "reading" ? "✕ Закрыть" : "+ Добавить книгу",
-      attr: { type: "button", style: "font-size: 0.74rem; padding: 2px 10px; cursor: pointer;" }
+      cls: "dh-chip" + (isAddBookOpen ? " is-active" : ""),
+      attr: { type: "button", style: "font-size: 0.74rem; padding: 3px 10px; cursor: pointer;" }
     });
+    setBtnIconLabel(addBookTopBtn, isAddBookOpen ? "x" : "plus", isAddBookOpen ? "Закрыть" : "Книга", 12);
     addBookTopBtn.onclick = () => {
-      if (ui.isNewBookDrawerOpen && ui.newBookDrawerContext === "reading") {
+      if (isAddBookOpen) {
         ui.isNewBookDrawerOpen = false;
       } else {
         ui.isNewBookDrawerOpen = true;
@@ -2256,25 +2127,20 @@ createMiniStat(
       renderHub();
     };
 
-    if (ui.isNewBookDrawerOpen && ui.newBookDrawerContext === "reading") {
+    if (isAddBookOpen) {
       renderNewBookForm(readingPanel, null);
     }
 
     if (visibleBooks.length === 0) {
-      const emptyReading = readingPanel.createDiv({
-        attr: {
-          style: "display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 12px; background: var(--background-primary); border-radius: 6px; border: 1px dashed var(--background-modifier-border);"
-        }
-      });
-      emptyReading.createSpan({
-        text: "Нет активных или прочитанных книг",
-        attr: { style: "font-size: 0.82rem; color: var(--text-muted);" }
+      readingPanel.createDiv({
+        cls: "dhe-empty-state",
+        text: "Нет активных или прочитанных книг"
       });
     } else {
       if (activeBooks.length === 0) {
         readingPanel.createDiv({
-          text: favFilterOn ? "Среди читаемых книг нет любимых" : "Сейчас ничего не читаю",
-          attr: { style: "padding: 10px 12px; font-size: 0.82rem; color: var(--text-muted); background: var(--background-primary); border-radius: 6px; border: 1px dashed var(--background-modifier-border);" }
+          cls: "dhe-empty-state",
+          text: favFilterOn ? "Среди читаемых книг нет любимых" : "Сейчас ничего не читаю"
         });
       }
 
@@ -2422,12 +2288,12 @@ createMiniStat(
           if (book.epubPath) {
             const openEpubBtn = actionsRow.createEl("button", {
               cls: "dhe-book-read-btn",
-              text: "📖 Читать",
               attr: {
                 type: "button",
                 title: "Открыть книгу в читалке EPUB на текущей странице"
               }
             });
+            setBtnIconLabel(openEpubBtn, "book-open", "Читать", 15);
             openEpubBtn.onclick = () => {
               openBookInEpubPlugin(book.epubPath);
             };
@@ -2509,8 +2375,10 @@ createMiniStat(
       doneDetails.ontoggle = () => { ui.finishedBooksOpen = doneDetails.open; };
 
       const doneSum = doneDetails.createEl("summary");
-      doneSum.createSpan({ text: "✓ Прочитано · " + doneBooks.length });
-      doneSum.createSpan({ text: "▾", attr: { style: "font-size: 0.7rem;" } });
+      const doneSumLeft = doneSum.createSpan({ attr: { style: "display: inline-flex; align-items: center; gap: 6px;" } });
+      renderLucideIcon(doneSumLeft, "check", 13);
+      doneSumLeft.createSpan({ text: "Прочитано · " + doneBooks.length });
+      renderLucideIcon(doneSum, "chevron-down", 14, "dhe-chevron");
 
       if (doneBooks.length > 1) {
         const doneTools = doneDetails.createDiv({ attr: { style: "display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin-bottom: 4px;" } });
@@ -2549,7 +2417,8 @@ createMiniStat(
         });
 
         const row = item.createDiv({ attr: { style: "display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px;" } });
-        row.createSpan({ text: "✓", attr: { style: "color: #4aab80; font-weight: 700; font-size: 0.85rem; flex-shrink: 0;" } });
+        const checkWrap = row.createSpan({ attr: { style: "color: var(--color-green, #4aab80); flex-shrink: 0; display: inline-flex;" } });
+        renderLucideIcon(checkWrap, "check", 14);
 
         const titleCol = row.createDiv({ attr: { style: "min-width: 0; flex: 1 1 170px;" } });
         const doneLink = titleCol.createEl("a", {
@@ -2655,15 +2524,16 @@ createMiniStat(
 
     const filterChips = leftTitleAndTabs.createDiv({ cls: "dh-chips", attr: { style: "display: flex; gap: 5px; flex-wrap: wrap;" } });
     [
-      { id: "ALL", label: "Все (" + mainQuotes.length + ")" },
-      { id: "BOOKS", label: "📖 Книги (" + bookQuotes.length + ")" },
-      { id: "THOUGHTS", label: "💡 Мысли (" + thoughtQuotes.length + ")" }
+      { id: "ALL", icon: null, label: "Все (" + mainQuotes.length + ")" },
+      { id: "BOOKS", icon: "book-open", label: "Книги (" + bookQuotes.length + ")" },
+      { id: "THOUGHTS", icon: "lightbulb", label: "Мысли (" + thoughtQuotes.length + ")" }
     ].forEach(tab => {
       const btn = filterChips.createEl("button", {
         cls: "dh-chip" + (ui.activeFilter === tab.id ? " is-active" : ""),
-        text: tab.label,
         attr: { type: "button", style: "font-size: 0.75rem; padding: 3px 10px; cursor: pointer;" }
       });
+      if (tab.icon) setBtnIconLabel(btn, tab.icon, tab.label, 12);
+      else btn.setText(tab.label);
       btn.onclick = () => {
         ui.showRandom = false;
         ui.activeFilter = tab.id;
@@ -2673,15 +2543,15 @@ createMiniStat(
 
     const favCount = mainQuotes.filter(q => q.isFavorite).length;
     const favFilterBtn = filterChips.createEl("button", {
-      cls: "dh-chip" + (ui.onlyFavorites ? " is-active" : ""),
-      text: "♥\uFE0E Любимые (" + favCount + ")",
+      cls: "dh-chip is-fav-filter" + (ui.onlyFavorites ? " is-active" : ""),
       attr: {
         type: "button",
         title: ui.onlyFavorites ? "Показать все записи" : "Показать только любимые",
         "aria-pressed": String(Boolean(ui.onlyFavorites)),
-        style: "font-size: 0.75rem; padding: 3px 10px; cursor: pointer;" + (ui.onlyFavorites ? "" : " color: " + STATUS_COLORS["Любимое"] + ";")
+        style: "font-size: 0.75rem; padding: 3px 10px; cursor: pointer;"
       }
     });
+    setBtnIconLabel(favFilterBtn, "heart", "Любимые (" + favCount + ")", 12);
     favFilterBtn.onclick = () => {
       ui.showRandom = false;
       ui.onlyFavorites = !ui.onlyFavorites;
@@ -2693,9 +2563,9 @@ createMiniStat(
     if (mainQuotes.length > 1) {
       const randBtn = rightControls.createEl("button", {
         cls: "dh-chip" + (ui.showRandom ? " is-active" : ""),
-        text: "🎲 Случайная",
         attr: { type: "button", style: "font-size: 0.74rem; padding: 3px 10px; cursor: pointer;" }
       });
+      setBtnIconLabel(randBtn, "shuffle", "Случайная", 12);
       randBtn.onclick = () => {
         ui.showRandom = !ui.showRandom;
         renderHub();
@@ -2704,12 +2574,12 @@ createMiniStat(
 
     const toggleFormBtn = rightControls.createEl("button", {
       cls: "dh-chip" + (ui.isQuoteFormOpen ? " is-active" : ""),
-      text: ui.isQuoteFormOpen ? "✕ Закрыть форму" : "✍️ + Добавить",
       attr: {
         type: "button",
-        style: "font-size: 0.75rem; font-weight: 600; padding: 3px 11px; cursor: pointer; " + (!ui.isQuoteFormOpen ? "border-color: var(--interactive-accent); color: var(--interactive-accent);" : "")
+        style: "font-size: 0.75rem; font-weight: 600; padding: 3px 11px; cursor: pointer;" + (!ui.isQuoteFormOpen ? " color: var(--color-accent-1, var(--interactive-accent));" : "")
       }
     });
+    setBtnIconLabel(toggleFormBtn, ui.isQuoteFormOpen ? "x" : "plus", ui.isQuoteFormOpen ? "Закрыть" : "Запись", 12);
     toggleFormBtn.onclick = () => {
       ui.isQuoteFormOpen = !ui.isQuoteFormOpen;
       if (ui.isQuoteFormOpen) {
@@ -2721,11 +2591,7 @@ createMiniStat(
     };
 
     if (ui.activeFilter === "BOOKS") {
-      const booksControlPanel = quotesSection.createDiv({
-        attr: {
-          style: "display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; padding: 8px 10px; margin-bottom: 12px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 8px;"
-        }
-      });
+      const booksControlPanel = quotesSection.createDiv({ cls: "dhe-filter-bar" });
 
       const leftFilterWrap = booksControlPanel.createDiv({ attr: { style: "display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;" } });
 
@@ -2808,9 +2674,9 @@ createMiniStat(
       if (migratableQuotes.length > 0) {
         const migBtn = booksControlPanel.createEl("button", {
           cls: "dh-chip" + (ui.showMigrationPreview ? " is-active" : ""),
-          text: "🔗 Привязать старые цитаты (" + migratableQuotes.length + ")",
-          attr: { type: "button", style: "font-size: 0.72rem; padding: 2px 8px; cursor: pointer;" }
+          attr: { type: "button", style: "font-size: 0.72rem; padding: 3px 9px; cursor: pointer;" }
         });
+        setBtnIconLabel(migBtn, "link", "Привязать старые цитаты (" + migratableQuotes.length + ")", 12);
         migBtn.onclick = () => {
           ui.showMigrationPreview = !ui.showMigrationPreview;
           renderHub();
@@ -2870,10 +2736,11 @@ createMiniStat(
     }
 
     if (ui.isQuoteFormOpen) {
-      const formAccent = ui.quoteFormType === "Книга" ? "#e5a158" : "#4aab80";
+      const formAccent = ui.quoteFormType === "Книга" ? "var(--color-orange, #e5a158)" : "var(--color-green, #4aab80)";
       const formPanel = quotesSection.createDiv({
+        cls: "dhe-subpanel",
         attr: {
-          style: "padding: 12px 14px; margin-bottom: 14px; background: var(--background-primary); border-radius: 8px; border: 1px solid var(--background-modifier-border); border-top: 3px solid " + formAccent + "; display: flex; flex-direction: column; gap: 8px;"
+          style: "margin-bottom: 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: inset 0 2px 0 0 " + formAccent + ", var(--shadow-input, 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)));"
         }
       });
 
@@ -2887,14 +2754,14 @@ createMiniStat(
 
       const typeButtons = typeRow.createDiv({ cls: "dh-chips", attr: { style: "display: flex; gap: 6px;" } });
       [
-        { id: "Книга", label: "📖 Из книги" },
-        { id: "Мысль", label: "💡 Своя мысль" }
+        { id: "Книга", icon: "book-open", label: "Из книги" },
+        { id: "Мысль", icon: "lightbulb", label: "Своя мысль" }
       ].forEach(t => {
         const b = typeButtons.createEl("button", {
           cls: "dh-chip" + (ui.quoteFormType === t.id ? " is-active" : ""),
-          text: t.label,
-          attr: { type: "button", style: "font-size: 0.75rem; padding: 2px 10px; cursor: pointer;" }
+          attr: { type: "button", style: "font-size: 0.75rem; padding: 3px 10px; cursor: pointer;" }
         });
+        setBtnIconLabel(b, t.icon, t.label, 12);
         b.onclick = () => {
           ui.quoteFormType = t.id;
           focusQuoteInputAfterRender = true;
@@ -3238,13 +3105,11 @@ createMiniStat(
       });
 
       const metaLeft = footer.createDiv({ attr: { style: "min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px;" } });
-      const titleLine = metaLeft.createDiv({
-        attr: { style: "font-size: 0.8rem; font-weight: var(--font-semibold, 600); line-height: 1.35; color: var(--color-base-100, var(--text-normal)); overflow-wrap: anywhere;" }
-      });
+      const titleLine = metaLeft.createDiv({ cls: "dhe-quote-source" });
+      const sourceIconName = isBook ? "book-open" : (q.category === "Мысль" ? "lightbulb" : "archive");
+      renderLucideIcon(titleLine, sourceIconName, 13);
 
-      const iconPrefix = isBook ? "📖 " : (q.category === "Мысль" ? "💡 " : "🗂️ ");
       if (isBook && q.resolvedBook) {
-        titleLine.createSpan({ text: iconPrefix });
         const linkEl = titleLine.createEl("a", {
           cls: "internal-link",
           text: q.displayTitle,
@@ -3255,7 +3120,7 @@ createMiniStat(
           app.workspace.openLinkText(q.resolvedBook.path, dv.currentFilePath, e.ctrlKey || e.metaKey);
         };
       } else {
-        titleLine.setText(iconPrefix + q.displayTitle);
+        titleLine.createSpan({ text: q.displayTitle });
       }
 
       const dateFormatted = dv.date(q.date)?.toFormat("dd.MM.yyyy") || q.date;
@@ -3295,16 +3160,15 @@ createMiniStat(
       }
 
       const favBtn = rightFooter.createEl("button", {
-        cls: "dh-chip",
-        text: q.isFavorite ? "♥\uFE0E" : "♡\uFE0E",
+        cls: "dhe-icon-btn" + (q.isFavorite ? " is-fav" : ""),
         attr: {
           type: "button",
           title: q.isFavorite ? "Убрать из любимых" : "Добавить в любимые",
-          "aria-pressed": String(Boolean(q.isFavorite)),
-          style: "font-size: 0.8rem; padding: 1px 6px; height: 20px; cursor: pointer; border-color: transparent; background: transparent; color: " +
-            (q.isFavorite ? STATUS_COLORS["Любимое"] : "var(--text-muted)") + ";"
+          "aria-label": q.isFavorite ? "Убрать из любимых" : "Добавить в любимые",
+          "aria-pressed": String(Boolean(q.isFavorite))
         }
       });
+      renderLucideIcon(favBtn, "heart", 14);
       favBtn.onclick = async () => {
         favBtn.disabled = true;
         try {
@@ -3317,14 +3181,14 @@ createMiniStat(
       };
 
       const editQuoteBtn = rightFooter.createEl("button", {
-        cls: "dh-chip",
-        text: "✎",
+        cls: "dhe-icon-btn",
         attr: {
           type: "button",
           title: "Редактировать запись",
-          style: "font-size: 0.72rem; padding: 1px 6px; height: 20px; color: var(--text-muted); cursor: pointer;"
+          "aria-label": "Редактировать запись"
         }
       });
+      renderLucideIcon(editQuoteBtn, "pencil", 13);
       editQuoteBtn.onclick = () => {
         ui.editingQuoteLineIndex = q.lineIndex;
         renderHub();
@@ -3333,11 +3197,9 @@ createMiniStat(
 
     if (displayedQuotes.length === 0) {
       quotesSection.createDiv({
-        attr: {
-          style: "padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.83rem; background: var(--background-primary); border-radius: 8px; border: 1px dashed var(--background-modifier-border);"
-        },
+        cls: "dhe-empty-state",
         text: ui.onlyFavorites
-          ? "Любимых записей в этой выборке пока нет. Нажми ♡ на карточке."
+          ? "Любимых записей в этой выборке пока нет. Отметь нужные сердечком на карточке."
           : "В этой выборке пока нет записей."
       });
     } else {
@@ -3352,11 +3214,14 @@ createMiniStat(
         const showMoreQuotesRow = quotesSection.createDiv({ attr: { style: "display: flex; justify-content: center; margin-top: 10px;" } });
         const showMoreQBtn = showMoreQuotesRow.createEl("button", {
           cls: "dh-chip",
-          text: ui.showAllQuotes
-            ? "Показать последние 6 ▲"
-            : "Показать все (" + filteredQuotes.length + ") ▾",
-          attr: { type: "button", style: "font-size: 0.74rem; padding: 3px 12px; cursor: pointer;" }
+          attr: { type: "button", style: "font-size: 0.74rem; padding: 4px 12px; cursor: pointer;" }
         });
+        setBtnIconLabel(
+          showMoreQBtn,
+          ui.showAllQuotes ? "chevron-up" : "chevron-down",
+          ui.showAllQuotes ? "Показать последние 6" : "Показать все (" + filteredQuotes.length + ")",
+          13
+        );
         showMoreQBtn.onclick = () => {
           ui.showAllQuotes = !ui.showAllQuotes;
           renderHub();
@@ -3374,7 +3239,7 @@ createMiniStat(
 
       const archSum = archDetails.createEl("summary");
       archSum.createSpan({ text: "Архив других категорий (" + archivedQuotes.length + ")" });
-      archSum.createSpan({ text: "▾", attr: { style: "font-size: 0.7rem;" } });
+      renderLucideIcon(archSum, "chevron-down", 14, "dhe-chevron");
 
       const archGrid = archDetails.createDiv({
         attr: {
@@ -3460,10 +3325,7 @@ createMiniStat(
       });
 
       const targetTile = tilesRow.createDiv({
-        cls: "dhe-smooth-tile",
-        attr: {
-          style: ui.showDailyTargetLine ? "border-color: rgba(74, 171, 128, 0.45);" : ""
-        }
+        cls: "dhe-smooth-tile" + (ui.showDailyTargetLine ? " is-active-target" : "")
       });
 
       const toggleTargetBtn = targetTile.createEl("button", {
