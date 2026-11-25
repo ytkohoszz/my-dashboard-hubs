@@ -170,6 +170,72 @@ function openStudyCompiler(options = {}) {
   }
 }
 
+function openProjectFocus(projectName) {
+  const plugin = app.plugins?.plugins?.["my-focus-tracker"];
+  const api =
+    (plugin && typeof plugin.openFocusModal === "function" ? plugin : null) ||
+    (window.__myFocusTracker && typeof window.__myFocusTracker.openFocusModal === "function"
+      ? window.__myFocusTracker
+      : null);
+  if (!api) {
+    notify("Включи плагин my-focus-tracker в настройках Obsidian.");
+    return;
+  }
+  try {
+    api.openFocusModal({ initialProject: projectName });
+  } catch (error) {
+    notify("Не удалось открыть фокус-таймер: " + (error instanceof Error ? error.message : String(error)));
+  }
+}
+
+const LUCIDE_SVG_PATHS = {
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  pencil: '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/>',
+  "trash-2": '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>',
+  timer: '<line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/>',
+  workflow: '<rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/>',
+  play: '<polygon points="6 3 20 12 6 21 6 3"/>',
+  list: '<line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/>',
+  "pen-line": '<path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/>',
+  layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  "rotate-ccw": '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>'
+};
+
+function renderLucideIcon(parent, name, size = 14) {
+  const span = parent.createSpan({ cls: "dh-sp-ico", attr: { "aria-hidden": "true" } });
+  const nativeSetIcon =
+    typeof setIcon === "function"
+      ? setIcon
+      : typeof obsidian !== "undefined" && typeof obsidian.setIcon === "function"
+        ? obsidian.setIcon
+        : null;
+  if (nativeSetIcon) {
+    nativeSetIcon(span, name);
+    const svg = span.querySelector("svg");
+    if (svg) {
+      svg.setAttribute("width", String(size));
+      svg.setAttribute("height", String(size));
+    }
+    return span;
+  }
+  const paths = LUCIDE_SVG_PATHS[name];
+  if (paths) {
+    span.innerHTML =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size +
+      '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      paths + "</svg>";
+  }
+  return span;
+}
+
+function setBtnIconLabel(btn, iconName, label = "", size = 14) {
+  btn.empty();
+  renderLucideIcon(btn, iconName, size);
+  if (label) btn.createSpan({ text: label });
+}
+
 function getEffectiveCompilerSettings() {
   const s = getCompilerPlugin()?.settings;
   return {
@@ -1004,7 +1070,9 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-sp-heading { font-size: var(--dh-sp-fs-title); font-weight: var(--font-semibold, 600); font-variation-settings: 'opsz' 24; color: var(--color-base-100, var(--text-normal)); }",
   ".dashboard-home .dh-sp-summary { font-size: var(--dh-sp-fs-xs); font-weight: var(--font-semi-medium, 500); color: var(--icon-color, var(--text-muted)); }",
   ".dashboard-home .dh-sp-topbar-actions { display: flex; align-items: center; gap: var(--dh-sp-s2); flex-wrap: wrap; }",
-  ".dashboard-home .dh-sp-btn { appearance: none; height: 32px !important; min-height: 32px !important; padding: 0 var(--dh-sp-s3) !important; border-radius: var(--input-radius, var(--radius-s, 8px)) !important; font-size: var(--dh-sp-fs) !important; font-weight: var(--font-semi-medium, 500) !important; background: var(--interactive-normal) !important; border: none !important; color: var(--text-normal) !important; cursor: pointer; box-shadow: none !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; white-space: nowrap; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: background-color var(--anim-super-smooth, 75ms ease-out), color var(--anim-super-smooth, 75ms ease-out), filter var(--anim-duration-fast, 150ms) var(--dh-sp-ease); }",
+  ".dashboard-home .dh-sp-ico { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; line-height: 0; }",
+  ".dashboard-home .dh-sp-ico svg { display: block; }",
+  ".dashboard-home .dh-sp-btn { appearance: none; height: 32px !important; min-height: 32px !important; padding: 0 var(--dh-sp-s3) !important; gap: 6px; border-radius: var(--input-radius, var(--radius-s, 8px)) !important; font-size: var(--dh-sp-fs) !important; font-weight: var(--font-semi-medium, 500) !important; background: var(--interactive-normal) !important; border: none !important; color: var(--text-normal) !important; cursor: pointer; box-shadow: none !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; white-space: nowrap; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: background-color var(--anim-super-smooth, 75ms ease-out), color var(--anim-super-smooth, 75ms ease-out), filter var(--anim-duration-fast, 150ms) var(--dh-sp-ease); }",
   ".dashboard-home .dh-sp-btn:hover { background: var(--interactive-hover) !important; }",
   ".dashboard-home .dh-sp-btn:active { filter: opacity(65%); }",
   ".dashboard-home .dh-sp-btn.is-accent { color: var(--color-accent-1, var(--interactive-accent)) !important; background: var(--color-accent-4, var(--background-modifier-active-hover)) !important; box-shadow: inset 0 0 0 1px var(--color-accent-3, transparent) !important; }",
@@ -1049,15 +1117,21 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-sp-open-btn:active { filter: opacity(65%); }",
   ".dashboard-home .dh-sp-plus-btn { appearance: none; flex: 0 0 32px !important; width: 32px !important; min-width: 32px !important; height: 32px !important; min-height: 32px !important; padding: 0 !important; border-radius: var(--input-radius, var(--radius-s, 8px)) !important; font-size: 1rem !important; font-weight: var(--font-semi-medium, 500) !important; line-height: 1 !important; color: var(--control-icon-color, var(--icon-color)) !important; background: var(--interactive-normal) !important; border: none !important; box-shadow: none !important; cursor: pointer; display: inline-flex !important; align-items: center !important; justify-content: center !important; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: color var(--anim-super-smooth, 75ms ease-out), background-color var(--anim-super-smooth, 75ms ease-out); }",
   ".dashboard-home .dh-sp-plus-btn:hover { color: var(--text-normal) !important; background: var(--interactive-hover) !important; }",
-  ".dashboard-home .dh-sp-plus-btn:active { filter: opacity(65%); }",
-  ".dashboard-home .dh-sp-orphans { padding: var(--dh-sp-s4); margin-bottom: var(--dh-sp-s4); background: var(--trans-faint-05, var(--background-secondary)); border: none; border-radius: calc(var(--radius-ml, 14px) + 2px); box-shadow: var(--glass-base-m, none), 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)), var(--shadow-setting-items, none); display: flex; flex-direction: column; gap: var(--dh-sp-s2); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+".dashboard-home .dh-sp-plus-btn:active { filter: opacity(65%); }",
+  ".dashboard-home .dh-sp-plus-btn.is-focus:hover { color: var(--color-accent-1, var(--interactive-accent)) !important; background: var(--color-accent-4, var(--interactive-hover)) !important; }",
+  ".dashboard-home .dh-sp-done-badge { font-size: 0.72rem; font-weight: var(--font-semi-medium, 500); padding: 2px 9px; border-radius: var(--pill-radius, var(--radius-l, 18px)); background: var(--trans-faint-05, var(--background-secondary)); box-shadow: 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)); color: var(--text-muted); white-space: nowrap; }",
+  ".dashboard-home .dh-sp-done-badge.is-overdue { color: var(--color-red, var(--text-error, #e06c75)); }",
+  ".dashboard-home .dh-sp-orphans {",
   ".dashboard-home .dh-sp-orphan-row { display: flex; gap: var(--dh-sp-s2); align-items: center; padding: 6px 0; border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border)); flex-wrap: wrap; }",
   ".dashboard-home .dh-sp-done-details { padding: var(--dh-sp-s3) var(--dh-sp-s4); background: var(--trans-faint-05, var(--background-secondary)); border: none; border-radius: calc(var(--radius-ml, 14px) + 2px); box-shadow: var(--glass-base-m, none), 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)), var(--shadow-setting-items, none); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
   ".dashboard-home .dh-sp-done-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--dh-sp-s2); padding: var(--dh-sp-s2) var(--dh-sp-s3); background: var(--background-primary); border: none; border-radius: var(--radius-sm, 10px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
   /* === Блок карточек (my-sr-trainer) === */
   ".dashboard-home .dh-study-cards-hub { display: flex; flex-direction: column; gap: 14px; margin: 0 0 18px 0; box-sizing: border-box; }",
   ".dashboard-home .dh-study-cards-hub .dsc-panel { padding: var(--dh-sp-s4); background: var(--trans-faint-05, var(--background-secondary)); border: none; border-radius: calc(var(--radius-ml, 14px) + 2px); box-shadow: var(--glass-base-m, none), 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)), var(--shadow-setting-items, none); box-sizing: border-box; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+  ".dashboard-home .dh-study-cards-hub .dsc-panel.is-empty-compact { padding: var(--dh-sp-s3) var(--dh-sp-s4); }",
+  ".dashboard-home .dh-study-cards-hub .dsc-panel.is-empty-compact .dsc-head { margin-bottom: 0; }",
   ".dashboard-home .dh-study-cards-hub .dsc-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }",
+  ".dashboard-home .dh-study-cards-hub .dsc-list-row { padding: 8px 10px; background: var(--trans-faint-05, var(--background-secondary)); border: none; border-radius: var(--radius-s, 8px); box-shadow: 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)); display: flex; flex-direction: column; gap: 6px; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
   ".dashboard-home .dh-study-cards-hub .dsc-title { font-size: 1rem; font-weight: var(--font-semibold, 600); font-variation-settings: 'opsz' 24; color: var(--color-base-100, var(--text-normal)); display: inline-flex; align-items: baseline; gap: 8px; }",
   ".dashboard-home .dh-study-cards-hub .dsc-decks-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border)); }",
   ".dashboard-home .dh-study-cards-hub .dsc-deck-chip { appearance: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; height: 29px; border: none; border-radius: var(--pill-radius, var(--radius-l, 18px)); font-size: 0.77rem; font-weight: var(--font-semi-medium, 500); background: var(--background-primary); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border))); color: var(--text-muted); cursor: pointer; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: background-color var(--anim-duration-fast, 150ms) var(--dh-sp-ease), box-shadow var(--anim-duration-fast, 150ms) var(--dh-sp-ease), color var(--anim-duration-fast, 150ms) var(--dh-sp-ease); }",
@@ -1089,21 +1163,21 @@ const STUDY_HUB_CSS = [
   ".dashboard-home .dh-study-cards-hub .dsc-card-preview-missing { color: var(--text-faint); font-size: 0.72rem; font-style: italic; }",
   ".dashboard-home .dh-study-cards-hub .dsc-card-edit-side { display: flex; flex-direction: column; gap: 5px; flex: 1 1 220px; min-width: 0; }",
   ".dashboard-home .dh-study-cards-hub .dsc-card-edit-input { width: 100%; min-height: 54px; padding: 6px 8px; resize: vertical; font-size: 0.82rem; line-height: 1.4; }",
-  ".dashboard-home .dh-study-cards-hub button.dsc-btn-cta { appearance: none; flex: 1.3; min-width: 120px; height: 34px; font-size: 0.8rem; font-weight: var(--font-normal-linux, var(--font-semi-medium, 500)); padding: 0 12px; border: none; border-radius: var(--input-radius, var(--radius-s, 8px)); background: var(--interactive-accent); color: var(--text-on-accent); box-shadow: var(--shadow-button, none); cursor: pointer; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: filter var(--anim-duration-moderate, 200ms) var(--dh-sp-ease); }",
+  ".dashboard-home .dh-study-cards-hub button.dsc-btn-cta { appearance: none; flex: 1.3; min-width: 120px; height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: var(--font-normal-linux, var(--font-semi-medium, 500)); padding: 0 12px; border: none; border-radius: var(--input-radius, var(--radius-s, 8px)); background: var(--interactive-accent); color: var(--text-on-accent); box-shadow: var(--shadow-button, none); cursor: pointer; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: filter var(--anim-duration-moderate, 200ms) var(--dh-sp-ease); }",
   ".dashboard-home .dh-study-cards-hub button.dsc-btn-cta:hover { filter: brightness(1.0625); }",
-  ".dashboard-home .dh-study-cards-hub button.dsc-btn-sec { appearance: none; flex: 1; min-width: 100px; height: 34px; font-size: 0.78rem; font-weight: var(--font-semi-medium, 500); padding: 0 12px; border: none; border-radius: var(--input-radius, var(--radius-s, 8px)); background: var(--interactive-normal); box-shadow: none; color: var(--text-normal); cursor: pointer; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: background-color var(--anim-super-smooth, 75ms ease-out), color var(--anim-super-smooth, 75ms ease-out); }",
+  ".dashboard-home .dh-study-cards-hub button.dsc-btn-sec { appearance: none; flex: 1; min-width: 100px; height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.78rem; font-weight: var(--font-semi-medium, 500); padding: 0 12px; border: none; border-radius: var(--input-radius, var(--radius-s, 8px)); background: var(--interactive-normal); box-shadow: none; color: var(--text-normal); cursor: pointer; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: background-color var(--anim-super-smooth, 75ms ease-out), color var(--anim-super-smooth, 75ms ease-out); }",
   ".dashboard-home .dh-study-cards-hub button.dsc-btn-sec:hover { background: var(--interactive-hover); }",
   ".dashboard-home .dh-study-cards-hub button.dsc-btn-sec.is-active { background: var(--color-accent-4, var(--background-modifier-active-hover)); color: var(--color-accent-1, var(--text-accent)); box-shadow: inset 0 0 0 1px var(--color-accent-3, transparent); }",
   ".dashboard-home .dh-study-cards-hub .dsc-drawer { margin-top: 12px; padding: 13px 15px; background: var(--background-primary); border: none; border-radius: var(--radius-m, 12px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border))); display: flex; flex-direction: column; gap: 10px; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
   ".dashboard-home .dh-study-cards-hub .dsc-drawer ::-webkit-scrollbar { display: none; }",
   /* === iPadOS / Touch === */
-  "body.is-mobile .dashboard-home .dh-study-cards-hub .dsc-side-type-row .dh-chip, body.is-mobile .dashboard-home .dh-study-cards-hub .dsc-image-dropzone .dh-chip { min-height: 36px; padding-top: 6px !important; padding-bottom: 6px !important; }",
-  "body.is-mobile .dashboard-home .dh-sp-btn { height: 38px !important; min-height: 38px !important; }",
-  "body.is-mobile .dashboard-home .dh-sp-deadline { height: 30px !important; min-height: 30px !important; padding: 0 11px !important; }",
-  "body.is-mobile .dashboard-home .dh-sp-icon-action { width: 38px !important; min-width: 38px !important; height: 38px !important; min-height: 38px !important; opacity: 1 !important; background: var(--trans-faint-10, var(--background-primary)) !important; font-size: 0.9rem !important; }",
-  "body.is-mobile .dashboard-home .dh-sp-open-btn { height: 40px !important; min-height: 40px !important; }",
-  "body.is-mobile .dashboard-home .dh-sp-plus-btn { flex: 0 0 40px !important; width: 40px !important; min-width: 40px !important; height: 40px !important; min-height: 40px !important; font-size: 1.15rem !important; }",
-  "body.is-mobile .dashboard-home .dh-study-cards-hub button.dsc-btn-cta, body.is-mobile .dashboard-home .dh-study-cards-hub button.dsc-btn-sec { height: 38px; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-study-cards-hub .dsc-side-type-row .dh-chip, :is(body.is-mobile, body.is-tablet) .dashboard-home .dh-study-cards-hub .dsc-image-dropzone .dh-chip { min-height: 36px; padding-top: 6px !important; padding-bottom: 6px !important; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-sp-btn { height: 38px !important; min-height: 38px !important; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-sp-deadline { height: 30px !important; min-height: 30px !important; padding: 0 11px !important; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-sp-icon-action { width: 38px !important; min-width: 38px !important; height: 38px !important; min-height: 38px !important; opacity: 1 !important; background: var(--trans-faint-10, var(--background-primary)) !important; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-sp-open-btn { height: 40px !important; min-height: 40px !important; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-sp-plus-btn { flex: 0 0 40px !important; width: 40px !important; min-width: 40px !important; height: 40px !important; min-height: 40px !important; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-study-cards-hub button.dsc-btn-cta, :is(body.is-mobile, body.is-tablet) .dashboard-home .dh-study-cards-hub button.dsc-btn-sec { height: 38px; }",
   "@media (prefers-reduced-motion: reduce) {",
   "  .dashboard-home .dh-study-section *, .dashboard-home .dh-sp-new-box, .dashboard-home .dh-sp-date-popover { transition: none !important; animation: none !important; }",
   "}",
@@ -2175,24 +2249,31 @@ if (!ui.selectedDeckPath || !deckByPath.has(ui.selectedDeckPath)) {
   let scopedMature = activeDeck ? activeDeck.matureDirections : 0;
   let scopedReviewedToday = activeDeck ? activeDeck.reviewedTodayDirections : 0;
 
-  const panel = cardsContainer.createDiv({ cls: "dsc-panel" });
+  const isEmptyCollapsed = decks.length === 0 && !ui.isNewDeckFormOpen;
+  const panel = cardsContainer.createDiv({
+    cls: "dsc-panel" + (isEmptyCollapsed ? " is-empty-compact" : "")
+  });
 
   // 1. Минималистичная шапка блока карточек
   const head = panel.createDiv({ cls: "dsc-head" });
   const titleWrap = head.createDiv({ cls: "dsc-title" });
+  renderLucideIcon(titleWrap, "layers", 15);
   titleWrap.createSpan({ text: "Карточки" });
   titleWrap.createSpan({
-    text: decks.length + " " + plural(decks.length, ["тема", "темы", "тем"]) + " · " + totals.sumEntries + " вопр.",
+    text:
+      decks.length === 0
+        ? "тем пока нет"
+        : decks.length + " " + plural(decks.length, ["тема", "темы", "тем"]) + " · " + totals.sumEntries + " вопр.",
     attr: { style: "font-size: 0.76rem; font-weight: 500; color: var(--text-muted);" }
   });
 
-const headRight = head.createDiv({ attr: { style: "display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" } });
+  const headRight = head.createDiv({ attr: { style: "display: flex; align-items: center; gap: 6px; flex-wrap: wrap;" } });
 
   const newDeckBtn = headRight.createEl("button", {
     cls: "dh-sp-btn" + (ui.isNewDeckFormOpen ? " is-active" : ""),
-    text: ui.isNewDeckFormOpen ? "✕ Отмена" : "＋ Тема",
     attr: { type: "button" }
   });
+  setBtnIconLabel(newDeckBtn, ui.isNewDeckFormOpen ? "x" : "plus", ui.isNewDeckFormOpen ? "Отмена" : "Тема", 14);
   newDeckBtn.onclick = () => {
     ui.isNewDeckFormOpen = !ui.isNewDeckFormOpen;
     renderCardsSection(cardsContainer, activeProjects);
@@ -2226,7 +2307,7 @@ const headRight = head.createDiv({ attr: { style: "display: flex; align-items: c
     });
     projSel.createEl("option", { text: "Привязка к проекту (необязательно)", value: "" });
     activeProjects.forEach(p => {
-      const o = projSel.createEl("option", { text: "📁 " + p.file.name, value: p.file.path });
+      const o = projSel.createEl("option", { text: p.file.name, value: p.file.path });
       if (ui.newDeckDraft.parentProjectPath === p.file.path) o.selected = true;
     });
     projSel.onchange = () => { ui.newDeckDraft.parentProjectPath = projSel.value; };
@@ -2282,7 +2363,10 @@ const headRight = head.createDiv({ attr: { style: "display: flex; align-items: c
     titleInp.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); doCreateDeck(); } };
   }
 
-// 2. Панель выбора темы
+// Если тем нет — оставляем компактную строку (и форму создания, если она открыта)
+  if (decks.length === 0) return;
+
+  // 2. Панель выбора темы
   if (decks.length > 0) {
     const decksBar = panel.createDiv({ cls: "dsc-decks-bar" });
 
@@ -2326,7 +2410,6 @@ const headRight = head.createDiv({ attr: { style: "display: flex; align-items: c
       let confirmDeleteDeck = false;
       const delDeckBtn = deckTools.createEl("button", {
         cls: "dh-sp-icon-action",
-        text: "✕",
         attr: {
           type: "button",
           title: "Удалить тему в корзину",
@@ -2334,17 +2417,19 @@ const headRight = head.createDiv({ attr: { style: "display: flex; align-items: c
           style: "opacity: 0.8;"
         }
       });
+      setBtnIconLabel(delDeckBtn, "trash-2", "", 13);
       delDeckBtn.onclick = async e => {
         e.stopPropagation();
         if (delDeckBtn.disabled) return;
         if (!confirmDeleteDeck) {
           confirmDeleteDeck = true;
-          delDeckBtn.textContent = "Удалить?";
+          delDeckBtn.empty();
+          delDeckBtn.setText("Удалить?");
           delDeckBtn.classList.add("is-danger");
           setTimeout(() => {
             if (delDeckBtn.disabled || !delDeckBtn.isConnected) return;
             confirmDeleteDeck = false;
-            delDeckBtn.textContent = "✕";
+            setBtnIconLabel(delDeckBtn, "trash-2", "", 13);
             delDeckBtn.classList.remove("is-danger");
           }, 3000);
           return;
@@ -2365,19 +2450,12 @@ const headRight = head.createDiv({ attr: { style: "display: flex; align-items: c
         }
       };
     }
-  } else {
-    panel.createDiv({
-      text: "Учебных тем с карточками пока нет. Нажми «+ Тема» в правом верхнем углу, чтобы создать первую тему.",
-      attr: {
-        style: "padding: 12px; margin-bottom: 10px; font-size: 0.82rem; color: var(--text-muted); background: var(--background-primary); border-radius: 8px; border: 1px dashed var(--background-modifier-border);"
-      }
-    });
   }
 
   // 3. Сводные плитки и действия
   const summaryGrid = panel.createDiv({ cls: "dsc-summary-grid" });
 
-const dueBox = summaryGrid.createDiv({ cls: "dsc-stat-box" });
+  const dueBox = summaryGrid.createDiv({ cls: "dsc-stat-box" });
   dueBox.createDiv({ cls: "dsc-stat-label", text: activeDeck ? "К повторению · " + activeDeck.title : "К повторению" });
   const dueValRow = dueBox.createDiv({ cls: "dsc-stat-val-row" });
   dueValRow.createSpan({
@@ -2385,7 +2463,7 @@ const dueBox = summaryGrid.createDiv({ cls: "dsc-stat-box" });
     text: String(scopedDue)
   });
   dueValRow.createSpan({
-    text: scopedDue === 0 ? "Очередь закрыта ✓" : "карт. по расписанию",
+    text: scopedDue === 0 ? "Очередь закрыта" : "карт. по расписанию",
     attr: { style: "font-size: 0.71rem; color: var(--text-muted);" }
   });
   dueBox.createDiv({
@@ -2415,39 +2493,34 @@ const dueBox = summaryGrid.createDiv({ cls: "dsc-stat-box" });
 
   const trainBtn = actRow.createEl("button", {
     cls: "dh-btn mod-cta dsc-btn-cta",
-    text: scopedDue > 0 ? "▶ Тренировать (" + scopedDue + ")" : "▶ Тренировать",
     attr: {
       type: "button",
       title: "Открыть учебные карточки в my-sr-trainer",
       "aria-label": "Открыть учебные карточки"
     }
   });
+  setBtnIconLabel(trainBtn, "play", scopedDue > 0 ? "Тренировать (" + scopedDue + ")" : "Тренировать", 13);
   trainBtn.onclick = () => {
     openStudyTrainer(scopedDue === 0 && scopedNew === 0 ? "CRAM_ALL" : "DUE_AND_NEW");
   };
 
   const addCardsBtn = actRow.createEl("button", {
     cls: "dsc-btn-sec" + (ui.isAddCardsOpen ? " is-active" : ""),
-    text: ui.isAddCardsOpen ? "✕ Скрыть" : "+ Вопросы",
     attr: { type: "button" }
   });
+  setBtnIconLabel(addCardsBtn, ui.isAddCardsOpen ? "x" : "plus", ui.isAddCardsOpen ? "Скрыть" : "Вопросы", 13);
   addCardsBtn.onclick = () => {
-    if (decks.length === 0) {
-      ui.isNewDeckFormOpen = true;
-      notify("Сначала укажи название темы.");
-    } else {
-      ui.isAddCardsOpen = !ui.isAddCardsOpen;
-      if (ui.isAddCardsOpen) focusQuestionAfterRender = true;
-    }
+    ui.isAddCardsOpen = !ui.isAddCardsOpen;
+    if (ui.isAddCardsOpen) focusQuestionAfterRender = true;
     renderCardsSection(cardsContainer, activeProjects);
   };
 
-if (scopedEntries > 0) {
+  if (scopedEntries > 0) {
     const listManageBtn = actRow.createEl("button", {
       cls: "dsc-btn-sec" + (ui.isListManageOpen ? " is-active" : ""),
-      text: ui.isListManageOpen ? "✕ Список" : "Список (" + scopedEntries + ")",
       attr: { type: "button", title: "Показать все вопросы темы для просмотра и правки" }
     });
+    setBtnIconLabel(listManageBtn, ui.isListManageOpen ? "x" : "list", ui.isListManageOpen ? "Список" : "Список (" + scopedEntries + ")", 13);
     listManageBtn.onclick = () => {
       ui.isListManageOpen = !ui.isListManageOpen;
       renderCardsSection(cardsContainer, activeProjects);
@@ -2494,14 +2567,14 @@ const effectiveTargetDeckPath = activeDeck ? activeDeck.path : decks[0].path;
 
     const modeTabs = topAddBar.createDiv({ cls: "dh-chips", attr: { style: "display: flex; gap: 5px;" } });
     [
-      { id: "SINGLE", label: "✍️ По одной" },
-      { id: "BULK", label: "📋 Списком" }
+      { id: "SINGLE", icon: "pen-line", label: "По одной" },
+      { id: "BULK", icon: "list", label: "Списком" }
     ].forEach(tab => {
       const b = modeTabs.createEl("button", {
         cls: "dh-chip" + (ui.addMode === tab.id ? " is-active" : ""),
-        text: tab.label,
-        attr: { type: "button", style: "font-size: 0.75rem; padding: 3px 10px; cursor: pointer;" }
+        attr: { type: "button", style: "display: inline-flex; align-items: center; gap: 5px; font-size: 0.75rem; padding: 3px 10px; cursor: pointer;" }
       });
+      setBtnIconLabel(b, tab.icon, tab.label, 12);
       b.onclick = () => {
         ui.addMode = tab.id;
         renderCardsSection(cardsContainer, activeProjects);
@@ -2745,11 +2818,7 @@ const effectiveTargetDeckPath = activeDeck ? activeDeck.path : decks[0].path;
 
     scopedCards.forEach(c => {
       const isEditingThis = ui.editingCardKey === c.uidKey;
-      const row = listBox.createDiv({
-        attr: {
-          style: "padding: 8px 10px; background: var(--background-secondary); border-radius: 6px; border: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: 6px;"
-        }
-      });
+      const row = listBox.createDiv({ cls: "dsc-list-row" });
 
       if (isEditingThis) {
         const editRow = row.createDiv({ attr: { style: "display: flex; flex-wrap: wrap; gap: 8px;" } });
@@ -2847,16 +2916,16 @@ const rightBtns = mainLine.createDiv({ attr: { style: "display: flex; align-item
 
       const edBtn = rightBtns.createEl("button", {
         cls: "dh-chip",
-        text: "✎",
-        attr: { type: "button", title: "Редактировать вопрос", style: "font-size: 0.7rem; padding: 1px 6px; height: 20px; cursor: pointer;" }
+        attr: { type: "button", title: "Редактировать вопрос", "aria-label": "Редактировать вопрос", style: "display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; height: 22px; cursor: pointer;" }
       });
+      setBtnIconLabel(edBtn, "pencil", "", 11);
       edBtn.onclick = () => { ui.editingCardKey = c.uidKey; renderCardsSection(cardsContainer, activeProjects); };
 
       const delBtn = rightBtns.createEl("button", {
         cls: "dh-chip",
-        text: "✕",
-        attr: { type: "button", title: "Удалить карточку", style: "font-size: 0.7rem; padding: 1px 6px; height: 20px; color: var(--text-faint); cursor: pointer;" }
+        attr: { type: "button", title: "Удалить карточку", "aria-label": "Удалить карточку", style: "display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; height: 22px; color: var(--text-faint); cursor: pointer;" }
       });
+      setBtnIconLabel(delBtn, "trash-2", "", 11);
       delBtn.onclick = async () => {
         delBtn.disabled = true;
         await modifyStudyCardLine(c, { deleteCard: true });
@@ -2908,9 +2977,9 @@ const topActions = topBar.createDiv({ cls: "dh-sp-topbar-actions" });
 
     const toggleNewBtn = topActions.createEl("button", {
       cls: "dh-sp-btn" + (uiState.showNewWorkBar ? " is-active" : ""),
-      text: uiState.showNewWorkBar ? "✕ Закрыть" : "＋ Проект",
       attr: { type: "button", title: "Создать новый учебный проект" }
     });
+    setBtnIconLabel(toggleNewBtn, uiState.showNewWorkBar ? "x" : "plus", uiState.showNewWorkBar ? "Закрыть" : "Проект", 14);
     toggleNewBtn.onclick = () => {
       uiState.showNewWorkBar = !uiState.showNewWorkBar;
       renderAll();
@@ -3242,13 +3311,13 @@ ws.forEach(p => {
 
         const editTitleBtn = tools.createEl("button", {
           cls: "dh-sp-icon-action" + (isRenaming ? " is-active" : ""),
-          text: "✎",
           attr: {
             type: "button",
             title: "Переименовать проект",
             "aria-label": "Переименовать проект"
           }
         });
+        setBtnIconLabel(editTitleBtn, "pencil", "", 13);
         editTitleBtn.onclick = e => {
           e.stopPropagation();
           uiState.renamingWorkPath = isRenaming ? null : p.file.path;
@@ -3257,13 +3326,13 @@ ws.forEach(p => {
 
         const doneBtn = tools.createEl("button", {
           cls: "dh-sp-icon-action is-done",
-          text: "✓",
           attr: {
             type: "button",
             title: "Завершить проект",
             "aria-label": "Завершить проект"
           }
         });
+        setBtnIconLabel(doneBtn, "check", "", 14);
         doneBtn.onclick = async e => {
           e.stopPropagation();
           if (doneBtn.disabled) return;
@@ -3292,24 +3361,25 @@ ws.forEach(p => {
         let confirmTrash = false;
         const delBtn = tools.createEl("button", {
           cls: "dh-sp-icon-action",
-          text: "✕",
           attr: {
             type: "button",
             title: "Удалить проект в корзину",
             "aria-label": "Удалить проект в корзину"
           }
         });
+        setBtnIconLabel(delBtn, "trash-2", "", 13);
         delBtn.onclick = async e => {
           e.stopPropagation();
           if (delBtn.disabled) return;
           if (!confirmTrash) {
             confirmTrash = true;
-            delBtn.textContent = "Удалить?";
+            delBtn.empty();
+            delBtn.setText("Удалить?");
             delBtn.classList.add("is-danger");
             setTimeout(() => {
               if (delBtn.disabled || !delBtn.isConnected) return;
               confirmTrash = false;
-              delBtn.textContent = "✕";
+              setBtnIconLabel(delBtn, "trash-2", "", 13);
               delBtn.classList.remove("is-danger");
             }, 3000);
             return;
@@ -3341,15 +3411,29 @@ ws.forEach(p => {
           openStudyCompiler({ rootPath: p.file.path });
         };
 
+        const focusBtn = footerRow.createEl("button", {
+          cls: "dh-sp-plus-btn is-focus",
+          attr: {
+            type: "button",
+            title: "Запустить фокус-сессию по проекту «" + currentTitle + "»",
+            "aria-label": "Запустить фокус-сессию"
+          }
+        });
+        setBtnIconLabel(focusBtn, "timer", "", 15);
+        focusBtn.onclick = e => {
+          e.stopPropagation();
+          openProjectFocus(currentTitle);
+        };
+
         const openSchemaBtn = footerRow.createEl("button", {
           cls: "dh-sp-plus-btn is-schema",
-          text: "☊",
           attr: {
             type: "button",
             title: "Открыть вкладку «Схема» для этого проекта",
             "aria-label": "Открыть вкладку «Схема»"
           }
         });
+        setBtnIconLabel(openSchemaBtn, "workflow", "", 15);
         openSchemaBtn.onclick = e => {
           e.stopPropagation();
           openStudyCompiler({ rootPath: p.file.path, schemaNotePath: p.file.path });
@@ -3357,13 +3441,13 @@ ws.forEach(p => {
 
         const quickAddInPluginBtn = footerRow.createEl("button", {
           cls: "dh-sp-plus-btn",
-          text: "＋",
           attr: {
             type: "button",
             title: "Добавить материал в этот проект",
             "aria-label": "Добавить материал в этот проект"
           }
         });
+        setBtnIconLabel(quickAddInPluginBtn, "plus", "", 16);
         quickAddInPluginBtn.onclick = e => {
           e.stopPropagation();
           openStudyCompiler({ rootPath: p.file.path, addUnder: p.file.path });
@@ -3517,10 +3601,8 @@ const row = doneList.createDiv({ cls: "dh-sp-done-row" });
         });
 
         rightPart.createSpan({
-          text: daysTaken + " дн. · " + timingNote,
-          attr: {
-            style: "font-size: 0.72rem; font-weight: 500; padding: 2px 8px; border-radius: 6px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); color: " + (isOverdue ? "var(--text-error, #e06c75)" : "var(--text-muted)") + "; white-space: nowrap;"
-          }
+          cls: "dh-sp-done-badge" + (isOverdue ? " is-overdue" : ""),
+          text: daysTaken + " дн. · " + timingNote
         });
 
         const openDoneInPluginBtn = rightPart.createEl("button", {
@@ -3536,13 +3618,13 @@ const row = doneList.createDiv({ cls: "dh-sp-done-row" });
 
         const restoreBtn = rightPart.createEl("button", {
           cls: "dh-sp-btn",
-          text: "↩ Вернуть",
           attr: {
             type: "button",
             title: "Возобновить проект и вернуть в активные",
             style: "height: 24px !important; min-height: 24px !important; padding: 0 8px !important; font-size: 0.72rem !important; color: var(--text-muted) !important;"
           }
         });
+        setBtnIconLabel(restoreBtn, "rotate-ccw", "Вернуть", 12);
         restoreBtn.onclick = async () => {
           if (restoreBtn.disabled) return;
           restoreBtn.disabled = true;
