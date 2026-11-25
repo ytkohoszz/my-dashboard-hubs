@@ -1179,13 +1179,47 @@
         opacity: 0.35;
         cursor: default;
       }
+      .dh .dh-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: currentColor;
+        vertical-align: middle;
+      }
+      .dh .dh-icon svg {
+        width: 14px;
+        height: 14px;
+        stroke-width: 1.9;
+      }
+      .dh .dh-icon.dh-icon-xs svg {
+        width: 12px;
+        height: 12px;
+      }
+      .dh .dh-icon.dh-icon-title {
+        color: var(--icon-color, var(--text-muted));
+      }
+      .dh .dh-icon.dh-icon-title svg {
+        width: 15px;
+        height: 15px;
+      }
+      .dh .dh-inline-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
       .dh-calendar-v2 .dhc-training {
         position: absolute;
         top: 2px;
         right: 2px;
-        font-size: 0.54rem;
-        line-height: 1;
+        color: var(--icon-color, var(--text-muted));
+        opacity: 0.82;
         pointer-events: none;
+      }
+      .dh-calendar-v2 .dhc-training svg {
+        width: 9px;
+        height: 9px;
+        stroke-width: 2.2;
       }
       .dh-calendar-v2 .dhc-legend {
         display: flex;
@@ -1306,11 +1340,13 @@
       .dhc-calendar-popover-v2 button.dhc-open-note:hover {
         background: var(--interactive-hover);
       }
-      body.is-mobile .dh-calendar-v2 button.dhc-nav-btn {
+      body.is-mobile .dh-calendar-v2 button.dhc-nav-btn,
+      body.is-tablet .dh-calendar-v2 button.dhc-nav-btn {
         min-width: 36px;
         height: 36px;
       }
-      body.is-mobile .dhc-calendar-popover-v2 button.dhc-open-note {
+      body.is-mobile .dhc-calendar-popover-v2 button.dhc-open-note,
+      body.is-tablet .dhc-calendar-popover-v2 button.dhc-open-note {
         min-height: 36px;
       }
       @media (prefers-reduced-motion: reduce) {
@@ -1907,7 +1943,9 @@
           box-shadow: 0 0 0 1.5px var(--interactive-accent);
         }
         body.is-mobile .dh-period-summaries button.dhps-nav-btn,
-        body.is-mobile .dh-period-summaries select.dhps-select {
+        body.is-mobile .dh-period-summaries select.dhps-select,
+        body.is-tablet .dh-period-summaries button.dhps-nav-btn,
+        body.is-tablet .dh-period-summaries select.dhps-select {
           height: 36px;
           min-width: 36px;
         }
@@ -2156,7 +2194,27 @@
         color: var(--icon-color, var(--text-muted));
         font-size: 0.7rem;
       }
-      body.is-mobile .dh-habits-v2 button.dhhv-more {
+      .dh-habits-v2 .dhhv-info-left {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .dh-habits-v2 .dhhv-info-right {
+        font-size: 0.72rem;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .dh-habits-v2 .is-good { color: var(--color-green, #4aab80); font-weight: var(--font-semibold, 600); }
+      .dh-habits-v2 .is-bad { color: var(--color-red, #d85b57); font-weight: var(--font-semibold, 600); }
+      .dh-habits-v2 .is-warn { color: var(--color-orange, #e5a158); font-weight: var(--font-semibold, 600); }
+      .dh-habits-v2 .is-muted { color: var(--text-muted); }
+      .dh-habits-v2 .is-faint { color: var(--text-faint); }
+      body.is-mobile .dh-habits-v2 button.dhhv-more,
+      body.is-tablet .dh-habits-v2 button.dhhv-more {
         min-height: 36px;
         padding: 6px 12px;
       }

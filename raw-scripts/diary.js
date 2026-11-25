@@ -7,7 +7,23 @@ if (mode === "all" || mode === "main") {
   const SOURCE = '"Ежедневник"';
   const WEEKS = 10;
   const MIN_WEEK_DAYS = 4; // минимум заполненных дней с оценкой в каждом 7-дневном периоде
-  const SOCIAL_LIMIT_MIN = 30; // лимит дофаминового скроллинга соцсетей (мин/день)
+  const getCorrelationPlugin = () =>
+    app.plugins?.plugins?.["my-correlation-analytics"] || window.__myCorrelationAnalytics;
+  const rawSocialLimit = getCorrelationPlugin()?.settings?.socialLimitMin;
+  const SOCIAL_LIMIT_MIN =
+    typeof rawSocialLimit === "number" && Number.isFinite(rawSocialLimit) && rawSocialLimit >= 0
+      ? rawSocialLimit
+      : 30;
+
+  function renderIcon(parent, iconName, cls = "dh-icon") {
+    const el = parent.createSpan({ cls, attr: { "aria-hidden": "true" } });
+    try {
+      if (typeof setIcon === "function") setIcon(el, iconName);
+      else if (typeof window.setIcon === "function") window.setIcon(el, iconName);
+      else if (typeof require === "function") require("obsidian").setIcon(el, iconName);
+    } catch {}
+    return el;
+  }
   const HABITS = [
     { key: "nofap", name: "NoFap", color: "#9c83e8" },
     { key: "тренировка", name: "Тренировки", color: "#d69852" },
@@ -343,13 +359,47 @@ if (mode === "all" || mode === "main") {
         opacity: 0.35;
         cursor: default;
       }
+      .dh .dh-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: currentColor;
+        vertical-align: middle;
+      }
+      .dh .dh-icon svg {
+        width: 14px;
+        height: 14px;
+        stroke-width: 1.9;
+      }
+      .dh .dh-icon.dh-icon-xs svg {
+        width: 12px;
+        height: 12px;
+      }
+      .dh .dh-icon.dh-icon-title {
+        color: var(--icon-color, var(--text-muted));
+      }
+      .dh .dh-icon.dh-icon-title svg {
+        width: 15px;
+        height: 15px;
+      }
+      .dh .dh-inline-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
       .dh-calendar-v2 .dhc-training {
         position: absolute;
         top: 2px;
         right: 2px;
-        font-size: 0.54rem;
-        line-height: 1;
+        color: var(--icon-color, var(--text-muted));
+        opacity: 0.82;
         pointer-events: none;
+      }
+      .dh-calendar-v2 .dhc-training svg {
+        width: 9px;
+        height: 9px;
+        stroke-width: 2.2;
       }
       .dh-calendar-v2 .dhc-legend {
         display: flex;
@@ -470,11 +520,13 @@ if (mode === "all" || mode === "main") {
       .dhc-calendar-popover-v2 button.dhc-open-note:hover {
         background: var(--interactive-hover);
       }
-      body.is-mobile .dh-calendar-v2 button.dhc-nav-btn {
+      body.is-mobile .dh-calendar-v2 button.dhc-nav-btn,
+      body.is-tablet .dh-calendar-v2 button.dhc-nav-btn {
         min-width: 36px;
         height: 36px;
       }
-      body.is-mobile .dhc-calendar-popover-v2 button.dhc-open-note {
+      body.is-mobile .dhc-calendar-popover-v2 button.dhc-open-note,
+      body.is-tablet .dhc-calendar-popover-v2 button.dhc-open-note {
         min-height: 36px;
       }
       @media (prefers-reduced-motion: reduce) {
@@ -788,11 +840,7 @@ if (typeof win.__dhDiaryCalOffset !== "number" || !Number.isFinite(win.__dhDiary
         cell.createSpan({ text: String(day) });
 
         if (hasTraining) {
-          cell.createSpan({
-            cls: "dhc-training",
-            text: "🏋️",
-            attr: { "aria-hidden": "true" }
-          });
+          renderIcon(cell, "dumbbell", "dh-icon dhc-training");
         }
 
         if (isFuture) {
@@ -882,7 +930,10 @@ cell.addEventListener("click", e => {
     legend.createSpan({ text: "10" });
     legend.createSpan({ cls: "dhc-swatch dhc-no-score", attr: { "aria-hidden": "true" } });
     legend.createSpan({ text: "запись без оценки" });
-    legend.createSpan({ text: "· 🏋️ — тренировка" });
+    const trLegend = legend.createSpan({ cls: "dh-inline-meta" });
+    trLegend.createSpan({ text: "·" });
+    renderIcon(trLegend, "dumbbell", "dh-icon dh-icon-xs");
+    trLegend.createSpan({ text: "— тренировка" });
   }
 
   // Привычки и сводки за месяц / год
@@ -1707,7 +1758,9 @@ let analyticsSectionEl = null;
           box-shadow: 0 0 0 1.5px var(--interactive-accent);
         }
         body.is-mobile .dh-period-summaries button.dhps-nav-btn,
-        body.is-mobile .dh-period-summaries select.dhps-select {
+        body.is-mobile .dh-period-summaries select.dhps-select,
+        body.is-tablet .dh-period-summaries button.dhps-nav-btn,
+        body.is-tablet .dh-period-summaries select.dhps-select {
           height: 36px;
           min-width: 36px;
         }
@@ -2227,10 +2280,9 @@ let analyticsSectionEl = null;
             cls: "dhps-card-val",
             text: cur.meanSleep !== null ? `${fmt(cur.meanSleep, 1, 1)} ч` : "—"
           });
-          main.createSpan({
-            cls: "dhps-card-unit",
-            text: `🏋️ ${trStats.doneCount} дн. (${trStats.pctCalendar}%)`
-          });
+          const trUnit = main.createSpan({ cls: "dhps-card-unit dh-inline-meta" });
+          renderIcon(trUnit, "dumbbell", "dh-icon dh-icon-xs");
+          trUnit.createSpan({ text: `${trStats.doneCount} дн. (${trStats.pctCalendar}%)` });
 
           const rows = card.createDiv({ cls: "dhps-card-rows" });
           const rSl = rows.createDiv({ cls: "dhps-row" });
@@ -2412,7 +2464,8 @@ function renderMonthScoreChart(container, cur) {
       const monthHeader = monthPanel.createDiv({ cls: "dhps-header" });
       const monthTitleWrap = monthHeader.createDiv({ cls: "dhps-title-wrap" });
       monthTitleWrap.createSpan({ cls: "dhps-arrow", text: "▶" });
-      monthTitleWrap.createSpan({ cls: "dhps-title", text: "📅 Итог за месяц" });
+      renderIcon(monthTitleWrap, "calendar-days", "dh-icon dh-icon-title");
+      monthTitleWrap.createSpan({ cls: "dhps-title", text: "Итог за месяц" });
       const monthSubLabel = monthTitleWrap.createSpan({ cls: "dhps-sub" });
 
       const monthControls = monthHeader.createDiv({ cls: "dhps-controls" });
@@ -2450,7 +2503,8 @@ function renderMonthScoreChart(container, cur) {
       const yearHeader = yearPanel.createDiv({ cls: "dhps-header" });
       const yearTitleWrap = yearHeader.createDiv({ cls: "dhps-title-wrap" });
       yearTitleWrap.createSpan({ cls: "dhps-arrow", text: "▶" });
-      yearTitleWrap.createSpan({ cls: "dhps-title", text: "📆 Итог за год" });
+      renderIcon(yearTitleWrap, "calendar-range", "dh-icon dh-icon-title");
+      yearTitleWrap.createSpan({ cls: "dhps-title", text: "Итог за год" });
       const yearSubLabel = yearTitleWrap.createSpan({ cls: "dhps-sub" });
 
       const yearControls = yearHeader.createDiv({ cls: "dhps-controls" });
@@ -2543,10 +2597,13 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
               scoreSpan.style.color = COLORS[Math.min(9, Math.max(0, Math.round(ms.meanScore) - 1))];
             }
 
-            btn.createSpan({
-              cls: "dhps-mcol-energy",
-              text: ms.meanEnergy !== null ? `⚡ ${fmt(ms.meanEnergy, 1, 1)}` : `дн: ${ms.recordsCount}`
-            });
+            const enSpan = btn.createSpan({ cls: "dhps-mcol-energy dh-inline-meta" });
+            if (ms.meanEnergy !== null) {
+              renderIcon(enSpan, "zap", "dh-icon dh-icon-xs");
+              enSpan.createSpan({ text: fmt(ms.meanEnergy, 1, 1) });
+            } else {
+              enSpan.textContent = `дн: ${ms.recordsCount}`;
+            }
 
             if (isBest || isWorst) {
               btn.createSpan({
@@ -2905,7 +2962,27 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         color: var(--icon-color, var(--text-muted));
         font-size: 0.7rem;
       }
-      body.is-mobile .dh-habits-v2 button.dhhv-more {
+      .dh-habits-v2 .dhhv-info-left {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .dh-habits-v2 .dhhv-info-right {
+        font-size: 0.72rem;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .dh-habits-v2 .is-good { color: var(--color-green, #4aab80); font-weight: var(--font-semibold, 600); }
+      .dh-habits-v2 .is-bad { color: var(--color-red, #d85b57); font-weight: var(--font-semibold, 600); }
+      .dh-habits-v2 .is-warn { color: var(--color-orange, #e5a158); font-weight: var(--font-semibold, 600); }
+      .dh-habits-v2 .is-muted { color: var(--text-muted); }
+      .dh-habits-v2 .is-faint { color: var(--text-faint); }
+      body.is-mobile .dh-habits-v2 button.dhhv-more,
+      body.is-tablet .dh-habits-v2 button.dhhv-more {
         min-height: 36px;
         padding: 6px 12px;
       }
@@ -3290,24 +3367,44 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
       } else if (key === "без_соцсетей") {
         const socialList30 = slots30.map(s => getSocialMin(s.page)).filter(v => v !== null);
         const avgSocial30 = socialList30.length ? average(socialList30) : null;
+        const inLimit30 = socialList30.filter(v => v <= SOCIAL_LIMIT_MIN).length;
+
+        const socialCur7 = slotsCur7.map(s => getSocialMin(s.page)).filter(v => v !== null);
+        const socialPrev7 = slotsPrev7.map(s => getSocialMin(s.page)).filter(v => v !== null);
+        const avgSocCur7 = average(socialCur7);
+        const avgSocPrev7 = average(socialPrev7);
+
         keyMetrics.push({
-          k: "Выполнено (30 дн.)",
-          v: s30.marked.length ? `${s30.done.length} из ${s30.marked.length} дн. (${s30.rate}%)` : "—"
+          k: `В лимите ≤${SOCIAL_LIMIT_MIN} мин (30 дн.)`,
+          v: socialList30.length
+            ? `${inLimit30} из ${socialList30.length} дн. (${Math.round((inLimit30 / socialList30.length) * 100)}%)`
+            : s30.marked.length
+              ? `${s30.done.length} из ${s30.marked.length} дн. (${s30.rate}%)`
+              : "—"
         });
         keyMetrics.push({
-          k: "Средний скроллинг",
+          k: "Средний скроллинг (30 дн.)",
           v: avgSocial30 !== null ? `${Math.round(avgSocial30)} мин/день` : "—"
         });
         keyMetrics.push({
           k: "Лучшая серия (30 дн.)",
           v: maxRun30 ? `${maxRun30.len} дн.` : "—"
         });
-        whatChanged = formatFlagWeekComparison("Без соцсетей");
+
+        if (socialCur7.length >= HABIT_MIN_WEEK_NUMERIC && socialPrev7.length >= HABIT_MIN_WEEK_NUMERIC) {
+          const diffSoc = Math.round(avgSocCur7 - avgSocPrev7);
+          whatChanged = `Скроллинг: ср. ${Math.round(avgSocCur7)} мин/д (${curWeekRange}) против ${Math.round(avgSocPrev7)} мин/д (${prevWeekRange}) · ${formatSigned(diffSoc, 0, 0, "мин")}.`;
+        } else if (avgSocCur7 !== null) {
+          whatChanged = `За ${curWeekRange}: ср. ${Math.round(avgSocCur7)} мин/д (${socialCur7.length} дн.). Для тренда к прошлой неделе нужно ≥${HABIT_MIN_WEEK_NUMERIC} дн. в каждой.`;
+        } else {
+          whatChanged = formatFlagWeekComparison("Без соцсетей");
+        }
+
         if (avgSocial30 !== null) {
           observations.push(
             avgSocial30 <= SOCIAL_LIMIT_MIN
-              ? `В среднем ${Math.round(avgSocial30)} мин/день — держишься в пределах лимита ≤${SOCIAL_LIMIT_MIN} мин.`
-              : `В среднем ${Math.round(avgSocial30)} мин/день — превышение лимита на +${Math.round(avgSocial30 - SOCIAL_LIMIT_MIN)} мин.`
+              ? `В среднем ${Math.round(avgSocial30)} мин/день — в пределах лимита ≤${SOCIAL_LIMIT_MIN} мин.`
+              : `В среднем ${Math.round(avgSocial30)} мин/день — выше лимита на +${Math.round(avgSocial30 - SOCIAL_LIMIT_MIN)} мин.`
           );
         }
       }
@@ -3538,11 +3635,35 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         text: doneToday ? "сегодня ✓" : "сегодня —"
       });
 
-      c.createDiv({ cls: "dh-card-value", text: `${current} дн.` });
-      c.createDiv({
-        cls: "dh-card-hint",
-        text: current && !doneToday ? "подряд до вчера" : "подряд"
-      });
+      if (h.key === "без_соцсетей" && current === 0) {
+        const socCur7 = slotsCur7.map(s => getSocialMin(s.page)).filter(v => v !== null);
+        const socPrev7 = slotsPrev7.map(s => getSocialMin(s.page)).filter(v => v !== null);
+        const avgCur = average(socCur7);
+        const avgPrev = average(socPrev7);
+
+        if (avgCur !== null) {
+          c.createDiv({ cls: "dh-card-value", text: `${Math.round(avgCur)} мин/д` });
+          if (avgPrev !== null) {
+            const diff = Math.round(avgCur - avgPrev);
+            const trendCls = diff < 0 ? " is-good" : diff > 0 ? " is-bad" : "";
+            c.createDiv({
+              cls: `dh-card-hint${trendCls}`,
+              text: `${formatSigned(diff, 0, 0, "мин")} к пред. нед.`
+            });
+          } else {
+            c.createDiv({ cls: "dh-card-hint", text: `ср. за 7 дн. · лимит ≤${SOCIAL_LIMIT_MIN}` });
+          }
+        } else {
+          c.createDiv({ cls: "dh-card-value", text: "0 дн." });
+          c.createDiv({ cls: "dh-card-hint", text: "нет данных за 7 дн." });
+        }
+      } else {
+        c.createDiv({ cls: "dh-card-value", text: `${current} дн.` });
+        c.createDiv({
+          cls: "dh-card-hint",
+          text: current && !doneToday ? "подряд до вчера" : "подряд"
+        });
+      }
 
       const detailBox = c.createDiv({ cls: "dhhv-info" });
 
@@ -3550,53 +3671,50 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         const pages = todayRecord && typeof todayRecord.страниц_прочитано === "number"
           ? todayRecord.страниц_прочитано
           : null;
-
+        const left = detailBox.createSpan({ cls: `dhhv-info-left${pages > 0 ? "" : " is-muted"}` });
+        renderIcon(left, "book-open", "dh-icon dh-icon-xs");
         if (pages !== null && pages > 0) {
-          detailBox.innerHTML = `
-            <span>📖 Сегодня: <strong>${pages} стр.</strong></span>
-            <span style="color:var(--color-green);">✓ цель закрыта</span>
-          `;
+          left.createSpan({ text: "Сегодня:" });
+          left.createEl("strong", { text: `${pages} стр.` });
+          detailBox.createSpan({ cls: "dhhv-info-right is-good", text: "цель закрыта" });
         } else {
-          detailBox.innerHTML = `
-            <span style="color:var(--text-muted);">📖 Сегодня страниц: 0</span>
-          `;
+          left.createSpan({ text: "Сегодня страниц: 0" });
         }
       } else if (h.key === "режим_сна") {
         const sleepH = todayRecord && typeof todayRecord.сон_часов === "number"
           ? todayRecord.сон_часов
           : null;
-
         if (sleepH !== null && sleepH > 0) {
           let quality = "Оптимально (7–8 ч)";
-          let qColor = "var(--color-green)";
-          let qIcon = "🌙";
+          let qCls = "is-good";
+          let qIcon = "moon";
 
           if (sleepH < 6) {
             quality = "Недосып";
-            qColor = "var(--color-red, #d85b57)";
-            qIcon = "⚠️";
+            qCls = "is-bad";
+            qIcon = "alert-triangle";
           } else if (sleepH < 7) {
             quality = "Ниже нормы";
-            qColor = "var(--color-orange, #e5a158)";
-            qIcon = "😴";
+            qCls = "is-warn";
+            qIcon = "moon-star";
           } else if (sleepH > 9) {
             quality = "Пересып";
-            qColor = "var(--color-orange, #e5a158)";
-            qIcon = "🛌";
+            qCls = "is-warn";
+            qIcon = "bed";
           } else if (sleepH >= 8.5) {
             quality = "Хороший отдых";
-            qColor = "var(--color-green)";
-            qIcon = "🌙";
+            qCls = "is-good";
+            qIcon = "moon";
           }
 
-          detailBox.innerHTML = `
-            <span>${qIcon} <strong>${sleepH} ч</strong></span>
-            <span style="color:${qColor}; font-weight:600;">${quality}</span>
-          `;
+          const left = detailBox.createSpan({ cls: "dhhv-info-left" });
+          renderIcon(left, qIcon, "dh-icon dh-icon-xs");
+          left.createEl("strong", { text: `${sleepH} ч` });
+          detailBox.createSpan({ cls: `dhhv-info-right ${qCls}`, text: quality });
         } else {
-          detailBox.innerHTML = `
-            <span style="color:var(--text-muted);">🌙 Сон не записан</span>
-          `;
+          const left = detailBox.createSpan({ cls: "dhhv-info-left is-muted" });
+          renderIcon(left, "moon", "dh-icon dh-icon-xs");
+          left.createSpan({ text: "Сон не записан" });
         }
       } else if (h.key === "диета") {
         const cal = todayRecord && typeof todayRecord.калории_ккал === "number"
@@ -3606,13 +3724,10 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
           ? todayRecord.вес_кг
           : null;
 
-        const calText = cal !== null ? `${cal} ккал` : "— ккал";
-        const wText = w !== null ? `${fmt(w)} кг` : "— кг";
-
-        detailBox.innerHTML = `
-          <span>🥗 <strong>${calText}</strong></span>
-          <span style="color:var(--text-muted); font-size:0.72rem;">Вес: ${wText}</span>
-        `;
+        const left = detailBox.createSpan({ cls: "dhhv-info-left" });
+        renderIcon(left, "utensils", "dh-icon dh-icon-xs");
+        left.createEl("strong", { text: cal !== null ? `${cal} ккал` : "— ккал" });
+        detailBox.createSpan({ cls: "dhhv-info-right is-muted", text: `Вес: ${w !== null ? fmt(w) + " кг" : "— кг"}` });
       } else if (h.key === "тренировка") {
         const wasT = todayRecord && todayRecord.тренировка === true;
 
@@ -3655,46 +3770,57 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         if (wasT && trainingPage && !isPastSession) {
           const sessionName = String(trainingPage.название_тренировки || trainingPage.file.name).replace(/^Тренировка\s*/i, "").trim() || "Силовая";
           const subInfo = topExercises ? `(${topExercises})` : `${setsCount} подх.`;
-          detailBox.innerHTML = `
-            <span style="color:var(--color-green); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">🏋️ ${sessionName}</span>
-            <span style="color:var(--text-muted); font-size:0.72rem; font-variant-numeric:tabular-nums;" title="${topExercises}">${totalReps > 0 ? totalReps + " повт." : setsCount + " подх."} ${subInfo}</span>
-          `;
+          const left = detailBox.createSpan({ cls: "dhhv-info-left is-good" });
+          renderIcon(left, "dumbbell", "dh-icon dh-icon-xs");
+          left.createSpan({ text: sessionName });
+          detailBox.createSpan({
+            cls: "dhhv-info-right is-muted",
+            text: `${totalReps > 0 ? totalReps + " повт." : setsCount + " подх."} ${subInfo}`,
+            attr: { title: topExercises }
+          });
         } else if (isPastSession && trainingPage) {
           const pastDateStr = asDate(trainingPage.дата)?.toFormat("dd.MM") || "";
-          detailBox.innerHTML = `
-            <span style="color:var(--text-muted);">Отдых (посл: ${pastDateStr})</span>
-            <span style="color:var(--text-faint); font-size:0.72rem;">${totalReps > 0 ? totalReps + " повт." : "—"}</span>
-          `;
+          const left = detailBox.createSpan({ cls: "dhhv-info-left is-muted" });
+          renderIcon(left, "dumbbell", "dh-icon dh-icon-xs");
+          left.createSpan({ text: `Отдых (посл: ${pastDateStr})` });
+          detailBox.createSpan({
+            cls: "dhhv-info-right is-faint",
+            text: totalReps > 0 ? `${totalReps} повт.` : "—"
+          });
         } else {
-          detailBox.innerHTML = `
-            <span style="color:var(--text-muted);">🏋️ Тренировки не было</span>
-            <span style="color:var(--text-faint); font-size:0.72rem;">0 повт.</span>
-          `;
+          const left = detailBox.createSpan({ cls: "dhhv-info-left is-muted" });
+          renderIcon(left, "dumbbell", "dh-icon dh-icon-xs");
+          left.createSpan({ text: "Тренировки не было" });
+          detailBox.createSpan({ cls: "dhhv-info-right is-faint", text: "0 повт." });
         }
       } else if (h.key === "nofap") {
-        detailBox.innerHTML = `
-          <span style="color:var(--text-muted);">🛡️ Чистый день: ${doneToday ? "Да ✓" : "В процессе"}</span>
-        `;
+        const left = detailBox.createSpan({ cls: `dhhv-info-left${doneToday ? " is-good" : " is-muted"}` });
+        renderIcon(left, "shield-check", "dh-icon dh-icon-xs");
+        left.createSpan({ text: `Чистый день: ${doneToday ? "Да" : "В процессе"}` });
       } else if (h.key === "без_соцсетей") {
         const socialMin = todayRecord ? getSocialMin(todayRecord) : null;
         if (socialMin !== null) {
           if (socialMin <= SOCIAL_LIMIT_MIN) {
-            detailBox.innerHTML = `
-              <span style="color:var(--color-green); font-weight:600;">🛡️ Лимит удержан: ${socialMin} из ${SOCIAL_LIMIT_MIN} мин</span>
-              <span style="color:var(--color-green); font-size:0.72rem; font-weight:600;">в норме ✓</span>
-            `;
+            const left = detailBox.createSpan({ cls: "dhhv-info-left is-good" });
+            renderIcon(left, "shield-check", "dh-icon dh-icon-xs");
+            left.createSpan({ text: `Лимит удержан: ${socialMin} из ${SOCIAL_LIMIT_MIN} мин` });
+            detailBox.createSpan({ cls: "dhhv-info-right is-good", text: "в норме" });
           } else {
             const over = socialMin - SOCIAL_LIMIT_MIN;
-            detailBox.innerHTML = `
-              <span style="color:var(--color-red, #d85b57); font-weight:600;">📱 Превышение: ${socialMin} мин</span>
-              <span style="color:var(--color-red, #d85b57); font-size:0.72rem; font-weight:600;">+${over} мин</span>
-            `;
+            const left = detailBox.createSpan({ cls: "dhhv-info-left is-bad" });
+            renderIcon(left, "smartphone", "dh-icon dh-icon-xs");
+            left.createSpan({ text: `Превышение: ${socialMin} мин` });
+            detailBox.createSpan({ cls: "dhhv-info-right is-bad", text: `+${over} мин` });
           }
         } else {
           const doneNS = todayRecord && todayRecord.без_соцсетей === true;
-          detailBox.innerHTML = doneNS
-            ? `<span style="color:var(--color-green); font-weight:600;">🛡️ Без скроллинга</span><span style="color:var(--text-muted); font-size:0.72rem;">лимит ≤${SOCIAL_LIMIT_MIN} мин</span>`
-            : `<span style="color:var(--text-muted);">📱 Время не записано</span><span style="color:var(--text-faint); font-size:0.72rem;">лимит ≤${SOCIAL_LIMIT_MIN} мин</span>`;
+          const left = detailBox.createSpan({ cls: `dhhv-info-left${doneNS ? " is-good" : " is-muted"}` });
+          renderIcon(left, doneNS ? "shield-check" : "smartphone", "dh-icon dh-icon-xs");
+          left.createSpan({ text: doneNS ? "Без скроллинга" : "Сегодня не записано" });
+          detailBox.createSpan({
+            cls: `dhhv-info-right${doneNS ? " is-muted" : " is-faint"}`,
+            text: `лимит ≤${SOCIAL_LIMIT_MIN} мин`
+          });
         }
       }
 

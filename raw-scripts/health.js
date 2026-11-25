@@ -33,6 +33,18 @@ function createHealthSvgNode(parent, tagName, attributes = {}) {
   return node;
 }
 
+function renderHealthIcon(parent, iconName, cls = "dh-icon") {
+  const el = parent.createSpan({ cls, attr: { "aria-hidden": "true" } });
+  try {
+    if (typeof setIcon === "function") setIcon(el, iconName);
+    else if (typeof window.setIcon === "function") window.setIcon(el, iconName);
+    else if (typeof require === "function") require("obsidian").setIcon(el, iconName);
+  } catch {}
+  return el;
+}
+
+ensureHealthStyles();
+
 // ========================================================
 // МОДУЛЬ 1: ВЕС, КАЛОРИИ, БЖУ И ПАНЕЛЬ СЕГОДНЯШНЕГО ДНЯ
 // ========================================================
@@ -1229,7 +1241,8 @@ const metricKeys = ["weight", "calories", "proteins", "fats", "carbs"];
   const chartSummary = chartPanel.createEl("summary", { cls: "dh-dyn-summary" });
   const sumTitleWrap = chartSummary.createDiv({ cls: "dh-dyn-summary-title" });
   sumTitleWrap.createSpan({ cls: "dh-dyn-chevron", text: "▶" });
-  sumTitleWrap.createSpan({ text: "⚖️ Вес и БЖУ" });
+  renderHealthIcon(sumTitleWrap, "scale", "dh-icon dh-icon-title");
+  sumTitleWrap.createSpan({ text: "Вес и БЖУ" });
   const chartSummaryMeta = chartSummary.createSpan({ cls: "dh-dyn-summary-meta" });
 
   const chartBody = chartPanel.createDiv({ cls: "dh-dyn-body" });
@@ -1686,20 +1699,11 @@ async function renderWorkoutsHub() {
 
   function renderLoadBadge(container, loadType, w) {
     if (loadType === "bw") {
-      container.createSpan({
-        text: "Свой вес",
-        attr: { style: "font-size:0.75rem; padding:1px 6px; border-radius:4px; background:var(--background-modifier-border); color:var(--text-muted);" }
-      });
+      container.createSpan({ cls: "dh-wh-load-badge is-bw", text: "Свой вес" });
     } else if (loadType === "weighted" && w != null) {
-      container.createSpan({
-        text: "+" + fmt(w) + " кг",
-        attr: { style: "font-size:0.75rem; padding:1px 6px; border-radius:4px; background:#e5a15822; color:#e5a158; font-weight:600; border:1px solid #e5a15844;" }
-      });
+      container.createSpan({ cls: "dh-wh-load-badge is-weighted", text: "+" + fmt(w) + " кг" });
     } else {
-      container.createSpan({
-        text: "Не указано",
-        attr: { style: "font-size:0.75rem; padding:1px 6px; border-radius:4px; background:var(--background-primary); color:var(--text-faint); border:1px dashed var(--background-modifier-border);" }
-      });
+      container.createSpan({ cls: "dh-wh-load-badge is-unspec", text: "Не указано" });
     }
   }
 
@@ -1761,10 +1765,11 @@ function formatLoadTextForSummary(loadType, w) {
     return sets;
   }
 
+  ensureHealthStyles();
   const today = dv.date("today").startOf("day");
   const todayISO = today.toISODate();
   const minValidDate = dv.date(MIN_VALID_DATE_ISO).startOf("day");
-  const root = dv.container.createDiv({ cls: "dh dh-trainings-hub", attr: { style: "margin: 20px 0 25px 0;" } });
+  const root = dv.container.createDiv({ cls: "dh dh-trainings-hub" });
 
   const todayDirectPath = KNOWLEDGE_FOLDER + "/Тренировка " + todayISO + ".md";
   let todayFile = app.vault.getAbstractFileByPath(todayDirectPath);
@@ -1786,52 +1791,37 @@ function formatLoadTextForSummary(loadType, w) {
     } catch {}
   }
 
-  const launcherCard = root.createDiv({
-    cls: "dh-panel",
-    attr: {
-      style: "padding: 14px 16px; margin-bottom: 18px; background: var(--background-secondary); border-radius: 10px; border: 1px solid var(--background-modifier-border); border-top: 3px solid #d69852; display: flex; flex-direction: column; gap: 10px;"
-    }
-  });
+  const launcherCard = root.createDiv({ cls: "dh-panel dh-wh-launcher" });
+  const launcherTop = launcherCard.createDiv({ cls: "dh-wh-launcher-top" });
+  const titleCol = launcherTop.createDiv({ cls: "dh-wh-title-col" });
+  const headingRow = titleCol.createDiv({ cls: "dh-wh-heading-row" });
 
-  const launcherTop = launcherCard.createDiv({
-    attr: { style: "display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;" }
-  });
-
-  const titleCol = launcherTop.createDiv({ attr: { style: "display: flex; flex-direction: column; gap: 2px; min-width: 0;" } });
-  const headingRow = titleCol.createDiv({ attr: { style: "display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" } });
-  headingRow.createSpan({
-    text: "🏋️ Тренировка сегодня",
-    attr: { style: "font-size: 1rem; font-weight: 600; color: var(--text-normal);" }
-  });
+  const headingTitle = headingRow.createSpan({ cls: "dh-wh-heading-title" });
+  renderHealthIcon(headingTitle, "dumbbell", "dh-icon dh-icon-title");
+  headingTitle.createSpan({ text: "Тренировка сегодня" });
 
   if (todayFile) {
     const statusBadgeText = todayDurationMin
-      ? "✓ Завершена (" + todayDurationMin + " мин · " + todaySets.length + " подх.)"
+      ? "Завершена (" + todayDurationMin + " мин · " + todaySets.length + " подх.)"
       : "В процессе · подходов: " + todaySets.length;
     const noteLink = headingRow.createEl("a", {
-      cls: "internal-link",
+      cls: "internal-link dh-wh-status-badge",
       text: statusBadgeText,
-      attr: {
-        href: todayFile.path,
-        style: "font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; text-decoration: none; background: #4aab8018; color: #4aab80; border: 1px solid #4aab8044;"
-      }
+      attr: { href: todayFile.path }
     });
     noteLink.onclick = e => {
       e.preventDefault();
       app.workspace.openLinkText(todayFile.path, dv.currentFilePath, false);
     };
-    titleCol.createDiv({
-      text: todayTitle,
-      attr: { style: "font-size: 0.78rem; color: var(--text-muted);" }
-    });
+    titleCol.createDiv({ cls: "dh-wh-subtitle", text: todayTitle });
   } else {
     titleCol.createDiv({
-      text: "Сессия за сегодня (" + today.toFormat("dd.MM") + ") ещё не начата",
-      attr: { style: "font-size: 0.78rem; color: var(--text-muted);" }
+      cls: "dh-wh-subtitle",
+      text: "Сессия за сегодня (" + today.toFormat("dd.MM") + ") ещё не начата"
     });
   }
 
-  const actionsCol = launcherTop.createDiv({ attr: { style: "display: flex; align-items: center; gap: 8px; flex-wrap: wrap;" } });
+  const actionsCol = launcherTop.createDiv({ cls: "dh-wh-actions" });
 
   const activeTimer = getWorkoutPlugin()?.settings?.timer;
   if (activeTimer && activeTimer.endAt > Date.now()) {
@@ -1839,32 +1829,26 @@ function formatLoadTextForSummary(loadType, w) {
     const mm = String(Math.floor(remSec / 60)).padStart(2, "0");
     const ss = String(remSec % 60).padStart(2, "0");
     const timerChip = actionsCol.createEl("button", {
-      text: "⏱️ Отдых " + mm + ":" + ss,
-      attr: {
-        type: "button",
-        title: "Открыть таймер отдыха в плагине",
-        style: "height: 32px; padding: 0 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; font-variant-numeric: tabular-nums; color: #e5a158; background: #e5a15818; border: 1px solid #e5a15855; cursor: pointer;"
-      }
+      cls: "dh-wh-timer-chip",
+      attr: { type: "button", title: "Открыть таймер отдыха в плагине" }
     });
+    renderHealthIcon(timerChip, "timer", "dh-icon dh-icon-sm");
+    timerChip.createSpan({ text: "Отдых " + mm + ":" + ss });
     timerChip.onclick = () => openWorkoutCompanion();
   }
 
   const openPluginBtn = actionsCol.createEl("button", {
-    cls: "dh-btn mod-cta",
-    text: todayFile ? "Открыть тренировку" : "＋ Начать тренировку",
-    attr: {
-      type: "button",
-      style: "height: 32px; padding: 0 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer;"
-    }
+    cls: "dh-btn mod-cta dh-wh-cta-btn",
+    attr: { type: "button" }
   });
+  if (!todayFile) renderHealthIcon(openPluginBtn, "plus", "dh-icon dh-icon-sm");
+  openPluginBtn.createSpan({ text: todayFile ? "Открыть тренировку" : "Начать тренировку" });
   openPluginBtn.onclick = () => {
     openWorkoutCompanion(todayFile ? { sessionPath: todayFile.path } : {});
   };
 
   if (todaySets.length > 0) {
-    const setsRow = launcherCard.createDiv({
-      attr: { style: "display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding-top: 8px; border-top: 1px solid var(--background-modifier-border);" }
-    });
+    const setsRow = launcherCard.createDiv({ cls: "dh-wh-sets-row" });
     todaySets.forEach((s, idx) => {
       const exMeta = catalog.get(s.name) || { unit: s.field === "секунды" ? "с" : "повт." };
       const loadSuffix = s.loadType === "weighted" && s.weight != null
@@ -1873,10 +1857,8 @@ function formatLoadTextForSummary(loadType, w) {
           ? " (вес не указан)"
           : "";
       setsRow.createSpan({
-        text: (idx + 1) + ". " + s.name + ": " + fmt(s.reps) + " " + exMeta.unit + loadSuffix,
-        attr: {
-          style: "font-size: 0.74rem; padding: 2px 8px; border-radius: 6px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); font-variant-numeric: tabular-nums;"
-        }
+        cls: "dh-wh-set-chip",
+        text: (idx + 1) + ". " + s.name + ": " + fmt(s.reps) + " " + exMeta.unit + loadSuffix
       });
     });
   }
@@ -2017,48 +1999,22 @@ const newest = (a, b) => b.order - a.order || a.path.localeCompare(b.path, "ru")
   const durations = [...sessions.values()].map(g => g.duration).filter(n => typeof n === "number" && n > 0);
   const periodRangeStr = from.toFormat("dd.MM") + "–" + today.toFormat("dd.MM");
 
-const summarySection = root.createDiv({
-    attr: { style: "margin-bottom: 16px;" }
+const summarySection = root.createDiv({ cls: "dh-wh-summary-section" });
+  const summaryHeader = summarySection.createDiv({ cls: "dh-wh-summary-head" });
+  summaryHeader.createSpan({ cls: "dh-wh-summary-title", text: "Сводка тренировок" });
+  summaryHeader.createSpan({
+    cls: "dh-wh-summary-period",
+    text: "Последние 30 дней (" + periodRangeStr + ")"
   });
 
-  const summaryHeader = summarySection.createDiv({
-    attr: { style: "display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;" }
-  });
-  summaryHeader.createSpan({
-    text: "Сводка тренировок",
-    attr: { style: "font-size: 0.92rem; font-weight: 600; color: var(--text-normal);" }
-  });
-  summaryHeader.createSpan({
-    text: "Последние 30 дней (" + periodRangeStr + ")",
-    attr: { style: "font-size: 0.75rem; color: var(--text-muted); font-variant-numeric: tabular-nums;" }
-  });
-
-  const stats = summarySection.createDiv({
-    attr: { style: "display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;" }
-  });
+  const stats = summarySection.createDiv({ cls: "dh-wh-stats-grid" });
   function card(label, value, badgeText) {
-    const c = stats.createDiv({
-      cls: "dh-card",
-      attr: {
-        style: "display: flex; flex-direction: column; justify-content: space-between; padding: 12px 14px; border: 1px solid var(--background-modifier-border); border-radius: 10px;"
-      }
-    });
+    const c = stats.createDiv({ cls: "dh-card dh-wh-stat-card" });
     c.createDiv({ cls: "dh-card-label", text: label });
-    const valRow = c.createDiv({
-      attr: { style: "display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 4px; flex-wrap: wrap;" }
-    });
-    valRow.createDiv({
-      cls: "dh-card-value",
-      text: value,
-      attr: { style: "font-variant-numeric: tabular-nums;" }
-    });
+    const valRow = c.createDiv({ cls: "dh-wh-stat-valrow" });
+    valRow.createDiv({ cls: "dh-card-value dh-wh-num", text: value });
     if (badgeText) {
-      valRow.createSpan({
-        text: badgeText,
-        attr: {
-          style: "font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 6px; color: var(--text-muted); background: var(--background-primary); border: 1px solid var(--background-modifier-border); white-space: nowrap; font-variant-numeric: tabular-nums;"
-        }
-      });
+      valRow.createSpan({ cls: "dh-wh-stat-badge", text: badgeText });
     }
   }
 
@@ -2286,7 +2242,8 @@ function computeExNiceScale(minVal, maxVal, tickCount = 4) {
     const progressSummary = progressPanel.createEl("summary", { cls: "dh-ex-summary" });
     const exSumTitle = progressSummary.createDiv({ cls: "dh-ex-summary-title" });
     exSumTitle.createSpan({ cls: "dh-ex-chevron", text: "▶" });
-    exSumTitle.createSpan({ text: "🏋️ Упражнения" });
+    renderHealthIcon(exSumTitle, "dumbbell", "dh-icon dh-icon-title");
+    exSumTitle.createSpan({ text: "Упражнения" });
     const exSummaryMeta = progressSummary.createSpan({ cls: "dh-ex-summary-meta" });
 
     const progressBody = progressPanel.createDiv({ cls: "dh-ex-body" });
@@ -2665,28 +2622,24 @@ function computeExNiceScale(minVal, maxVal, tickCount = 4) {
   const dynamicRecords = sortedVariantGroups.filter(list => list[0].unit === "повт.");
 
   if (dynamicRecords.length) {
-    const recordsPanel = root.createDiv({
-      cls: "dh-panel",
-      attr: { style: "margin-top: 15px; padding: 16px; background: var(--background-secondary); border-radius: 8px; border: 1px solid var(--background-modifier-border);" }
+    const recordsPanel = root.createDiv({ cls: "dh-panel dh-wh-records-panel" });
+
+    const recordsHead = recordsPanel.createDiv({ cls: "dh-wh-records-head" });
+    const recordsTitle = recordsHead.createDiv({ cls: "dh-wh-records-title" });
+    renderHealthIcon(recordsTitle, "trophy", "dh-icon dh-icon-title");
+    recordsTitle.createSpan({ text: "Рекорды упражнений" });
+    recordsHead.createDiv({
+      cls: "dh-wh-records-sub",
+      text: "Лучший подход за тренировку внутри одного упражнения, варианта техники и одинакового дополнительного веса"
     });
 
-    const recordsHead = recordsPanel.createDiv({ attr: { style: "margin-bottom: 12px;" } });
-    recordsHead.createDiv({
-      text: "🏆 Рекорды упражнений",
-      attr: { style: "font-size: 1.05rem; font-weight: 600; color: var(--text-normal);" }
-    });
-    recordsHead.createDiv({
-      text: "Сравнивается лучший подход за тренировку внутри одного упражнения, варианта техники и одинакового дополнительного веса",
-      attr: { style: "font-size: 0.76rem; color: var(--text-muted); margin-top: 3px;" }
-    });
-
-const tableEl = recordsPanel.createEl("table", { cls: "dh-table", attr: { style: "width: 100%; border-collapse: collapse; font-size: 0.86rem;" } });
+    const tableEl = recordsPanel.createEl("table", { cls: "dh-table dh-wh-records-table" });
     const thead = tableEl.createEl("thead");
-    const trH = thead.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border); text-align: left; color: var(--text-muted); font-size: 0.74rem; text-transform: uppercase;" } });
-    trH.createEl("th", { text: "Упражнение", attr: { style: "padding: 8px 6px;" } });
-    trH.createEl("th", { text: "Нагрузка", attr: { style: "padding: 8px 6px;" } });
-    trH.createEl("th", { text: "Рекорд", attr: { style: "padding: 8px 6px;" } });
-    trH.createEl("th", { text: "Дата рекорда", attr: { style: "padding: 8px 6px; text-align: right;" } });
+    const trH = thead.createEl("tr");
+    trH.createEl("th", { text: "Упражнение" });
+    trH.createEl("th", { text: "Нагрузка" });
+    trH.createEl("th", { text: "Рекорд" });
+    trH.createEl("th", { cls: "is-right", text: "Дата рекорда" });
 
     const tbody = tableEl.createEl("tbody");
 
@@ -2694,29 +2647,28 @@ const tableEl = recordsPanel.createEl("table", { cls: "dh-table", attr: { style:
       const sorted = [...list].sort(newest);
       const recordSession = sorted.reduce((acc, g) => (g.best > acc.best ? g : acc), sorted[0]);
 
-      const tr = tbody.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border);" } });
+      const tr = tbody.createEl("tr");
 
-      const tdName = tr.createEl("td", { attr: { style: "padding: 8px 6px; font-weight: 500;" } });
+      const tdName = tr.createEl("td");
       tdName.createEl("strong", { text: recordSession.name });
       if (recordSession.variant !== "Основной") {
-        tdName.createSpan({
-          text: " (" + recordSession.variant + ")",
-          attr: { style: "font-size:0.75rem; color:var(--text-muted);" }
-        });
+        tdName.createSpan({ cls: "dh-wh-variant-tag", text: "(" + recordSession.variant + ")" });
       }
 
-      const tdLoad = tr.createEl("td", { attr: { style: "padding: 8px 6px;" } });
+      const tdLoad = tr.createEl("td");
       renderLoadBadge(tdLoad, recordSession.loadType, recordSession.weight);
 
-      const tdBest = tr.createEl("td", { attr: { style: "padding: 8px 6px; font-variant-numeric: tabular-nums;" } });
-      tdBest.createSpan({ text: "🥇 " + fmt(recordSession.best), attr: { style: "font-weight:700; color:var(--text-normal);" } });
-      tdBest.createSpan({ text: " " + recordSession.unit, attr: { style: "font-size:0.75rem; color:var(--text-muted);" } });
+      const tdBest = tr.createEl("td");
+      const bestWrap = tdBest.createSpan({ cls: "dh-wh-best-wrap" });
+      renderHealthIcon(bestWrap, "award", "dh-icon dh-icon-sm dh-wh-best-icon");
+      bestWrap.createSpan({ cls: "dh-wh-best-val", text: fmt(recordSession.best) });
+      bestWrap.createSpan({ cls: "dh-wh-best-unit", text: recordSession.unit });
 
-      const tdDate = tr.createEl("td", { attr: { style: "padding: 8px 6px; text-align: right; font-variant-numeric: tabular-nums;" } });
+      const tdDate = tr.createEl("td", { cls: "is-right" });
       const aLink = tdDate.createEl("a", {
-        cls: "internal-link",
+        cls: "internal-link dh-wh-date-link",
         text: recordSession.date ? recordSession.date.toFormat("dd.MM.yyyy") : "—",
-        attr: { href: recordSession.path, style: "font-size:0.8rem; color:var(--text-accent);" }
+        attr: { href: recordSession.path }
       });
       aLink.onclick = e => { e.preventDefault(); app.workspace.openLinkText(recordSession.path, dv.currentFilePath, false); };
     });
@@ -2725,11 +2677,10 @@ const tableEl = recordsPanel.createEl("table", { cls: "dh-table", attr: { style:
   // Блок «История подходов» использует ту же самую группировку sortedVariantGroups (byVariant), что и «Рекорды»
   if (sortedVariantGroups.length) {
     const openSet = new Set(hubUi.openHistoryKeys || []);
-    const historyRoot = root.createDiv({ attr: { style: "margin-top: 15px;" } });
-    historyRoot.createDiv({
-      text: "📜 История подходов",
-      attr: { style: "font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; color: var(--text-muted);" }
-    });
+    const historyRoot = root.createDiv({ cls: "dh-wh-history-section" });
+    const historyTitle = historyRoot.createDiv({ cls: "dh-wh-history-title" });
+    renderHealthIcon(historyTitle, "history", "dh-icon dh-icon-title");
+    historyTitle.createSpan({ text: "История подходов" });
 
     for (const rawList of sortedVariantGroups) {
       const list = [...rawList].sort(newest);
@@ -2738,10 +2689,7 @@ const tableEl = recordsPanel.createEl("table", { cls: "dh-table", attr: { style:
       const sample = list[0];
       const detailsKey = sample.key;
       const part = list.slice(0, HISTORY_LIMIT);
-      const box = root.createEl("details", {
-        cls: "dh-details",
-        attr: { style: "margin-bottom: 6px; background: var(--background-secondary); border-radius: 6px; padding: 4px 8px;" }
-      });
+      const box = historyRoot.createEl("details", { cls: "dh-details" });
       if (openSet.has(detailsKey)) box.open = true;
       box.ontoggle = () => {
         const cur = new Set(hubUi.openHistoryKeys || []);
@@ -2765,27 +2713,24 @@ const tableEl = recordsPanel.createEl("table", { cls: "dh-table", attr: { style:
         " " +
         sample.unit;
 
-      box.createEl("summary", {
-        text: summaryText,
-        attr: { style: "font-size: 0.82rem; cursor: pointer; color: var(--text-normal); font-weight: 500;" }
-      });
+      box.createEl("summary", { cls: "dh-wh-history-summary", text: summaryText });
 
-      const subTable = box.createEl("table", { cls: "dh-table", attr: { style: "width: 100%; margin-top: 8px; font-size: 0.8rem;" } });
+      const subTable = box.createEl("table", { cls: "dh-table dh-wh-history-table" });
       const tHead = subTable.createEl("thead");
-      const rH = tHead.createEl("tr", { attr: { style: "color: var(--text-muted); border-bottom: 1px solid var(--background-modifier-border);" } });
-      ["Дата", "Подходы", "Лучший", "Сумма", "Время"].forEach(h => rH.createEl("th", { text: h, attr: { style: "padding: 4px;" } }));
+      const rH = tHead.createEl("tr");
+      ["Дата", "Подходы", "Лучший", "Сумма", "Время"].forEach(h => rH.createEl("th", { text: h }));
 
       const tBody = subTable.createEl("tbody");
       part.forEach(g => {
-        const tr = tBody.createEl("tr", { attr: { style: "border-bottom: 1px solid var(--background-modifier-border);" } });
-        const tdD = tr.createEl("td", { attr: { style: "padding: 4px;" } });
+        const tr = tBody.createEl("tr");
+        const tdD = tr.createEl("td");
         const aL = tdD.createEl("a", { text: g.date ? g.date.toFormat("dd.MM") : "—", cls: "internal-link" });
         aL.onclick = ev => { ev.preventDefault(); app.workspace.openLinkText(g.path, dv.currentFilePath, false); };
 
-        tr.createEl("td", { text: g.values.map(fmt).join(" · "), attr: { style: "padding: 4px;" } });
-        tr.createEl("td", { text: fmt(g.best) + " " + sample.unit, attr: { style: "padding: 4px; font-weight: 600;" } });
-        tr.createEl("td", { text: fmt(g.total) + " " + sample.unit, attr: { style: "padding: 4px;" } });
-        tr.createEl("td", { text: g.duration > 0 ? fmt(g.duration) + " мин" : "—", attr: { style: "padding: 4px; color: var(--text-muted);" } });
+        tr.createEl("td", { text: g.values.map(fmt).join(" · ") });
+        tr.createEl("td", { cls: "dh-wh-td-strong", text: fmt(g.best) + " " + sample.unit });
+        tr.createEl("td", { text: fmt(g.total) + " " + sample.unit });
+        tr.createEl("td", { cls: "dh-wh-td-muted", text: g.duration > 0 ? fmt(g.duration) + " мин" : "—" });
       });
     }
   }
