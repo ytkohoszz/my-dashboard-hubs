@@ -1237,15 +1237,16 @@ let selectedISO =
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
-    padding: 8px 12px;
+    gap: 10px;
+    padding: 10px 14px;
     border-radius: var(--radius-sm, 10px);
     background: var(--background-primary);
     box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
     -electron-corner-smoothing: var(--corner-smoothing, 60%);
   }
   .dashboard-home .dh-deadlines-label {
-    font-size: 0.75rem;
+    font-family: var(--font-interface);
+    font-size: 0.8rem;
     font-weight: var(--font-semi-medium, 500);
     color: var(--icon-color, var(--text-muted));
     white-space: nowrap;
@@ -1260,46 +1261,70 @@ let selectedISO =
   }
   .dashboard-home button.dh-deadline-pill {
     appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
     display: inline-flex;
     align-items: center;
-    gap: 7px;
+    gap: 8px;
+    flex: 1 1 260px;
     max-width: 100%;
-    height: 26px;
-    padding: 0 10px;
+    min-width: 0;
+    min-height: 30px;
+    height: auto;
+    padding: 5px 10px;
     border: none;
-    border-radius: var(--pill-radius, var(--radius-l, 18px));
+    outline: none;
+    border-radius: var(--radius-s, 8px);
     background: var(--trans-faint-05, var(--background-secondary));
-    box-shadow: inset 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border));
+    box-shadow: inset 0 0 0 0.5px var(--trans-faint-15, var(--background-modifier-border));
     color: var(--text-normal);
-    font-size: 0.77rem;
-    font-weight: var(--font-semi-medium, 500);
+    font-family: var(--font-interface);
+    font-size: 0.82rem;
+    font-weight: var(--font-normal, 400);
+    line-height: 1.3;
+    text-align: left;
     cursor: pointer;
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
     transition: background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
   .dashboard-home button.dh-deadline-pill:hover {
-    background: var(--background-modifier-hover);
+    background: var(--trans-faint-10, var(--background-modifier-hover));
   }
-  .dashboard-home button.dh-deadline-pill.is-overdue {
-    background: color-mix(in oklab, var(--color-red, #d85b57) 14%, var(--background-primary));
-    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-red, #d85b57) 42%, transparent);
-    color: var(--color-red, #d85b57);
+  .dashboard-home .dh-deadline-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    background: var(--text-faint);
   }
-  .dashboard-home button.dh-deadline-pill.is-soon {
-    background: color-mix(in oklab, var(--color-orange, #e5a158) 14%, var(--background-primary));
-    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-orange, #e5a158) 42%, transparent);
-    color: var(--color-orange, #e5a158);
+  .dashboard-home button.dh-deadline-pill.is-overdue .dh-deadline-dot {
+    background: var(--color-red, #d85b57);
+  }
+  .dashboard-home button.dh-deadline-pill.is-soon .dh-deadline-dot {
+    background: var(--color-orange, #e5a158);
   }
   .dashboard-home .dh-deadline-title {
+    flex: 1 1 auto;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 240px;
+    color: var(--text-normal);
   }
   .dashboard-home .dh-deadline-when {
-    font-size: 0.71rem;
+    flex-shrink: 0;
+    font-family: var(--font-interface);
+    font-size: 0.75rem;
+    font-weight: var(--font-medium, 525);
     font-variant-numeric: tabular-nums;
-    opacity: 0.85;
+    color: var(--text-muted);
     white-space: nowrap;
+  }
+  .dashboard-home button.dh-deadline-pill.is-overdue .dh-deadline-when {
+    color: var(--color-red, #d85b57);
+  }
+  .dashboard-home button.dh-deadline-pill.is-soon .dh-deadline-when {
+    color: var(--color-orange, #e5a158);
   }
 
   /* === Инлайн-добавление в «План дня» === */
@@ -2408,16 +2433,26 @@ const renderSleepUnifiedCard = (m) => {
         dlStrip.createSpan({ cls: "dh-deadlines-label", text: "Дедлайны" });
         const dlList = dlStrip.createDiv({ cls: "dh-deadlines-list" });
 
+        const pluralDays = n => {
+          const abs = Math.abs(n) % 100;
+          const mod = abs % 10;
+          if (abs >= 11 && abs <= 14) return "дней";
+          if (mod === 1) return "день";
+          if (mod >= 2 && mod <= 4) return "дня";
+          return "дней";
+        };
+
         studyDeadlines.forEach(item => {
           const stateCls = item.diffDays < 0 ? " is-overdue" : item.diffDays <= 3 ? " is-soon" : "";
+          const absDays = Math.abs(item.diffDays);
           const whenText = item.diffDays < 0
-            ? `просроч. ${Math.abs(item.diffDays)}д`
+            ? `просрочено ${absDays} ${pluralDays(absDays)}`
             : item.diffDays === 0
               ? "сегодня"
               : item.diffDays === 1
                 ? "завтра"
                 : item.diffDays <= 3
-                  ? `через ${item.diffDays}д`
+                  ? `через ${item.diffDays} ${pluralDays(item.diffDays)}`
                   : item.dl.toFormat("dd.MM");
 
           const pill = dlList.createEl("button", {
@@ -2427,6 +2462,7 @@ const renderSleepUnifiedCard = (m) => {
               title: `${item.title} — ${item.dl.toFormat("dd.MM.yyyy")}`
             }
           });
+          pill.createSpan({ cls: "dh-deadline-dot" });
           pill.createSpan({ cls: "dh-deadline-title", text: item.title });
           pill.createSpan({ cls: "dh-deadline-when", text: whenText });
           pill.onclick = e => openStudyProjectFromHome(item.path, e.ctrlKey || e.metaKey);
@@ -3566,7 +3602,8 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       loaded: false,
       loading: false,
       items: [],
-      collapsed: true,
+      groupOrder: [],
+      collapsed: false,
       editMode: false,
       formOpen: false,
       editingId: null,
@@ -3575,7 +3612,8 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     };
   }
   const pinState = window.__dhHomePinsState;
-  if (typeof pinState.collapsed !== "boolean") pinState.collapsed = true;
+  if (typeof pinState.collapsed !== "boolean") pinState.collapsed = false;
+  if (!Array.isArray(pinState.groupOrder)) pinState.groupOrder = [];
 
   async function ensurePinsFolder() {
     const parts = PINS_FILE_PATH.split("/");
@@ -3594,7 +3632,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       await ensurePinsFolder();
       await app.vault.adapter.write(
         PINS_FILE_PATH,
-        JSON.stringify({ version: 1, items: pinState.items }, null, 2)
+        JSON.stringify({ version: 1, items: pinState.items, groupOrder: pinState.groupOrder }, null, 2)
       );
     } catch (err) {
       notify("Не удалось сохранить закладки: " + (err?.message || err));
@@ -3610,6 +3648,9 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed?.items)) {
             pinState.items = parsed.items;
+          }
+          if (Array.isArray(parsed?.groupOrder)) {
+            pinState.groupOrder = parsed.groupOrder;
           }
         }
       } catch (err) {
@@ -3801,6 +3842,39 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     box-shadow:
       var(--glass-base, none),
       inset 0 0 0 1px var(--color-accent-3, var(--interactive-accent));
+  }
+  .dashboard-home .dh-pins-island button.dhp-chip.is-draggable {
+    cursor: grab;
+  }
+  .dashboard-home .dh-pins-island button.dhp-chip.is-dragging {
+    opacity: 0.45;
+    cursor: grabbing;
+  }
+  .dashboard-home .dh-pins-island button.dhp-chip.is-drag-over-left {
+    box-shadow:
+      inset 2px 0 0 0 var(--interactive-accent),
+      0 0 0 0.5px var(--color-accent-3, var(--interactive-accent));
+  }
+  .dashboard-home .dh-pins-island button.dhp-chip.is-drag-over-right {
+    box-shadow:
+      inset -2px 0 0 0 var(--interactive-accent),
+      0 0 0 0.5px var(--color-accent-3, var(--interactive-accent));
+  }
+  .dashboard-home .dhp-group-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .dashboard-home .dh-pins-island button.dhp-group-move {
+    width: 20px;
+    height: 24px;
+    border-radius: var(--radius-xs, 6px);
+    color: var(--text-faint);
+    font-size: 0.85rem;
+  }
+  .dashboard-home .dh-pins-island button.dhp-group-move:hover {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
   }
 
   /* Сетка карточек */
@@ -4278,10 +4352,26 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
   }
 
   // --- Группы-фильтры (показываются только если заданы группы) ---
-  const uniqueGroups = [...new Set(pinState.items.map(i => i.group).filter(Boolean))];
+  const rawGroups = [...new Set(pinState.items.map(i => i.group).filter(Boolean))];
+  const savedOrder = Array.isArray(pinState.groupOrder) ? pinState.groupOrder : [];
+  const uniqueGroups = [
+    ...savedOrder.filter(g => rawGroups.includes(g)),
+    ...rawGroups.filter(g => !savedOrder.includes(g))
+  ];
   if (pinState.activeGroup !== "all" && !uniqueGroups.includes(pinState.activeGroup)) {
     pinState.activeGroup = "all";
   }
+
+  const moveGroupOrder = async (fromName, targetName, placeAfter = false) => {
+    if (!fromName || !targetName || fromName === targetName) return;
+    const next = uniqueGroups.filter(g => g !== fromName);
+    const targetIdx = next.indexOf(targetName);
+    if (targetIdx === -1) return;
+    next.splice(placeAfter ? targetIdx + 1 : targetIdx, 0, fromName);
+    pinState.groupOrder = next;
+    await persistPins();
+    renderHomeDashboard();
+  };
 
   if (uniqueGroups.length > 0) {
     const groupsRow = root.createDiv({ cls: "dhp-groups" });
@@ -4295,16 +4385,82 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       renderHomeDashboard();
     };
 
-    uniqueGroups.forEach(grp => {
-      const chip = groupsRow.createEl("button", {
-        cls: "dhp-btn dhp-chip" + (pinState.activeGroup === grp ? " is-active" : ""),
+    let draggedGroup = null;
+
+    uniqueGroups.forEach((grp, idx) => {
+      const container = pinState.editMode ? groupsRow.createDiv({ cls: "dhp-group-item" }) : groupsRow;
+
+      if (pinState.editMode && idx > 0) {
+        const leftMove = container.createEl("button", {
+          cls: "dhp-btn dhp-group-move",
+          text: "‹",
+          attr: { type: "button", title: "Сдвинуть фильтр влево" }
+        });
+        leftMove.onclick = () => { void moveGroupOrder(grp, uniqueGroups[idx - 1], false); };
+      }
+
+      const chip = container.createEl("button", {
+        cls: "dhp-btn dhp-chip is-draggable" + (pinState.activeGroup === grp ? " is-active" : ""),
         text: grp,
-        attr: { type: "button" }
+        attr: {
+          type: "button",
+          draggable: "true",
+          title: "Перетащи, чтобы изменить порядок фильтров"
+        }
       });
+
       chip.onclick = () => {
         pinState.activeGroup = grp;
         renderHomeDashboard();
       };
+
+      chip.ondragstart = e => {
+        draggedGroup = grp;
+        chip.classList.add("is-dragging");
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", grp);
+        }
+      };
+
+      chip.ondragover = e => {
+        if (!draggedGroup || draggedGroup === grp) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+        const rect = chip.getBoundingClientRect();
+        const isRight = e.clientX >= rect.left + rect.width / 2;
+        chip.classList.toggle("is-drag-over-right", isRight);
+        chip.classList.toggle("is-drag-over-left", !isRight);
+      };
+
+      chip.ondragleave = () => {
+        chip.classList.remove("is-drag-over-left", "is-drag-over-right");
+      };
+
+      chip.ondrop = e => {
+        if (!draggedGroup || draggedGroup === grp) return;
+        e.preventDefault();
+        const rect = chip.getBoundingClientRect();
+        const isRight = e.clientX >= rect.left + rect.width / 2;
+        chip.classList.remove("is-drag-over-left", "is-drag-over-right");
+        const from = draggedGroup;
+        draggedGroup = null;
+        void moveGroupOrder(from, grp, isRight);
+      };
+
+      chip.ondragend = () => {
+        draggedGroup = null;
+        chip.classList.remove("is-dragging", "is-drag-over-left", "is-drag-over-right");
+      };
+
+      if (pinState.editMode && idx < uniqueGroups.length - 1) {
+        const rightMove = container.createEl("button", {
+          cls: "dhp-btn dhp-group-move",
+          text: "›",
+          attr: { type: "button", title: "Сдвинуть фильтр вправо" }
+        });
+        rightMove.onclick = () => { void moveGroupOrder(grp, uniqueGroups[idx + 1], true); };
+      }
     });
   }
 
