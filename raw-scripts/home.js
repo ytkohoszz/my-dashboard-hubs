@@ -2,9 +2,8 @@
 // ОБЩИЕ ДАННЫЕ, АВТОСИНХРОНИЗАЦИЯ И УТИЛИТЫ (ГЛАВНАЯ v2.5: автообновление при старте и изменении файлов)
 // ========================================================
 const AUTO_SLEEP_MIN_HOURS = 6;   // Сон > 6 часов автоматически отмечает «Режим сна»
-const SOCIAL_LIMIT_MIN = 30;       // Лимит дофаминового скроллинга соцсетей (мин)
-const BOOKS_FOLDER = "Знания/Книги";
-const SHARED_READING_STATE_KEY = "dh_shared_book_reading_v2";
+const DIET_TOLERANCE_RATIO = 0.95; // Мягкий допуск для автопроставления «Диета» (95% от цели)
+const STUDY_DEADLINE_HORIZON_DAYS = 21;
 const MANUAL_HABITS_PREFIX = "dh_today_manual_habits_v1:";
 const MIN_VALID_DATE_ISO = "2000-01-01";
 
@@ -99,9 +98,33 @@ function openFocusTrackerFromHome(initialProject) {
   }
 }
 
+const corrPlugin = app.plugins?.plugins?.["my-correlation-analytics"] ?? null;
+const SOCIAL_LIMIT_MIN =
+  typeof corrPlugin?.settings?.socialLimitMin === "number" &&
+  Number.isFinite(corrPlugin.settings.socialLimitMin) &&
+  corrPlugin.settings.socialLimitMin >= 0
+    ? corrPlugin.settings.socialLimitMin
+    : 30;
+
 const nutPlugin = getNutritionPlugin();
 const rawCalorieGoal = nutPlugin?.settings ? nutPlugin.settings.dailyCalorieGoal : null;
 const calorieGoal = typeof rawCalorieGoal === "number" && rawCalorieGoal > 0 ? Math.round(rawCalorieGoal) : null;
+const rawDietRatio = nutPlugin?.settings?.dietToleranceRatio;
+const dietRatio = typeof rawDietRatio === "number" && rawDietRatio > 0 && rawDietRatio <= 1 ? rawDietRatio : DIET_TOLERANCE_RATIO;
+const dietCalorieThreshold = calorieGoal !== null ? Math.round(calorieGoal * dietRatio) : null;
+
+function openStudyProjectFromHome(filePath, newLeaf = false) {
+  const compiler = app.plugins?.plugins?.["my-study-compiler"] ?? null;
+  if (compiler && typeof compiler.openCompiler === "function") {
+    try {
+      compiler.openCompiler({ rootPath: filePath });
+      return;
+    } catch (err) {
+      console.log("[Home] openCompiler fallback:", err);
+    }
+  }
+  app.workspace.openLinkText(filePath, dv.currentFilePath, newLeaf);
+}
 
 const today = dv.date("today").startOf("day");
 const todayISO = today.toISODate();
@@ -139,164 +162,6 @@ function setManualHabitOverride(key, val, dateISO = todayISO) {
   } catch {}
 }
 
-/**
- * ЕДИНЫЙ ИСТОЧНИК ИСТИНЫ ДЛЯ ПРОЧИТАННЫХ СТРАНИЦ ЗА СЕГОДНЯ (общий для home.js и english.js).
- * - Считает чистый прирост `autoBookPages` по книгам в `Знания/Книги` за сегодня.
- * - Не накапливает старую разницу за пропущенные дни: если книга не читалась сегодня, её база = текущему `прочитано`.
- * - Не складывает ручной ввод с авто-страницами: `manualOverridePages` используется ТОЛЬКО если пользователь
- *   явно ввёл своё число в поле «Чтение» за сегодня. Иначе приоритет у точного числа `autoBookPages`.
- */
-function syncTodayBookReading() {
-  let bookPages = [];
-  try {
-    bookPages = dv.pages('"' + BOOKS_FOLDER + '"').array();
-  } catch {
-    bookPages = [];
-  }
-
-  let state = null;
-  try {
-    const raw = window.localStorage?.getItem(SHARED_READING_STATE_KEY);
-    if (raw) state = JSON.parse(raw);
-  } catch {}
-
-  if (!state || typeof state !== "object") {
-    state = { dateISO: "", baselines: {}, snapshotDateISO: "", snapshotValues: {}, manualOverridePages: null };
-  }
-  if (!state.baselines || typeof state.baselines !== "object") state.baselines = {};
-  if (!state.snapshotValues || typeof state.snapshotValues !== "object") state.snapshotValues = {};
-
-  // Читаем актуальные значения книг из metadataCache
-  const currentBooks = [];
-  for (const p of bookPages) {
-    const f = app.vault.getAbstractFileByPath(p.file.path);
-    const fm = f ? (app.metadataCache.getFileCache(f)?.frontmatter || {}) : {};
-    const status = String(fm.статус ?? p.статус ?? "").trim();
-    const totalRaw = parseNum(fm.страниц ?? p.страниц);
-    const readRaw = parseNum(fm.прочитано ?? p.прочитано);
-    if (readRaw === null && totalRaw === null) continue;
-
-    const total = totalRaw !== null && totalRaw > 0 ? Math.round(totalRaw) : null;
-    let curRead = readRaw !== null && readRaw >= 0 ? Math.round(readRaw) : 0;
-    const isFinished = status === "Прочитано" || (total !== null && curRead >= total);
-    if (isFinished && total !== null) curRead = total;
-
-    const title = String(fm.название ?? p.название ?? p.file.name).trim();
-    const lastReadISO = asDate(fm.последнее_чтение ?? p.последнее_чтение)?.toISODate() || "";
-    const posTimeRaw = String(fm.позиция_время ?? p.позиция_время ?? "").trim();
-    const posDateISO = /^\d{4}-\d{2}-\d{2}/.test(posTimeRaw) ? posTimeRaw.slice(0, 10) : "";
-    const touchedToday = lastReadISO === todayISO || posDateISO === todayISO;
-    const createdToday = Boolean(f?.stat && f.stat.ctime >= today.toMillis());
-
-    currentBooks.push({
-      path: p.file.path,
-      title,
-      curRead,
-      isFinished,
-      touchedToday,
-      createdToday
-    });
-  }
-
-  // Переход на новый день: формируем утреннюю базу строго без приписывания старых дней
-  if (state.dateISO !== todayISO) {
-    const nextBaselines = {};
-    const hasYesterdaySnapshot = state.snapshotDateISO === yesterdayISO;
-
-    for (const b of currentBooks) {
-      const snapVal = state.snapshotValues[b.path];
-      if (hasYesterdaySnapshot && typeof snapVal === "number" && Number.isFinite(snapVal)) {
-        nextBaselines[b.path] = Math.min(snapVal, b.curRead);
-      } else if (b.touchedToday && typeof snapVal === "number" && Number.isFinite(snapVal)) {
-        nextBaselines[b.path] = Math.min(snapVal, b.curRead);
-      } else if (!b.isFinished && b.createdToday && b.touchedToday) {
-        nextBaselines[b.path] = 0;
-      } else {
-        // Если книгу не открывали сегодня и нет вчерашнего снимка — база равна текущему прочитанному
-        nextBaselines[b.path] = b.curRead;
-      }
-    }
-
-    state.dateISO = todayISO;
-    state.baselines = nextBaselines;
-    state.manualOverridePages = null;
-  }
-
-  let autoBookPages = 0;
-  const readBookTitles = [];
-  const nextSnapshotValues = {};
-
-  for (const b of currentBooks) {
-    let baseVal = state.baselines[b.path];
-    if (typeof baseVal !== "number" || !Number.isFinite(baseVal)) {
-      baseVal = !b.isFinished && b.createdToday ? 0 : b.curRead;
-      state.baselines[b.path] = baseVal;
-    } else if (b.curRead < baseVal) {
-      // Если в читалке откатились назад или сменили шрифт в меньшую сторону — подтягиваем базу вниз
-      baseVal = b.curRead;
-      state.baselines[b.path] = baseVal;
-    } else if (!b.touchedToday && b.curRead > baseVal && state.snapshotDateISO !== todayISO && state.snapshotDateISO !== yesterdayISO) {
-      // Защита от ложного скачка у книг, которые сегодня вообще не открывались
-      baseVal = b.curRead;
-      state.baselines[b.path] = baseVal;
-    }
-
-    const delta = Math.max(0, b.curRead - baseVal);
-    if (delta > 0) {
-      autoBookPages += delta;
-      readBookTitles.push(`${b.title} (+${delta})`);
-    } else if (b.touchedToday && !readBookTitles.includes(b.title)) {
-      readBookTitles.push(b.title);
-    }
-
-    nextSnapshotValues[b.path] = b.curRead;
-  }
-
-  state.snapshotDateISO = todayISO;
-  state.snapshotValues = nextSnapshotValues;
-
-  const manualOverridePages =
-    typeof state.manualOverridePages === "number" &&
-    Number.isFinite(state.manualOverridePages) &&
-    state.manualOverridePages >= 0
-      ? Math.round(state.manualOverridePages)
-      : null;
-
-  try {
-    window.localStorage?.setItem(SHARED_READING_STATE_KEY, JSON.stringify(state));
-  } catch {}
-
-  const effectivePages =
-    manualOverridePages !== null
-      ? manualOverridePages
-      : autoBookPages > 0
-        ? autoBookPages
-        : null;
-
-  return {
-    autoBookPages,
-    manualOverridePages,
-    effectivePages,
-    readBookTitles
-  };
-}
-
-function setManualReadingOverride(pagesOrNull) {
-  try {
-    const raw = window.localStorage?.getItem(SHARED_READING_STATE_KEY);
-    const state = raw ? JSON.parse(raw) : { dateISO: todayISO, baselines: {}, snapshotDateISO: todayISO, snapshotValues: {} };
-    state.dateISO = todayISO;
-    state.manualOverridePages =
-      typeof pagesOrNull === "number" && Number.isFinite(pagesOrNull) && pagesOrNull >= 0
-        ? Math.round(pagesOrNull)
-        : null;
-    window.localStorage?.setItem(SHARED_READING_STATE_KEY, JSON.stringify(state));
-  } catch {}
-}
-
-const readingSync = syncTodayBookReading();
-window.__dhSyncTodayBookReading = syncTodayBookReading;
-
 // ========================================================
 // 1. НАВИГАЦИОННЫЕ ПЛИТКИ (ХАБЫ СИСТЕМЫ)
 // ========================================================
@@ -320,15 +185,13 @@ const notes3D = allPages.filter(p =>
   ).length;
 
 const cardsDoneToday = parseNum(todayNote?.карточек_пройдено) || 0;
-  const pagesDoneToday = readingSync.effectivePages ?? parseNum(todayNote?.страниц_прочитано) ?? 0;
-  let englishBadge = "";
-  if (cardsDoneToday > 0 && pagesDoneToday > 0) {
-    englishBadge = `${cardsDoneToday} карт. · ${pagesDoneToday} стр.`;
-  } else if (cardsDoneToday > 0) {
-    englishBadge = `${cardsDoneToday} карт.`;
-  } else if (pagesDoneToday > 0) {
-    englishBadge = `${pagesDoneToday} стр.`;
-  }
+  const grammarDoneToday = parseNum(todayNote?.грамматика_упражнений) || 0;
+  const pagesDoneToday = parseNum(todayNote?.страниц_прочитано) || 0;
+  const englishParts = [];
+  if (cardsDoneToday > 0) englishParts.push(`${cardsDoneToday} карт.`);
+  if (grammarDoneToday > 0) englishParts.push(`${grammarDoneToday} грам.`);
+  if (pagesDoneToday > 0) englishParts.push(`${pagesDoneToday} стр.`);
+  const englishBadge = englishParts.join(" · ");
 
   const HUBS = [
     {
@@ -1369,7 +1232,136 @@ let selectedISO =
     box-shadow: none;
   }
 
-  /* === Адаптивность и iPadOS / Touch === */
+  /* === Дедлайны Учёбы === */
+  .dashboard-home .dh-deadlines-strip {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm, 10px);
+    background: var(--background-primary);
+    box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+  }
+  .dashboard-home .dh-deadlines-label {
+    font-size: 0.75rem;
+    font-weight: var(--font-semi-medium, 500);
+    color: var(--icon-color, var(--text-muted));
+    white-space: nowrap;
+  }
+  .dashboard-home .dh-deadlines-list {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .dashboard-home button.dh-deadline-pill {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    max-width: 100%;
+    height: 26px;
+    padding: 0 10px;
+    border: none;
+    border-radius: var(--pill-radius, var(--radius-l, 18px));
+    background: var(--trans-faint-05, var(--background-secondary));
+    box-shadow: inset 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border));
+    color: var(--text-normal);
+    font-size: 0.77rem;
+    font-weight: var(--font-semi-medium, 500);
+    cursor: pointer;
+    transition: background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+  }
+  .dashboard-home button.dh-deadline-pill:hover {
+    background: var(--background-modifier-hover);
+  }
+  .dashboard-home button.dh-deadline-pill.is-overdue {
+    background: color-mix(in oklab, var(--color-red, #d85b57) 14%, var(--background-primary));
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-red, #d85b57) 42%, transparent);
+    color: var(--color-red, #d85b57);
+  }
+  .dashboard-home button.dh-deadline-pill.is-soon {
+    background: color-mix(in oklab, var(--color-orange, #e5a158) 14%, var(--background-primary));
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-orange, #e5a158) 42%, transparent);
+    color: var(--color-orange, #e5a158);
+  }
+  .dashboard-home .dh-deadline-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 240px;
+  }
+  .dashboard-home .dh-deadline-when {
+    font-size: 0.71rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+    white-space: nowrap;
+  }
+
+  /* === Инлайн-добавление в «План дня» === */
+  .dashboard-home .dh-plan-add-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dashboard-home input.dh-plan-add-input {
+    flex: 1 1 auto;
+    width: 100% !important;
+    height: 30px !important;
+    padding: 0 10px !important;
+    border: none !important;
+    outline: none !important;
+    border-radius: var(--input-radius, var(--radius-s, 8px)) !important;
+    background: var(--trans-faint-05, var(--background-secondary)) !important;
+    box-shadow: inset 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)) !important;
+    color: var(--text-normal) !important;
+    font-size: 0.82rem !important;
+    transition: box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+  }
+  .dashboard-home input.dh-plan-add-input:focus {
+    box-shadow: var(--shadow-input-active, 0 0 0 2px var(--interactive-accent)) !important;
+  }
+  .dashboard-home input.dh-plan-add-input::placeholder {
+    color: var(--text-faint);
+  }
+  .dashboard-home button.dh-plan-add-btn {
+    appearance: none;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-s, 8px);
+    background: var(--interactive-normal);
+    color: var(--text-normal);
+    font-size: 1rem;
+    font-weight: var(--font-semi-medium, 500);
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: none;
+  }
+  .dashboard-home button.dh-plan-add-btn:hover {
+    background: var(--interactive-hover);
+  }
+  body.is-mobile .dashboard-home button.dh-deadline-pill,
+  body.is-tablet .dashboard-home button.dh-deadline-pill {
+    height: 34px;
+    padding: 0 12px;
+  }
+  body.is-mobile .dashboard-home input.dh-plan-add-input,
+  body.is-tablet .dashboard-home input.dh-plan-add-input,
+  body.is-mobile .dashboard-home button.dh-plan-add-btn,
+  body.is-tablet .dashboard-home button.dh-plan-add-btn {
+    height: 38px !important;
+  }
+  body.is-mobile .dashboard-home button.dh-plan-add-btn,
+  body.is-tablet .dashboard-home button.dh-plan-add-btn {
+    width: 38px;
+  }
   body.is-mobile .dashboard-home button.dh-date-nav-btn {
     width: 36px;
     height: 36px;
@@ -1538,20 +1530,6 @@ const openOrCreateDay = async () => {
     const savedFocus = parseNum(note.глубокая_работа_часов);
     const savedSocialMin = parseNum(note.соцсети_мин);
 
-    // Правило приоритета для страниц за сегодня:
-    // 1) Если пользователь ввёл ручное значение за сегодня (manualOverridePages !== null) — берём его.
-    // 2) Иначе если есть автоматические страницы из книг (autoBookPages > 0) — берём ТОЧНОЕ число autoBookPages
-    //    (даже если в заметке ранее застряло завышенное число).
-    // 3) Иначе оставляем текущее значение из заметки (или null, если пусто).
-let effectivePages = savedPages;
-    if (isToday) {
-      if (readingSync.manualOverridePages !== null) {
-        effectivePages = readingSync.manualOverridePages;
-      } else if (readingSync.autoBookPages > 0) {
-        effectivePages = readingSync.autoBookPages;
-      }
-    }
-
     const focusByGoalsMap = (fmCache.фокус_по_целям && typeof fmCache.фокус_по_целям === "object")
       ? fmCache.фокус_по_целям
       : {};
@@ -1560,15 +1538,10 @@ let effectivePages = savedPages;
     const pendingPatch = {};
 
     if (isToday) {
-      // 1. Автосинхронизация страниц чтения из книг и привычки «Чтение»
-      if (effectivePages !== null && effectivePages !== savedPages) {
-        pendingPatch.страниц_прочитано = effectivePages;
-      }
-      if ((effectivePages !== null && effectivePages > 0) || readingSync.readBookTitles.length > 0) {
-        if (manualOverrides.чтение === undefined && states.get("чтение") !== true) {
-          states.set("чтение", true);
-          pendingPatch.чтение = true;
-        }
+      // 1. Привычка «Чтение» по данным ежедневника (пишет my-epub-reader или ручной ввод)
+      if (savedPages !== null && savedPages > 0 && manualOverrides.чтение === undefined && states.get("чтение") !== true) {
+        states.set("чтение", true);
+        pendingPatch.чтение = true;
       }
 
       // 2. Автосинхронизация привычки «Тренировка» при наличии сессии за сегодня
@@ -1577,8 +1550,8 @@ let effectivePages = savedPages;
         pendingPatch.тренировка = true;
       }
 
-      // 3. Автосинхронизация привычки «Диета»
-      if (calorieGoal !== null && savedCalories !== null && savedCalories >= calorieGoal && manualOverrides.диета === undefined && states.get("диета") !== true) {
+      // 3. Автосинхронизация привычки «Диета» (мягкий допуск 95%)
+      if (dietCalorieThreshold !== null && savedCalories !== null && savedCalories >= dietCalorieThreshold && manualOverrides.диета === undefined && states.get("диета") !== true) {
         states.set("диета", true);
         pendingPatch.диета = true;
       }
@@ -1782,18 +1755,14 @@ const metricsGrid = body.createDiv({ cls: "dh-metrics-grid" });
       });
       control.createSpan({ cls: "dh-metric-unit", text: m.unit });
 
-      let subHintEl = null;
       if (m.hint) {
-        subHintEl = card.createDiv({ cls: "dh-metric-subhint", text: m.hint });
-        if (m.key === "страниц_прочитано" && readingSync.readBookTitles.length > 0) {
-          subHintEl.setAttribute("title", "Книги сегодня: " + readingSync.readBookTitles.join(", "));
-        }
+        card.createDiv({ cls: "dh-metric-subhint", text: m.hint });
       }
 
       const errorEl = card.createDiv({ cls: "dh-metric-error" });
       errorEl.style.display = "none";
 
-const savedRaw = m.key === "страниц_прочитано" ? effectivePages : note[m.key];
+      const savedRaw = note[m.key];
       const savedFormatted = formatNumForInput(savedRaw, m.digits);
       const hasDraft = Object.prototype.hasOwnProperty.call(uiDrafts.inputs, m.key);
       input.value = hasDraft ? uiDrafts.inputs[m.key] : savedFormatted;
@@ -1854,23 +1823,12 @@ const savedRaw = m.key === "страниц_прочитано" ? effectivePages 
           delete uiDrafts.errors[m.key];
           card.classList.remove("is-invalid");
           errorEl.style.display = "none";
-          if (savedFormatted === "" && (!isToday || m.key !== "страниц_прочитано" || readingSync.manualOverridePages === null)) return;
+          if (savedFormatted === "") return;
 
           isSavingMetric = true;
           try {
-if (isToday && m.key === "страниц_прочитано") {
-              setManualReadingOverride(null);
-              const fallbackPages = readingSync.autoBookPages > 0 ? readingSync.autoBookPages : null;
-              input.value = fallbackPages !== null ? formatNumForInput(fallbackPages, 0) : "";
-              syncMetricInputWidth(input, m.placeholder);
-              if (subHintEl) {
-                subHintEl.setText(readingSync.autoBookPages > 0 ? `из книг: ${readingSync.autoBookPages} стр.` : "авто из читалки");
-              }
-              await saveField(m.key, fallbackPages);
-            } else {
-              syncMetricInputWidth(input, m.placeholder);
-              await saveField(m.key, null);
-            }
+            syncMetricInputWidth(input, m.placeholder);
+            await saveField(m.key, null);
             uiDrafts.savedStamp[m.key] = Date.now();
             statusSpan.setText("✓");
           } catch (err) {
@@ -1906,22 +1864,7 @@ const finalValue = Math.round(numVal * 10 ** m.digits) / 10 ** m.digits;
         if (m.key === "сон_часов") {
           autoHabitKey = "режим_сна";
           autoHabitVal = finalValue > AUTO_SLEEP_MIN_HOURS;
-} else if (m.key === "страниц_прочитано") {
-          if (isToday) {
-            if (readingSync.autoBookPages > 0 && finalValue === readingSync.autoBookPages) {
-              setManualReadingOverride(null);
-              if (subHintEl) subHintEl.setText(`из книг: ${readingSync.autoBookPages} стр.`);
-            } else if (finalValue !== savedRaw) {
-              setManualReadingOverride(finalValue);
-              if (subHintEl) {
-                subHintEl.setText(
-                  readingSync.autoBookPages > 0
-                    ? `вручную (из книг: ${readingSync.autoBookPages} стр.)`
-                    : "введено вручную"
-                );
-              }
-            }
-          }
+        } else if (m.key === "страниц_прочитано") {
           autoHabitKey = "чтение";
           autoHabitVal = finalValue > 0;
         } else if (m.key === "соцсети_мин") {
@@ -2431,8 +2374,69 @@ const renderSleepUnifiedCard = (m) => {
 
     const bottomGrid = body.createDiv({ cls: "dh-today-bottom-grid" });
 
-    if (goalsState.length > 0) {
-const planBox = bottomGrid.createDiv({ cls: "dh-plan-box" });
+    // --- Дедлайны из Учёбы (только для сегодняшнего дня) ---
+    if (isToday) {
+      const doneStatuses = new Set([
+        "завершён", "завершена", "сдана", "сдан", "готово", "архив", "отменён", "отменена"
+      ]);
+      const studyDeadlines = dv.pages().array()
+        .filter(p => {
+          if (p.file.name.startsWith("Учёба — ") || p.file.path.startsWith("Шаблоны/")) return false;
+          if (String(p.направление ?? "").trim() !== "Учёба") return false;
+          const status = String(p.статус ?? "").trim().toLowerCase();
+          if (doneStatuses.has(status)) return false;
+          const dl = asDate(p.дедлайн) || asDate(p.срок);
+          if (!dl) return false;
+          const diffDays = Math.round(dl.diff(today, "days").days);
+          return diffDays <= STUDY_DEADLINE_HORIZON_DAYS;
+        })
+        .map(p => {
+          const dl = asDate(p.дедлайн) || asDate(p.срок);
+          const diffDays = Math.round(dl.diff(today, "days").days);
+          return {
+            path: p.file.path,
+            title: String(p.название ?? p.file.name).trim(),
+            dl,
+            diffDays
+          };
+        })
+        .sort((a, b) => a.diffDays - b.diffDays || a.title.localeCompare(b.title, "ru"))
+        .slice(0, 2);
+
+      if (studyDeadlines.length > 0) {
+        const dlStrip = bottomGrid.createDiv({ cls: "dh-deadlines-strip" });
+        dlStrip.createSpan({ cls: "dh-deadlines-label", text: "Дедлайны" });
+        const dlList = dlStrip.createDiv({ cls: "dh-deadlines-list" });
+
+        studyDeadlines.forEach(item => {
+          const stateCls = item.diffDays < 0 ? " is-overdue" : item.diffDays <= 3 ? " is-soon" : "";
+          const whenText = item.diffDays < 0
+            ? `просроч. ${Math.abs(item.diffDays)}д`
+            : item.diffDays === 0
+              ? "сегодня"
+              : item.diffDays === 1
+                ? "завтра"
+                : item.diffDays <= 3
+                  ? `через ${item.diffDays}д`
+                  : item.dl.toFormat("dd.MM");
+
+          const pill = dlList.createEl("button", {
+            cls: "dh-deadline-pill" + stateCls,
+            attr: {
+              type: "button",
+              title: `${item.title} — ${item.dl.toFormat("dd.MM.yyyy")}`
+            }
+          });
+          pill.createSpan({ cls: "dh-deadline-title", text: item.title });
+          pill.createSpan({ cls: "dh-deadline-when", text: whenText });
+          pill.onclick = e => openStudyProjectFromHome(item.path, e.ctrlKey || e.metaKey);
+        });
+      }
+    }
+
+    // --- План дня (всегда видим) ---
+    {
+      const planBox = bottomGrid.createDiv({ cls: "dh-plan-box" });
       const planHead = planBox.createDiv({ cls: "dh-plan-head" });
       planHead.createSpan({ cls: "dh-plan-title", text: "План дня" });
       const planMeta = planHead.createSpan({ cls: "dh-today-row-sub" });
@@ -2445,9 +2449,17 @@ const planBox = bottomGrid.createDiv({ cls: "dh-plan-box" });
 
       const refreshPlanUI = () => {
         const { totalG, doneG, avgPct } = calcPlanSummary();
-        planMeta.setText(`${avgPct}% · выполнено ${doneG} из ${totalG}`);
-        barFill.style.width = `${avgPct}%`;
-        barFill.style.background = avgPct === 100 ? "#4aab80" : avgPct >= 60 ? "#599ed6" : "#e5a158";
+        if (totalG === 0) {
+          planMeta.setText("Нет задач");
+          barTrack.style.display = "none";
+          planList.style.display = "none";
+        } else {
+          planMeta.setText(`${avgPct}% · выполнено ${doneG} из ${totalG}`);
+          barTrack.style.display = "";
+          planList.style.display = "";
+          barFill.style.width = `${avgPct}%`;
+          barFill.style.background = avgPct === 100 ? "#4aab80" : avgPct >= 60 ? "#599ed6" : "#e5a158";
+        }
         updatePlanHeadPill();
         itemPainters.forEach(fn => fn());
       };
@@ -2465,7 +2477,7 @@ const planBox = bottomGrid.createDiv({ cls: "dh-plan-box" });
           text: goal.category ? `${goal.text} (${goal.category})` : goal.text
         });
 
-const right = item.createDiv({ cls: "dh-plan-item-right" });
+        const right = item.createDiv({ cls: "dh-plan-item-right" });
         const focusBtn = right.createEl("button", {
           cls: "dh-plan-focus-btn" + (goal.focusMinutes > 0 ? "" : " is-empty"),
           text: goal.focusMinutes > 0 ? `${goal.focusMinutes}м` : "⏱",
@@ -2531,6 +2543,65 @@ const right = item.createDiv({ cls: "dh-plan-item-right" });
           }
         };
       });
+
+      const addRow = planBox.createDiv({ cls: "dh-plan-add-row" });
+      const addInput = addRow.createEl("input", {
+        cls: "dh-plan-add-input",
+        attr: {
+          type: "text",
+          placeholder: "+ Добавить задачу дня…",
+          "aria-label": "Добавить задачу дня"
+        }
+      });
+      const addBtn = addRow.createEl("button", {
+        cls: "dh-plan-add-btn",
+        text: "+",
+        attr: { type: "button", title: "Добавить задачу в план дня", "aria-label": "Добавить задачу" }
+      });
+
+      addInput.onfocus = () => { uiDrafts.activeKey = "__plan_add"; };
+      addInput.onblur = () => { if (uiDrafts.activeKey === "__plan_add") uiDrafts.activeKey = null; };
+
+      let isAddingGoal = false;
+      const commitNewGoal = async () => {
+        if (isAddingGoal) return;
+        const text = addInput.value.trim();
+        if (!text) return;
+        isAddingGoal = true;
+        addBtn.disabled = true;
+        try {
+          const newGoal = { text, category: "", progress: 0, focus_minutes: 0 };
+          await enqueueFrontMatterSave(file, fm => {
+            if (!Array.isArray(fm.цели_дня)) fm.цели_дня = [];
+            fm.цели_дня.push(newGoal);
+            const total = fm.цели_дня.length;
+            fm.прогресс_дня_процент = total > 0
+              ? Math.round(fm.цели_дня.reduce((acc, g) => acc + (Number(g?.progress) || 0), 0) / total)
+              : 0;
+          });
+          addInput.value = "";
+          if (uiDrafts.activeKey === "__plan_add") uiDrafts.activeKey = null;
+          renderHomeDashboard();
+        } catch (err) {
+          notify(`Не удалось добавить задачу: ${err?.message ?? err}`);
+        } finally {
+          isAddingGoal = false;
+          if (addBtn.isConnected) addBtn.disabled = false;
+        }
+      };
+
+      addBtn.onmousedown = e => e.preventDefault();
+      addBtn.onclick = () => { void commitNewGoal(); };
+      addInput.onkeydown = e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          void commitNewGoal();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          addInput.value = "";
+          addInput.blur();
+        }
+      };
 
       refreshPlanUI();
     }
@@ -2990,6 +3061,35 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       flex-wrap: wrap;
       gap: 6px;
     }
+    .dashboard-home .dhv-suggest-strip {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding-top: 2px;
+    }
+    .dashboard-home .dhv-suggest-label {
+      font-size: 0.74rem;
+      font-weight: var(--font-semi-medium, 500);
+      color: var(--text-faint);
+      white-space: nowrap;
+    }
+    .dashboard-home .dh-values-island button.dhv-suggest-chip {
+      height: 25px;
+      padding: 0 9px;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      background: var(--trans-faint-05, var(--background-primary));
+      box-shadow: inset 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border));
+      color: var(--icon-color, var(--text-muted));
+      font-size: 0.75rem;
+      max-width: 100%;
+      text-box-trim: trim-both;
+      text-box-edge: cap alphabetic;
+    }
+    .dashboard-home .dh-values-island button.dhv-suggest-chip:hover {
+      background: var(--background-modifier-hover);
+      color: var(--text-normal);
+    }
 
     /* Лог записанных шагов (показывается только когда есть записи) */
     .dashboard-home .dhv-logs {
@@ -3109,7 +3209,9 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       width: 38px;
     }
     body.is-mobile .dashboard-home .dh-values-island button.dhv-chip,
-    body.is-tablet .dashboard-home .dh-values-island button.dhv-chip {
+    body.is-tablet .dashboard-home .dh-values-island button.dhv-chip,
+    body.is-mobile .dashboard-home .dh-values-island button.dhv-suggest-chip,
+    body.is-tablet .dashboard-home .dh-values-island button.dhv-suggest-chip {
       height: 34px;
       padding: 0 12px;
     }
@@ -3291,6 +3393,96 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
           chip.classList.add("is-active");
         };
       }
+
+      // Однотаповые подсказки «Из дня:» (тренировки и фокус-сессии)
+      const existingLogTexts = new Set(
+        dayLogs.map(entry => String(entry.text || "").trim().toLowerCase())
+      );
+      const healthDomain = visibleDomains.find(d => /здоров|спорт|тело|физ/i.test(d.name || "")) || null;
+      const suggestions = [];
+      const seenSuggestions = new Set();
+
+      const pushSuggestion = (text, domainId = null) => {
+        const clean = String(text || "").trim();
+        if (!clean) return;
+        const key = clean.toLowerCase();
+        if (existingLogTexts.has(key) || seenSuggestions.has(key)) return;
+        seenSuggestions.add(key);
+        suggestions.push({ text: clean, domainId });
+      };
+
+      const vcDayTrainings = knowledgePages.filter(
+        p => p.тип === "Тренировка" && asDate(p.дата)?.toISODate() === activeISO
+      );
+      for (const tr of vcDayTrainings) {
+        const rawTitle = String(tr.название_тренировки || tr.file.name || "Тренировка").trim();
+        const label = /^тренировк/i.test(rawTitle) ? rawTitle : `Тренировка: ${rawTitle}`;
+        pushSuggestion(label, healthDomain ? healthDomain.id : null);
+      }
+
+      const vcDayNote = isSelectedToday
+        ? todayNote
+        : dv.pages('"Ежедневник"').array()
+            .filter(p => {
+              const d = asDate(p.дата) || asDate(p.file.name);
+              return d && d.toISODate() === activeISO;
+            })
+            .sort((a, b) => mtime(b) - mtime(a) || a.file.path.localeCompare(b.file.path, "ru"))[0] || null;
+
+      if (vcDayNote) {
+        const vcDayFile = app.vault.getAbstractFileByPath(vcDayNote.file.path);
+        const vcDayFm = vcDayFile ? (app.metadataCache.getFileCache(vcDayFile)?.frontmatter || {}) : {};
+        const vcFocusMap = (vcDayFm.фокус_по_целям && typeof vcDayFm.фокус_по_целям === "object")
+          ? vcDayFm.фокус_по_целям
+          : {};
+        const topFocusGoals = Object.entries(vcFocusMap)
+          .map(([goal, mins]) => [String(goal || "").trim(), Math.round(Number(mins) || 0)])
+          .filter(([goal, mins]) => goal && mins > 0)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 3);
+
+        if (topFocusGoals.length > 0) {
+          for (const [goal, mins] of topFocusGoals) {
+            pushSuggestion(`Фокус: ${goal} (${mins} мин)`, null);
+          }
+        } else {
+          const focusHours = parseNum(vcDayNote.глубокая_работа_часов);
+          if (focusHours !== null && focusHours > 0) {
+            pushSuggestion(`Глубокая работа: ${String(focusHours).replace(".", ",")} ч`, null);
+          }
+        }
+      }
+
+      if (suggestions.length > 0) {
+        const suggestStrip = composer.createDiv({ cls: "dhv-suggest-strip" });
+        suggestStrip.createSpan({ cls: "dhv-suggest-label", text: "Из дня:" });
+
+        for (const sug of suggestions) {
+          const sBtn = suggestStrip.createEl("button", {
+            cls: "dhv-btn dhv-suggest-chip",
+            text: `+ ${sug.text}`,
+            attr: {
+              type: "button",
+              title: "Записать в ценности в 1 клик"
+            }
+          });
+          sBtn.onclick = async () => {
+            const targetDomainId = sug.domainId || vcUi.selectedDomainId;
+            if (!targetDomainId) return;
+            sBtn.disabled = true;
+            try {
+              await vcStore.addLog({
+                domainId: targetDomainId,
+                text: sug.text,
+                isNewStep: false,
+                date: activeISO
+              });
+            } finally {
+              if (sBtn.isConnected) sBtn.disabled = false;
+            }
+          };
+        }
+      }
     }
 
     // --- Список действий за день (без пустой заглушки, если 0) ---
@@ -3374,6 +3566,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       loaded: false,
       loading: false,
       items: [],
+      collapsed: true,
       editMode: false,
       formOpen: false,
       editingId: null,
@@ -3382,6 +3575,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     };
   }
   const pinState = window.__dhHomePinsState;
+  if (typeof pinState.collapsed !== "boolean") pinState.collapsed = true;
 
   async function ensurePinsFolder() {
     const parts = PINS_FILE_PATH.split("/");
@@ -3428,7 +3622,9 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     })();
   }
 
-  const root = dv.container.createDiv({ cls: "dh dh-pins-island" });
+  const root = dv.container.createDiv({
+    cls: "dh dh-pins-island" + (pinState.collapsed ? " is-collapsed" : "")
+  });
 
   const pinStyle = root.createEl("style");
   pinStyle.textContent = `
@@ -3479,6 +3675,9 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
       filter var(--anim-super-smooth, 75ms ease-out);
   }
+  .dashboard-home .dh-pins-island.is-collapsed {
+    gap: 0;
+  }
   .dashboard-home .dhp-head {
     display: flex;
     align-items: center;
@@ -3488,10 +3687,33 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     padding-bottom: 10px;
     border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border));
   }
+  .dashboard-home .dh-pins-island.is-collapsed .dhp-head {
+    padding-bottom: 0;
+    border-bottom: none;
+  }
   .dashboard-home .dhp-head-left {
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+  .dashboard-home .dh-pins-island button.dhp-collapse-btn {
+    min-height: 28px;
+    padding: 0 6px 0 2px;
+    border-radius: var(--radius-s, 8px);
+    gap: 7px;
+  }
+  .dashboard-home .dh-pins-island button.dhp-collapse-btn:hover {
+    background: var(--background-modifier-hover);
+  }
+  .dashboard-home .dhp-chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--icon-color, var(--text-muted));
+    transition: transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+  }
+  .dashboard-home .dh-pins-island.is-collapsed .dhp-chevron {
+    transform: rotate(-90deg);
   }
   .dashboard-home .dhp-title {
     font-size: 0.98rem;
@@ -3809,6 +4031,8 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
   body.is-tablet .dashboard-home .dh-pins-island input.dhp-input {
     height: 38px !important;
   }
+  body.is-mobile .dashboard-home .dh-pins-island button.dhp-collapse-btn,
+  body.is-tablet .dashboard-home .dh-pins-island button.dhp-collapse-btn,
   body.is-mobile .dashboard-home .dh-pins-island button.dhp-action-btn,
   body.is-tablet .dashboard-home .dh-pins-island button.dhp-action-btn,
   body.is-mobile .dashboard-home .dh-pins-island button.dhp-btn-normal,
@@ -3834,14 +4058,33 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
   // --- Шапка ---
   const head = root.createDiv({ cls: "dhp-head" });
   const headLeft = head.createDiv({ cls: "dhp-head-left" });
-  headLeft.createSpan({ cls: "dhp-title", text: "Быстрый доступ" });
+  const collapseBtn = headLeft.createEl("button", {
+    cls: "dhp-btn dhp-collapse-btn",
+    attr: {
+      type: "button",
+      "aria-expanded": String(!pinState.collapsed),
+      title: pinState.collapsed ? "Развернуть «Быстрый доступ»" : "Свернуть «Быстрый доступ»"
+    }
+  });
+  const chevronSpan = collapseBtn.createSpan({ cls: "dhp-chevron" });
+  chevronSpan.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+  collapseBtn.createSpan({ cls: "dhp-title", text: "Быстрый доступ" });
   if (pinState.items.length > 0) {
-    headLeft.createSpan({ cls: "dhp-count", text: String(pinState.items.length) });
+    collapseBtn.createSpan({ cls: "dhp-count", text: String(pinState.items.length) });
   }
+  collapseBtn.onclick = () => {
+    pinState.collapsed = !pinState.collapsed;
+    if (pinState.collapsed) {
+      pinState.editMode = false;
+      pinState.formOpen = false;
+      pinState.editingId = null;
+    }
+    renderHomeDashboard();
+  };
 
   const headActions = head.createDiv({ cls: "dhp-head-actions" });
 
-  if (pinState.items.length > 0) {
+  if (!pinState.collapsed && pinState.items.length > 0) {
     const editToggle = headActions.createEl("button", {
       cls: "dhp-btn dhp-action-btn" + (pinState.editMode ? " is-active" : ""),
       text: pinState.editMode ? "Готово" : "Изменить",
@@ -3858,12 +4101,17 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
   }
 
   const addBtn = headActions.createEl("button", {
-    cls: "dhp-btn dhp-action-btn" + (pinState.formOpen && !pinState.editingId ? " is-active" : ""),
+    cls: "dhp-btn dhp-action-btn" + (!pinState.collapsed && pinState.formOpen && !pinState.editingId ? " is-active" : ""),
     text: "+ Заметка",
     attr: { type: "button" }
   });
   addBtn.onclick = () => {
-    if (pinState.formOpen && !pinState.editingId) {
+    if (pinState.collapsed) {
+      pinState.collapsed = false;
+      pinState.formOpen = true;
+      pinState.editingId = null;
+      pinState.draftColor = "accent";
+    } else if (pinState.formOpen && !pinState.editingId) {
       pinState.formOpen = false;
     } else {
       pinState.formOpen = true;
@@ -3873,6 +4121,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     renderHomeDashboard();
   };
 
+  if (!pinState.collapsed) {
   // --- Форма добавления / редактирования ---
   if (pinState.formOpen) {
     const editingItem = pinState.editingId
@@ -4160,6 +4409,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       }
     });
   }
+  }
 }
 
   if (scroller) {
@@ -4202,7 +4452,6 @@ if (!hostContainer.dataset.dhHomeBound) {
 
   const onFileChanged = (file) => {
     if (!hostContainer.isConnected) {
-      app.metadataCache.off("changed", onFileChanged);
       app.vault.off("create", onFileChanged);
       app.vault.off("delete", onFileChanged);
       app.vault.off("rename", onFileChanged);
@@ -4217,7 +4466,6 @@ if (!hostContainer.dataset.dhHomeBound) {
   };
 
   app.metadataCache.on("resolved", onResolved);
-  app.metadataCache.on("changed", onFileChanged);
   app.vault.on("create", onFileChanged);
   app.vault.on("delete", onFileChanged);
   app.vault.on("rename", onFileChanged);
