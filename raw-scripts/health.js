@@ -43,7 +43,939 @@ function renderHealthIcon(parent, iconName, cls = "dh-icon") {
   return el;
 }
 
-ensureHealthStyles();
+function ensureHealthStyles() {
+  const styleEl = document.getElementById("dh-health-dynamic-style") || document.createElement("style");
+  styleEl.id = "dh-health-dynamic-style";
+  styleEl.textContent = `
+    .dashboard-home .dh-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: currentColor;
+      vertical-align: middle;
+    }
+    .dashboard-home .dh-icon svg {
+      width: 15px;
+      height: 15px;
+      stroke-width: 1.9;
+    }
+    .dashboard-home .dh-icon.dh-icon-sm svg {
+      width: 13px;
+      height: 13px;
+    }
+    .dashboard-home .dh-icon.dh-icon-title {
+      color: var(--icon-color, var(--text-muted));
+    }
+
+    /* === Верхние карточки веса и калорий (Velocity Island + Glass Popover) === */
+    .dashboard-home .dh-health-stat-card {
+      position: relative;
+      overflow: visible !important;
+      cursor: pointer;
+      user-select: none;
+      padding: 12px 14px !important;
+      border: none !important;
+      border-radius: var(--radius-ml, 14px) !important;
+      background: var(--trans-faint-05, var(--background-secondary)) !important;
+      box-shadow:
+        inset 0 2px 0 0 color-mix(in oklab, var(--card-accent, var(--interactive-accent)) 65%, transparent),
+        var(--glass-base-m, none),
+        0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
+        var(--shadow-setting-items, none) !important;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      transition:
+        box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+        transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+        background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+    }
+    .dashboard-home .dh-health-stat-card.is-open {
+      transform: translateY(-1px);
+      box-shadow:
+        inset 0 2px 0 0 var(--card-accent, var(--interactive-accent)),
+        0 0 0 1px color-mix(in oklab, var(--card-accent, var(--interactive-accent)) 55%, transparent),
+        var(--shadow-muted, 0 6px 18px rgba(0, 0, 0, 0.2)) !important;
+    }
+    .dashboard-home .dh-health-stat-valrow {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .dashboard-home .dh-health-stat-delta {
+      font-size: 0.76rem;
+      font-weight: var(--font-semi-medium, 500);
+      font-variant-numeric: tabular-nums;
+      padding: 2px 9px;
+      border: none;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      white-space: nowrap;
+    }
+    .dashboard-home .dh-health-stat-delta.is-empty {
+      background: transparent;
+      color: var(--text-muted);
+      padding: 0;
+    }
+    .dashboard-home .dh-health-stat-popover {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 8px);
+      z-index: 90;
+      padding: 12px 14px;
+      border: 1px solid var(--menu-border-color, var(--trans-faint-30, var(--background-modifier-border)));
+      border-radius: var(--menu-radius, var(--radius-ml, 14px));
+      background: var(--modal-small-background, var(--background-primary-alt, var(--background-secondary)));
+      backdrop-filter: var(--blur-m, blur(12px));
+      -webkit-backdrop-filter: var(--blur-m, blur(12px));
+      box-shadow: var(--glass-base-l, none), var(--menu-shadow, 0 10px 28px rgba(0, 0, 0, 0.32));
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.75rem;
+      line-height: 1.35;
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(1.02) translateY(-4px);
+      pointer-events: none;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      transition:
+        opacity var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+        transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+        visibility var(--anim-duration-fast, 150ms);
+    }
+    .dashboard-home .dh-health-stat-popover.is-open {
+      opacity: 1;
+      visibility: visible;
+      transform: scale(1) translateY(0);
+    }
+    .dashboard-home .dh-health-pop-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .dashboard-home .dh-health-pop-row.has-sep {
+      padding-top: 6px;
+      border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+    }
+    .dashboard-home .dh-health-pop-k { color: var(--text-muted); }
+    .dashboard-home .dh-health-pop-v {
+      font-weight: var(--font-semibold, 600);
+      font-variant-numeric: tabular-nums;
+      color: var(--color-base-100, var(--text-normal));
+      text-align: right;
+    }
+    .dashboard-home .dh-health-pop-mm {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .dashboard-home .dh-health-pop-tag {
+      font-size: 0.72rem;
+      font-weight: var(--font-semi-medium, 500);
+      font-variant-numeric: tabular-nums;
+      padding: 2px 7px;
+      border-radius: var(--radius-xs, 6px);
+      background: var(--trans-faint-10, var(--background-primary));
+      color: var(--text-normal);
+    }
+    .dashboard-home .dh-health-pop-tag.is-min {
+      background: color-mix(in oklab, var(--color-red, #d85b57) 14%, transparent);
+      color: var(--color-red, #d85b57);
+    }
+    .dashboard-home .dh-health-pop-tag.is-max {
+      background: color-mix(in oklab, var(--color-green, #4aab80) 14%, transparent);
+      color: var(--color-green, #4aab80);
+    }
+
+    /* === Сетка графиков === */
+    .dashboard-home .dh-health-analytics-layout {
+      --dh-c-weight: var(--color-orange, #e5a158);
+      --dh-c-calories: var(--color-purple, #8b8dff);
+      --dh-c-proteins: var(--color-green, #4aab80);
+      --dh-c-fats: var(--color-yellow, #d78f60);
+      --dh-c-carbs: var(--color-blue, #599ed6);
+      --dh-c-up: var(--color-green, #4aab80);
+      --dh-c-down: var(--color-red, #d85b57);
+      --dh-c-flat: var(--color-blue, #7e9ad9);
+      --dh-ease-out: var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .dashboard-home .dh-health-analytics-layout > * {
+      min-width: 0;
+      margin-top: 0 !important;
+    }
+    .dashboard-home .dh-dyn-panel,
+    .dashboard-home .dh-ex-panel {
+      border-radius: calc(var(--radius-ml, 14px) + 2px);
+      border: none;
+      background: var(--trans-faint-05, var(--background-secondary));
+      box-shadow:
+        var(--glass-base-m, none),
+        0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
+        var(--shadow-setting-items, none);
+      overflow: hidden;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      transition: box-shadow var(--anim-duration-moderate, 200ms) var(--dh-ease-out);
+    }
+    .dashboard-home .dh-dyn-panel[open],
+    .dashboard-home .dh-ex-panel[open] {
+      box-shadow:
+        var(--glass-base-m, none),
+        0 0 0 1px color-mix(in oklab, var(--dh-block-accent, var(--interactive-accent)) 32%, transparent),
+        var(--shadow-setting-items, none);
+    }
+    .dashboard-home .dh-dyn-summary,
+    .dashboard-home .dh-ex-summary {
+      list-style: none;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 46px;
+      padding: 10px 15px;
+      color: var(--text-normal);
+      transition: background-color var(--anim-super-smooth, 75ms ease-out);
+    }
+    .dashboard-home .dh-dyn-summary::-webkit-details-marker,
+    .dashboard-home .dh-ex-summary::-webkit-details-marker { display: none; }
+    .dashboard-home .dh-dyn-summary:hover,
+    .dashboard-home .dh-ex-summary:hover { background: var(--background-modifier-hover); }
+    .dashboard-home .dh-dyn-summary-title,
+    .dashboard-home .dh-ex-summary-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.95rem;
+      font-weight: var(--font-semibold, 600);
+      font-variation-settings: "opsz" 24;
+      color: var(--color-base-100, var(--text-normal));
+    }
+    .dashboard-home .dh-dyn-chevron,
+    .dashboard-home .dh-ex-chevron {
+      display: inline-block;
+      font-size: 0.7rem;
+      color: var(--icon-color, var(--text-muted));
+      transition: transform var(--anim-duration-fast, 150ms) var(--dh-ease-out);
+    }
+    .dashboard-home .dh-dyn-panel[open] .dh-dyn-chevron,
+    .dashboard-home .dh-ex-panel[open] .dh-ex-chevron { transform: rotate(90deg); }
+    .dashboard-home .dh-dyn-summary-meta,
+    .dashboard-home .dh-ex-summary-meta {
+      font-size: 0.73rem;
+      font-weight: var(--font-semi-medium, 500);
+      color: var(--icon-color, var(--text-muted));
+      font-variant-numeric: tabular-nums;
+      padding: 3px 9px;
+      border: none;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      background: var(--pill-background, var(--code-background));
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 55%;
+    }
+    .dashboard-home .dh-dyn-body,
+    .dashboard-home .dh-ex-body {
+      padding: 12px 15px 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+    }
+    .dashboard-home .dh-dyn-hero,
+    .dashboard-home .dh-ex-hero {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .dashboard-home .dh-dyn-hero-left,
+    .dashboard-home .dh-ex-hero-left {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+    .dashboard-home .dh-dyn-hero-val,
+    .dashboard-home .dh-ex-hero-val {
+      font-size: 1.65rem;
+      font-weight: var(--font-bold, 700);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: var(--color-base-100, var(--text-normal));
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-home .dh-dyn-hero-unit,
+    .dashboard-home .dh-ex-hero-unit {
+      font-size: 0.84rem;
+      font-weight: var(--font-semi-medium, 500);
+      color: var(--icon-color, var(--text-muted));
+    }
+    .dashboard-home .dh-dyn-hero-delta,
+    .dashboard-home .dh-ex-hero-delta {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 9px;
+      border: none;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      font-size: 0.74rem;
+      font-weight: var(--font-semi-medium, 500);
+      font-variant-numeric: tabular-nums;
+      background: var(--pill-background, var(--code-background));
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .dashboard-home .dh-dyn-hero-delta.is-up,
+    .dashboard-home .dh-ex-hero-delta.is-up {
+      color: var(--dh-c-up);
+      background: color-mix(in oklab, var(--dh-c-up) 15%, transparent);
+    }
+    .dashboard-home .dh-dyn-hero-delta.is-down,
+    .dashboard-home .dh-ex-hero-delta.is-down {
+      color: var(--dh-c-down);
+      background: color-mix(in oklab, var(--dh-c-down) 15%, transparent);
+    }
+    .dashboard-home .dh-dyn-pills {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .dashboard-home button.dh-dyn-pill {
+      appearance: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 30px !important;
+      min-height: 30px !important;
+      padding: 0 11px !important;
+      border: none !important;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      background: var(--background-primary) !important;
+      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border))) !important;
+      color: var(--text-muted);
+      font-size: 0.76rem;
+      font-weight: var(--font-semi-medium, 500);
+      cursor: pointer;
+      touch-action: manipulation;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      transition:
+        box-shadow var(--anim-duration-fast, 150ms) var(--dh-ease-out),
+        color var(--anim-duration-fast, 150ms) var(--dh-ease-out),
+        background-color var(--anim-duration-fast, 150ms) var(--dh-ease-out);
+    }
+    .dashboard-home button.dh-dyn-pill i {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--pill-color, var(--text-muted));
+      opacity: 0.65;
+    }
+    .dashboard-home button.dh-dyn-pill:hover {
+      color: var(--text-normal);
+      box-shadow: 0 0 0 1px color-mix(in oklab, var(--pill-color, var(--interactive-accent)) 55%, transparent) !important;
+    }
+    .dashboard-home button.dh-dyn-pill.is-active {
+      color: var(--color-base-100, var(--text-normal));
+      font-weight: var(--font-semibold, 600);
+      background: color-mix(in oklab, var(--pill-color, var(--interactive-accent)) 18%, var(--background-primary)) !important;
+      box-shadow:
+        var(--glass-base, none),
+        0 0 0 1px color-mix(in oklab, var(--pill-color, var(--interactive-accent)) 55%, transparent) !important;
+    }
+    .dashboard-home button.dh-dyn-pill.is-active i { opacity: 1; }
+    .dashboard-home .dh-seg-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .dashboard-home .dh-seg-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px;
+      border: none;
+      border-radius: 20px;
+      background: var(--tab-sidebar-container-bg, var(--background-primary));
+      box-shadow: inset 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border));
+      max-width: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    }
+    .dashboard-home .dh-seg-group::-webkit-scrollbar { display: none; }
+    .dashboard-home button.dh-seg-item {
+      appearance: none;
+      height: 26px !important;
+      min-height: 26px !important;
+      padding: 0 10px !important;
+      border: none !important;
+      border-radius: var(--radius-xxl, 22px);
+      background: transparent !important;
+      box-shadow: none !important;
+      color: var(--icon-color, var(--text-muted));
+      font-size: 0.74rem;
+      font-weight: var(--font-semi-medium, 500);
+      white-space: nowrap;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition:
+        color var(--anim-duration-fast, 150ms) var(--dh-ease-out),
+        background-color var(--anim-duration-fast, 150ms) var(--dh-ease-out),
+        box-shadow var(--anim-duration-fast, 150ms) var(--dh-ease-out);
+    }
+    .dashboard-home button.dh-seg-item:hover { color: var(--text-normal); }
+    .dashboard-home button.dh-seg-item.is-active {
+      color: var(--color-base-100, var(--text-normal));
+      font-weight: var(--font-semibold, 600);
+      background: var(--tab-sidebar-bg, var(--background-secondary)) !important;
+      box-shadow: var(--shadow-tab, var(--shadow-s)) !important;
+    }
+    .dashboard-home .dh-ex-selects-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+      gap: 8px;
+    }
+    .dashboard-home select.dh-ex-select {
+      width: 100%;
+      min-width: 0;
+      height: 34px !important;
+      min-height: 34px !important;
+      padding: 0 26px 0 10px;
+      border: none !important;
+      outline: none !important;
+      border-radius: var(--input-radius, var(--radius-s, 8px));
+      background-color: var(--background-primary);
+      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border)));
+      color: var(--text-normal);
+      font-size: 0.78rem;
+      font-weight: var(--font-semi-medium, 500);
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: box-shadow var(--anim-duration-fast, 150ms) var(--dh-ease-out);
+    }
+    .dashboard-home select.dh-ex-select:focus {
+      box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent)) !important;
+    }
+    .dashboard-home .dh-chart-box {
+      position: relative;
+      width: 100%;
+      border-radius: var(--radius-sm, 10px);
+      background: var(--background-primary);
+      border: none;
+      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+      overflow: visible;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    }
+    .dashboard-home .dh-chart-svg {
+      display: block;
+      width: 100%;
+      height: 220px;
+      overflow: visible;
+      touch-action: pan-y;
+      user-select: none;
+      cursor: crosshair;
+    }
+    .dashboard-home .dh-chart-guide {
+      stroke: color-mix(in srgb, var(--text-muted) 65%, transparent);
+      stroke-width: 1;
+      stroke-dasharray: 3 3;
+      pointer-events: none;
+      opacity: 0;
+    }
+    .dashboard-home .dh-chart-active-dot {
+      pointer-events: none;
+      opacity: 0;
+    }
+    .dashboard-home .dh-chart-tooltip {
+      position: absolute;
+      z-index: 20;
+      padding: 7px 11px;
+      border-radius: var(--radius-m, 12px);
+      background: var(--modal-small-background, var(--background-primary-alt, var(--background-secondary)));
+      backdrop-filter: var(--blur-s, blur(8px));
+      -webkit-backdrop-filter: var(--blur-s, blur(8px));
+      border: 1px solid var(--menu-border-color, var(--trans-faint-30, var(--background-modifier-border)));
+      box-shadow: var(--glass-base, none), var(--menu-shadow, 0 6px 18px rgba(0, 0, 0, 0.32));
+      pointer-events: none;
+      white-space: nowrap;
+      opacity: 0;
+      visibility: hidden;
+      transform: translate(-50%, calc(-100% - 10px));
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      transition: opacity 110ms var(--dh-ease-out), visibility 110ms;
+    }
+    .dashboard-home .dh-chart-tooltip.is-visible {
+      opacity: 1;
+      visibility: visible;
+    }
+    .dashboard-home .dh-chart-tooltip-date {
+      display: block;
+      font-size: 0.68rem;
+      color: var(--icon-color, var(--text-muted));
+      line-height: 1.2;
+    }
+    .dashboard-home .dh-chart-tooltip-val {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: var(--font-bold, 700);
+      color: var(--color-base-100, var(--text-normal));
+      font-variant-numeric: tabular-nums;
+      line-height: 1.25;
+    }
+    .dashboard-home .dh-chart-footer {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .dashboard-home .dh-chart-stat {
+      padding: 7px 10px;
+      border: none;
+      border-radius: var(--radius-s, 8px);
+      background: var(--background-primary);
+      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 6px;
+      min-width: 0;
+    }
+    .dashboard-home .dh-chart-stat-k {
+      font-size: 0.7rem;
+      color: var(--icon-color, var(--text-muted));
+      white-space: nowrap;
+    }
+    .dashboard-home .dh-chart-stat-v {
+      font-size: 0.78rem;
+      font-weight: var(--font-semibold, 600);
+      color: var(--color-base-100, var(--text-normal));
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .dashboard-home .dh-chart-empty {
+      min-height: 180px;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    /* === Модуль тренировок, рекордов и истории (Velocity 2.1.0 Island UI) === */
+    .dashboard-home .dh-trainings-hub {
+      margin: 20px 0 24px;
+    }
+    .dashboard-home .dh-trainings-hub .dh-panel {
+      border: none !important;
+      border-radius: calc(var(--radius-ml, 14px) + 2px) !important;
+      background: var(--trans-faint-05, var(--background-secondary)) !important;
+      box-shadow:
+        var(--glass-base-m, none),
+        0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
+        var(--shadow-setting-items, none) !important;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    }
+    .dashboard-home .dh-trainings-hub .dh-wh-launcher {
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow:
+        inset 0 2px 0 0 color-mix(in oklab, var(--color-orange, #d69852) 72%, transparent),
+        var(--glass-base-m, none),
+        0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
+        var(--shadow-setting-items, none) !important;
+    }
+    .dashboard-home .dh-wh-launcher-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .dashboard-home .dh-wh-title-col {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .dashboard-home .dh-wh-heading-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .dashboard-home .dh-wh-heading-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.98rem;
+      font-weight: var(--font-semibold, 600);
+      font-variation-settings: "opsz" 24;
+      color: var(--color-base-100, var(--text-normal));
+    }
+    .dashboard-home .dh-wh-status-badge {
+      font-size: 0.72rem;
+      font-weight: var(--font-semibold, 600);
+      padding: 2px 9px;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      text-decoration: none;
+      color: var(--color-green, #4aab80);
+      background: color-mix(in oklab, var(--color-green, #4aab80) 14%, transparent);
+      box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--color-green, #4aab80) 35%, transparent);
+    }
+    .dashboard-home .dh-wh-subtitle {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .dashboard-home .dh-wh-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .dashboard-home button.dh-wh-timer-chip {
+      appearance: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      height: 32px;
+      padding: 0 11px;
+      border: none;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      font-size: 0.76rem;
+      font-weight: var(--font-semibold, 600);
+      font-variant-numeric: tabular-nums;
+      color: var(--color-orange, #e5a158);
+      background: color-mix(in oklab, var(--color-orange, #e5a158) 14%, transparent);
+      box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--color-orange, #e5a158) 40%, transparent);
+      cursor: pointer;
+    }
+    .dashboard-home button.dh-wh-cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 32px;
+      padding: 0 14px;
+      border: none;
+      border-radius: var(--radius-s, 8px);
+      font-size: 0.8rem;
+      font-weight: var(--font-semibold, 600);
+      cursor: pointer;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    }
+    .dashboard-home .dh-wh-sets-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding-top: 9px;
+      border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+    }
+    .dashboard-home .dh-wh-set-chip {
+      font-size: 0.73rem;
+      padding: 3px 8px;
+      border: none;
+      border-radius: var(--radius-xs, 6px);
+      background: var(--background-primary);
+      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+      font-variant-numeric: tabular-nums;
+      color: var(--text-normal);
+    }
+    .dashboard-home .dh-wh-summary-section {
+      margin-bottom: 16px;
+    }
+    .dashboard-home .dh-wh-summary-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .dashboard-home .dh-wh-summary-title {
+      font-size: 0.92rem;
+      font-weight: var(--font-semibold, 600);
+      font-variation-settings: "opsz" 24;
+      color: var(--color-base-100, var(--text-normal));
+    }
+    .dashboard-home .dh-wh-summary-period {
+      font-size: 0.74rem;
+      color: var(--icon-color, var(--text-muted));
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-home .dh-wh-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .dashboard-home .dh-trainings-hub .dh-card.dh-wh-stat-card {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border: none !important;
+      border-radius: var(--radius-ml, 14px) !important;
+      background: var(--trans-faint-05, var(--background-secondary)) !important;
+      box-shadow:
+        var(--glass-base-m, none),
+        0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
+        var(--shadow-setting-items, none) !important;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    }
+    .dashboard-home .dh-wh-stat-valrow {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+    .dashboard-home .dh-wh-num {
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-home .dh-wh-stat-badge {
+      font-size: 0.73rem;
+      font-weight: var(--font-semi-medium, 500);
+      padding: 2px 8px;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      color: var(--icon-color, var(--text-muted));
+      background: var(--pill-background, var(--code-background));
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-home .dh-wh-load-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.72rem;
+      font-weight: var(--font-semi-medium, 500);
+      padding: 2px 8px;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-home .dh-wh-load-badge.is-bw {
+      background: var(--pill-background, var(--trans-faint-10, var(--background-primary)));
+      color: var(--text-muted);
+    }
+    .dashboard-home .dh-wh-load-badge.is-weighted {
+      background: color-mix(in oklab, var(--color-orange, #e5a158) 16%, transparent);
+      color: var(--color-orange, #e5a158);
+      font-weight: var(--font-semibold, 600);
+      box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--color-orange, #e5a158) 38%, transparent);
+    }
+    .dashboard-home .dh-wh-load-badge.is-unspec {
+      background: var(--background-primary);
+      color: var(--text-faint);
+      box-shadow: inset 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border));
+    }
+    .dashboard-home .dh-wh-records-panel {
+      margin-top: 15px;
+      padding: 15px 16px;
+    }
+    .dashboard-home .dh-wh-records-head {
+      margin-bottom: 12px;
+    }
+    .dashboard-home .dh-wh-records-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 1rem;
+      font-weight: var(--font-semibold, 600);
+      font-variation-settings: "opsz" 24;
+      color: var(--color-base-100, var(--text-normal));
+    }
+    .dashboard-home .dh-wh-records-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+    .dashboard-home .dh-wh-records-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+    }
+    .dashboard-home .dh-wh-records-table th,
+    .dashboard-home .dh-wh-records-table td {
+      padding: 8px 6px;
+      text-align: left;
+    }
+    .dashboard-home .dh-wh-records-table th.is-right,
+    .dashboard-home .dh-wh-records-table td.is-right {
+      text-align: right;
+    }
+    .dashboard-home .dh-wh-variant-tag {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      margin-left: 4px;
+    }
+    .dashboard-home .dh-wh-best-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-home .dh-wh-best-icon {
+      color: var(--color-orange, #e5a158);
+    }
+    .dashboard-home .dh-wh-best-val {
+      font-weight: var(--font-bold, 700);
+      color: var(--color-base-100, var(--text-normal));
+    }
+    .dashboard-home .dh-wh-best-unit {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+    }
+    .dashboard-home .dh-wh-date-link {
+      font-size: 0.78rem;
+      color: var(--color-accent-1, var(--text-accent));
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-home .dh-wh-history-section {
+      margin-top: 16px;
+    }
+    .dashboard-home .dh-wh-history-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.94rem;
+      font-weight: var(--font-semibold, 600);
+      margin-bottom: 8px;
+      color: var(--icon-color, var(--text-muted));
+    }
+    .dashboard-home .dh-trainings-hub details.dh-details {
+      border: none !important;
+      border-radius: var(--radius-sm, 10px) !important;
+      background: var(--trans-faint-05, var(--background-secondary)) !important;
+      box-shadow: 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)) !important;
+      padding: 8px 12px !important;
+      margin-bottom: 8px !important;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    }
+    .dashboard-home .dh-wh-history-summary {
+      font-size: 0.82rem;
+      cursor: pointer;
+      color: var(--text-normal);
+      font-weight: var(--font-semi-medium, 500);
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-home .dh-wh-history-table {
+      width: 100%;
+      margin-top: 8px;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .dashboard-home .dh-wh-history-table th,
+    .dashboard-home .dh-wh-history-table td {
+      padding: 5px 6px;
+      text-align: left;
+    }
+    .dashboard-home .dh-wh-td-strong { font-weight: var(--font-semibold, 600); }
+    .dashboard-home .dh-wh-td-muted { color: var(--text-muted); }
+    .dashboard-home .dh-trainings-hub table.dh-table thead tr {
+      border-bottom: 2px solid var(--table-header-border-color, var(--hr-color, var(--background-modifier-border))) !important;
+    }
+    .dashboard-home .dh-trainings-hub table.dh-table thead th {
+      color: var(--table-header-color, var(--icon-color)) !important;
+      font-weight: var(--table-header-weight, var(--font-medium)) !important;
+      font-size: 0.74rem;
+      text-transform: none !important;
+    }
+    .dashboard-home .dh-trainings-hub table.dh-table tbody tr {
+      border-bottom: none !important;
+    }
+    .dashboard-home .dh-trainings-hub table.dh-table tbody tr:nth-child(even) {
+      background: var(--table-row-bg, var(--trans-faint-00, transparent));
+    }
+    .dashboard-home .dh-trainings-hub table.dh-table tbody td {
+      border-left: 1px solid var(--table-border-color, var(--trans-faint-20, var(--background-modifier-border)));
+    }
+    .dashboard-home .dh-trainings-hub table.dh-table tbody td:first-child {
+      border-left: none;
+    }
+
+    /* === Адаптивность и iPadOS / Touch === */
+    body.is-mobile .dashboard-home button.dh-dyn-pill,
+    body.is-tablet .dashboard-home button.dh-dyn-pill {
+      height: 36px !important;
+      min-height: 36px !important;
+      padding: 0 13px !important;
+    }
+    body.is-mobile .dashboard-home button.dh-seg-item,
+    body.is-tablet .dashboard-home button.dh-seg-item {
+      height: 32px !important;
+      min-height: 32px !important;
+      padding: 0 12px !important;
+    }
+    body.is-mobile .dashboard-home select.dh-ex-select,
+    body.is-tablet .dashboard-home select.dh-ex-select {
+      height: 38px !important;
+      min-height: 38px !important;
+    }
+    body.is-mobile .dashboard-home button.dh-wh-cta-btn,
+    body.is-tablet .dashboard-home button.dh-wh-cta-btn,
+    body.is-mobile .dashboard-home button.dh-wh-timer-chip,
+    body.is-tablet .dashboard-home button.dh-wh-timer-chip {
+      min-height: 36px;
+      height: 36px;
+    }
+    body.is-mobile .dashboard-home .dh-wh-history-summary,
+    body.is-tablet .dashboard-home .dh-wh-history-summary {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+    }
+    @media (max-width: 920px) {
+      .dashboard-home .dh-health-analytics-layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+    @media (max-width: 560px) {
+      .dashboard-home .dh-ex-selects-row,
+      .dashboard-home .dh-wh-stats-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .dashboard-home .dh-chart-footer {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .dashboard-home .dh-chart-stat {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1px;
+        padding: 6px 8px;
+      }
+      .dashboard-home .dh-dyn-hero-val,
+      .dashboard-home .dh-ex-hero-val {
+        font-size: 1.45rem;
+      }
+    }
+  `;
+  if (!document.head.contains(styleEl)) {
+    document.head.appendChild(styleEl);
+  }
+}
 
 // ========================================================
 // МОДУЛЬ 1: ВЕС, КАЛОРИИ, БЖУ И ПАНЕЛЬ СЕГОДНЯШНЕГО ДНЯ
@@ -443,645 +1375,7 @@ v: (cPrevMean !== null ? fmt(cPrevMean, 0, 0) + " ккал · " : "") + cPrev7.l
 ]
 });
 
-  const styleEl = document.getElementById("dh-health-dynamic-style") || document.createElement("style");
-  styleEl.id = "dh-health-dynamic-style";
-  styleEl.textContent = `
-    /* === Верхние карточки веса и калорий (Velocity Island + Glass Popover) === */
-    .dashboard-home .dh-health-stat-card {
-      position: relative;
-      overflow: visible !important;
-      cursor: pointer;
-      user-select: none;
-      padding: 12px 14px !important;
-      border: none !important;
-      border-radius: var(--radius-ml, 14px) !important;
-      background: var(--trans-faint-05, var(--background-secondary)) !important;
-      box-shadow:
-        inset 0 2px 0 0 color-mix(in oklab, var(--card-accent, var(--interactive-accent)) 65%, transparent),
-        var(--glass-base-m, none),
-        0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
-        var(--shadow-setting-items, none) !important;
-      -electron-corner-smoothing: var(--corner-smoothing, 60%);
-      transition:
-        box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
-        transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
-        background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
-    }
-    .dashboard-home .dh-health-stat-card.is-open {
-      transform: translateY(-1px);
-      box-shadow:
-        inset 0 2px 0 0 var(--card-accent, var(--interactive-accent)),
-        0 0 0 1px color-mix(in oklab, var(--card-accent, var(--interactive-accent)) 55%, transparent),
-        var(--shadow-muted, 0 6px 18px rgba(0, 0, 0, 0.2)) !important;
-    }
-    .dashboard-home .dh-health-stat-valrow {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 8px;
-      margin-top: 4px;
-    }
-    .dashboard-home .dh-health-stat-delta {
-      font-size: 0.76rem;
-      font-weight: var(--font-semi-medium, 500);
-      font-variant-numeric: tabular-nums;
-      padding: 2px 9px;
-      border: none;
-      border-radius: var(--pill-radius, var(--radius-l, 18px));
-      white-space: nowrap;
-    }
-    .dashboard-home .dh-health-stat-delta.is-empty {
-      background: transparent;
-      color: var(--text-muted);
-      padding: 0;
-    }
-    .dashboard-home .dh-health-stat-popover {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: calc(100% + 8px);
-      z-index: 90;
-      padding: 12px 14px;
-      border: 1px solid var(--menu-border-color, var(--trans-faint-30, var(--background-modifier-border)));
-      border-radius: var(--menu-radius, var(--radius-ml, 14px));
-      background: var(--modal-small-background, var(--background-primary-alt, var(--background-secondary)));
-      backdrop-filter: var(--blur-m, blur(12px));
-      -webkit-backdrop-filter: var(--blur-m, blur(12px));
-      box-shadow: var(--glass-base-l, none), var(--menu-shadow, 0 10px 28px rgba(0, 0, 0, 0.32));
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 0.75rem;
-      line-height: 1.35;
-      opacity: 0;
-      visibility: hidden;
-      transform: scale(1.02) translateY(-4px);
-      pointer-events: none;
-      -electron-corner-smoothing: var(--corner-smoothing, 60%);
-      transition:
-        opacity var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
-        transform var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
-        visibility var(--anim-duration-fast, 150ms);
-    }
-    .dashboard-home .dh-health-stat-popover.is-open {
-      opacity: 1;
-      visibility: visible;
-      transform: scale(1) translateY(0);
-    }
-    .dashboard-home .dh-health-pop-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 10px;
-    }
-    .dashboard-home .dh-health-pop-row.has-sep {
-      padding-top: 6px;
-      border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
-    }
-    .dashboard-home .dh-health-pop-k {
-      color: var(--text-muted);
-    }
-    .dashboard-home .dh-health-pop-v {
-      font-weight: var(--font-semibold, 600);
-      font-variant-numeric: tabular-nums;
-      color: var(--color-base-100, var(--text-normal));
-      text-align: right;
-    }
-    .dashboard-home .dh-health-pop-mm {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .dashboard-home .dh-health-pop-tag {
-      font-size: 0.72rem;
-      font-weight: var(--font-semi-medium, 500);
-      font-variant-numeric: tabular-nums;
-      padding: 2px 7px;
-      border-radius: var(--radius-xs, 6px);
-      background: var(--trans-faint-10, var(--background-primary));
-      color: var(--text-normal);
-    }
-    .dashboard-home .dh-health-pop-tag.is-min {
-      background: color-mix(in oklab, var(--color-red, #d85b57) 14%, transparent);
-      color: var(--color-red, #d85b57);
-    }
-    .dashboard-home .dh-health-pop-tag.is-max {
-      background: color-mix(in oklab, var(--color-green, #4aab80) 14%, transparent);
-      color: var(--color-green, #4aab80);
-    }
-
-    /* === Сетка графиков === */
-    .dashboard-home .dh-health-analytics-layout {
-      --dh-c-weight: var(--color-orange, #e5a158);
-      --dh-c-calories: var(--color-purple, #8b8dff);
-      --dh-c-proteins: var(--color-green, #4aab80);
-      --dh-c-fats: var(--color-yellow, #d78f60);
-      --dh-c-carbs: var(--color-blue, #599ed6);
-      --dh-c-up: var(--color-green, #4aab80);
-      --dh-c-down: var(--color-red, #d85b57);
-      --dh-c-flat: var(--color-blue, #7e9ad9);
-      --dh-ease-out: var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      align-items: start;
-      gap: 14px;
-      margin-top: 16px;
-    }
-    .dashboard-home .dh-health-analytics-layout > * {
-      min-width: 0;
-      margin-top: 0 !important;
-    }
-
-    /* Карточки-аккордеоны обоих блоков */
-    .dashboard-home .dh-dyn-panel,
-    .dashboard-home .dh-ex-panel {
-      border-radius: calc(var(--radius-ml, 14px) + 2px);
-      border: none;
-      background: var(--trans-faint-05, var(--background-secondary));
-      box-shadow:
-        var(--glass-base-m, none),
-        0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
-        var(--shadow-setting-items, none);
-      overflow: hidden;
-      -electron-corner-smoothing: var(--corner-smoothing, 60%);
-      transition: box-shadow var(--anim-duration-moderate, 200ms) var(--dh-ease-out);
-    }
-    .dashboard-home .dh-dyn-panel[open],
-    .dashboard-home .dh-ex-panel[open] {
-      box-shadow:
-        var(--glass-base-m, none),
-        0 0 0 1px color-mix(in oklab, var(--dh-block-accent, var(--interactive-accent)) 32%, transparent),
-        var(--shadow-setting-items, none);
-    }
-    .dashboard-home .dh-dyn-summary,
-    .dashboard-home .dh-ex-summary {
-      list-style: none;
-      cursor: pointer;
-      user-select: none;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      min-height: 46px;
-      padding: 10px 15px;
-      color: var(--text-normal);
-      transition: background-color var(--anim-super-smooth, 75ms ease-out);
-    }
-    .dashboard-home .dh-dyn-summary::-webkit-details-marker,
-    .dashboard-home .dh-ex-summary::-webkit-details-marker {
-      display: none;
-    }
-    .dashboard-home .dh-dyn-summary:hover,
-    .dashboard-home .dh-ex-summary:hover {
-      background: var(--background-modifier-hover);
-    }
-    .dashboard-home .dh-dyn-summary-title,
-    .dashboard-home .dh-ex-summary-title {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.95rem;
-      font-weight: var(--font-semibold, 600);
-      font-variation-settings: "opsz" 24;
-      color: var(--color-base-100, var(--text-normal));
-    }
-    .dashboard-home .dh-dyn-chevron,
-    .dashboard-home .dh-ex-chevron {
-      display: inline-block;
-      font-size: 0.7rem;
-      color: var(--icon-color, var(--text-muted));
-      transition: transform var(--anim-duration-fast, 150ms) var(--dh-ease-out);
-    }
-    .dashboard-home .dh-dyn-panel[open] .dh-dyn-chevron,
-    .dashboard-home .dh-ex-panel[open] .dh-ex-chevron {
-      transform: rotate(90deg);
-    }
-    .dashboard-home .dh-dyn-summary-meta,
-    .dashboard-home .dh-ex-summary-meta {
-      font-size: 0.73rem;
-      font-weight: var(--font-semi-medium, 500);
-      color: var(--icon-color, var(--text-muted));
-      font-variant-numeric: tabular-nums;
-      padding: 3px 9px;
-      border: none;
-      border-radius: var(--pill-radius, var(--radius-l, 18px));
-      background: var(--pill-background, var(--code-background));
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 55%;
-    }
-
-    /* Тело блоков */
-    .dashboard-home .dh-dyn-body,
-    .dashboard-home .dh-ex-body {
-      padding: 12px 15px 15px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
-    }
-
-    /* Верхняя строка: Главное число + дельта */
-    .dashboard-home .dh-dyn-hero,
-    .dashboard-home .dh-ex-hero {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .dashboard-home .dh-dyn-hero-left,
-    .dashboard-home .dh-ex-hero-left {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      flex-wrap: wrap;
-      min-width: 0;
-    }
-    .dashboard-home .dh-dyn-hero-val,
-    .dashboard-home .dh-ex-hero-val {
-      font-size: 1.65rem;
-      font-weight: var(--font-bold, 700);
-      line-height: 1.05;
-      letter-spacing: -0.02em;
-      color: var(--color-base-100, var(--text-normal));
-      font-variant-numeric: tabular-nums;
-    }
-    .dashboard-home .dh-dyn-hero-unit,
-    .dashboard-home .dh-ex-hero-unit {
-      font-size: 0.84rem;
-      font-weight: var(--font-semi-medium, 500);
-      color: var(--icon-color, var(--text-muted));
-    }
-    .dashboard-home .dh-dyn-hero-delta,
-    .dashboard-home .dh-ex-hero-delta {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px 9px;
-      border: none;
-      border-radius: var(--pill-radius, var(--radius-l, 18px));
-      font-size: 0.74rem;
-      font-weight: var(--font-semi-medium, 500);
-      font-variant-numeric: tabular-nums;
-      background: var(--pill-background, var(--code-background));
-      color: var(--text-muted);
-      white-space: nowrap;
-    }
-    .dashboard-home .dh-dyn-hero-delta.is-up,
-    .dashboard-home .dh-ex-hero-delta.is-up {
-      color: var(--dh-c-up);
-      background: color-mix(in oklab, var(--dh-c-up) 15%, transparent);
-    }
-    .dashboard-home .dh-dyn-hero-delta.is-down,
-    .dashboard-home .dh-ex-hero-delta.is-down {
-      color: var(--dh-c-down);
-      background: color-mix(in oklab, var(--dh-c-down) 15%, transparent);
-    }
-
-    /* Пилюли выбора метрики в «Вес и БЖУ» */
-    .dashboard-home .dh-dyn-pills {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-    .dashboard-home button.dh-dyn-pill {
-      appearance: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      height: 30px !important;
-      min-height: 30px !important;
-      padding: 0 11px !important;
-      border: none !important;
-      border-radius: var(--pill-radius, var(--radius-l, 18px));
-      background: var(--background-primary) !important;
-      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border))) !important;
-      color: var(--text-muted);
-      font-size: 0.76rem;
-      font-weight: var(--font-semi-medium, 500);
-      cursor: pointer;
-      touch-action: manipulation;
-      -electron-corner-smoothing: var(--corner-smoothing, 60%);
-      transition:
-        box-shadow var(--anim-duration-fast, 150ms) var(--dh-ease-out),
-        color var(--anim-duration-fast, 150ms) var(--dh-ease-out),
-        background-color var(--anim-duration-fast, 150ms) var(--dh-ease-out);
-    }
-    .dashboard-home button.dh-dyn-pill i {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--pill-color, var(--text-muted));
-      opacity: 0.65;
-    }
-    .dashboard-home button.dh-dyn-pill:hover {
-      color: var(--text-normal);
-      box-shadow: 0 0 0 1px color-mix(in oklab, var(--pill-color, var(--interactive-accent)) 55%, transparent) !important;
-    }
-    .dashboard-home button.dh-dyn-pill.is-active {
-      color: var(--color-base-100, var(--text-normal));
-      font-weight: var(--font-semibold, 600);
-      background: color-mix(in oklab, var(--pill-color, var(--interactive-accent)) 18%, var(--background-primary)) !important;
-      box-shadow:
-        var(--glass-base, none),
-        0 0 0 1px color-mix(in oklab, var(--pill-color, var(--interactive-accent)) 55%, transparent) !important;
-    }
-    .dashboard-home button.dh-dyn-pill.is-active i {
-      opacity: 1;
-    }
-
-    /* Сегментные переключатели (Velocity Capsule) */
-    .dashboard-home .dh-seg-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .dashboard-home .dh-seg-group {
-      display: inline-flex;
-      align-items: center;
-      gap: 2px;
-      padding: 2px;
-      border: none;
-      border-radius: 20px;
-      background: var(--tab-sidebar-container-bg, var(--background-primary));
-      box-shadow: inset 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border));
-      max-width: 100%;
-      overflow-x: auto;
-      scrollbar-width: none;
-      -electron-corner-smoothing: var(--corner-smoothing, 60%);
-    }
-    .dashboard-home .dh-seg-group::-webkit-scrollbar {
-      display: none;
-    }
-    .dashboard-home button.dh-seg-item {
-      appearance: none;
-      height: 26px !important;
-      min-height: 26px !important;
-      padding: 0 10px !important;
-      border: none !important;
-      border-radius: var(--radius-xxl, 22px);
-      background: transparent !important;
-      box-shadow: none !important;
-      color: var(--icon-color, var(--text-muted));
-      font-size: 0.74rem;
-      font-weight: var(--font-semi-medium, 500);
-      white-space: nowrap;
-      cursor: pointer;
-      touch-action: manipulation;
-      transition:
-        color var(--anim-duration-fast, 150ms) var(--dh-ease-out),
-        background-color var(--anim-duration-fast, 150ms) var(--dh-ease-out),
-        box-shadow var(--anim-duration-fast, 150ms) var(--dh-ease-out);
-    }
-    .dashboard-home button.dh-seg-item:hover {
-      color: var(--text-normal);
-    }
-    .dashboard-home button.dh-seg-item.is-active {
-      color: var(--color-base-100, var(--text-normal));
-      font-weight: var(--font-semibold, 600);
-      background: var(--tab-sidebar-bg, var(--background-secondary)) !important;
-      box-shadow: var(--shadow-tab, var(--shadow-s)) !important;
-    }
-
-    /* Селекты в блоке «Упражнения» */
-    .dashboard-home .dh-ex-selects-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
-      gap: 8px;
-    }
-    .dashboard-home select.dh-ex-select {
-      width: 100%;
-      min-width: 0;
-      height: 34px !important;
-      min-height: 34px !important;
-      padding: 0 26px 0 10px;
-      border: none !important;
-      outline: none !important;
-      border-radius: var(--input-radius, var(--radius-s, 8px));
-      background-color: var(--background-primary);
-      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border)));
-      color: var(--text-normal);
-      font-size: 0.78rem;
-      font-weight: var(--font-semi-medium, 500);
-      cursor: pointer;
-      touch-action: manipulation;
-      transition: box-shadow var(--anim-duration-fast, 150ms) var(--dh-ease-out);
-    }
-    .dashboard-home select.dh-ex-select:focus {
-      box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent)) !important;
-    }
-
-    /* График SVG и стеклянный тултип */
-    .dashboard-home .dh-chart-box {
-      position: relative;
-      width: 100%;
-      border-radius: var(--radius-sm, 10px);
-      background: var(--background-primary);
-      border: none;
-      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
-      overflow: visible;
-      -electron-corner-smoothing: var(--corner-smoothing, 60%);
-    }
-    .dashboard-home .dh-chart-svg {
-      display: block;
-      width: 100%;
-      height: 220px;
-      overflow: visible;
-      touch-action: pan-y;
-      user-select: none;
-      cursor: crosshair;
-    }
-    .dashboard-home .dh-chart-guide {
-      stroke: color-mix(in srgb, var(--text-muted) 65%, transparent);
-      stroke-width: 1;
-      stroke-dasharray: 3 3;
-      pointer-events: none;
-      opacity: 0;
-    }
-    .dashboard-home .dh-chart-active-dot {
-      pointer-events: none;
-      opacity: 0;
-    }
-    .dashboard-home .dh-chart-tooltip {
-      position: absolute;
-      z-index: 20;
-      padding: 7px 11px;
-      border-radius: var(--radius-m, 12px);
-      background: var(--modal-small-background, var(--background-primary-alt, var(--background-secondary)));
-      backdrop-filter: var(--blur-s, blur(8px));
-      -webkit-backdrop-filter: var(--blur-s, blur(8px));
-      border: 1px solid var(--menu-border-color, var(--trans-faint-30, var(--background-modifier-border)));
-      box-shadow: var(--glass-base, none), var(--menu-shadow, 0 6px 18px rgba(0, 0, 0, 0.32));
-      pointer-events: none;
-      white-space: nowrap;
-      opacity: 0;
-      visibility: hidden;
-      transform: translate(-50%, calc(-100% - 10px));
-      -electron-corner-smoothing: var(--corner-smoothing, 60%);
-      transition: opacity 110ms var(--dh-ease-out), visibility 110ms;
-    }
-    .dashboard-home .dh-chart-tooltip.is-visible {
-      opacity: 1;
-      visibility: visible;
-    }
-    .dashboard-home .dh-chart-tooltip-date {
-      display: block;
-      font-size: 0.68rem;
-      color: var(--icon-color, var(--text-muted));
-      line-height: 1.2;
-    }
-    .dashboard-home .dh-chart-tooltip-val {
-      display: block;
-      font-size: 0.88rem;
-      font-weight: var(--font-bold, 700);
-      color: var(--color-base-100, var(--text-normal));
-      font-variant-numeric: tabular-nums;
-      line-height: 1.25;
-    }
-
-    /* Компактная строка сводки под графиком */
-    .dashboard-home .dh-chart-footer {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-    }
-    .dashboard-home .dh-chart-stat {
-      padding: 7px 10px;
-      border: none;
-      border-radius: var(--radius-s, 8px);
-      background: var(--background-primary);
-      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 6px;
-      min-width: 0;
-    }
-    .dashboard-home .dh-chart-stat-k {
-      font-size: 0.7rem;
-      color: var(--icon-color, var(--text-muted));
-      white-space: nowrap;
-    }
-    .dashboard-home .dh-chart-stat-v {
-      font-size: 0.78rem;
-      font-weight: var(--font-semibold, 600);
-      color: var(--color-base-100, var(--text-normal));
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .dashboard-home .dh-chart-empty {
-      min-height: 180px;
-      padding: 20px 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 0.8rem;
-    }
-
-    /* === Модуль тренировок, рекордов и истории (Velocity Island & Table) === */
-    .dashboard-home .dh-trainings-hub .dh-panel {
-      border: none !important;
-      border-radius: calc(var(--radius-ml, 14px) + 2px) !important;
-      background: var(--trans-faint-05, var(--background-secondary)) !important;
-      box-shadow:
-        var(--glass-base-m, none),
-        0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
-        var(--shadow-setting-items, none) !important;
-      -electron-corner-smoothing: var(--corner-smoothing, 60%);
-    }
-    .dashboard-home .dh-trainings-hub .dh-card {
-      border: none !important;
-      border-radius: var(--radius-ml, 14px) !important;
-      background: var(--trans-faint-05, var(--background-secondary)) !important;
-      box-shadow:
-        var(--glass-base-m, none),
-        0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)),
-        var(--shadow-setting-items, none) !important;
-      -electron-corner-smoothing: var(--corner-smoothing, 60%);
-    }
-    .dashboard-home .dh-trainings-hub details.dh-details {
-      border: none !important;
-      border-radius: var(--radius-sm, 10px) !important;
-      background: var(--trans-faint-05, var(--background-secondary)) !important;
-      box-shadow: 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)) !important;
-      padding: 8px 12px !important;
-      margin-bottom: 8px !important;
-      -electron-corner-smoothing: var(--corner-smoothing, 60%);
-    }
-    .dashboard-home .dh-trainings-hub table.dh-table thead tr {
-      border-bottom: 2px solid var(--table-header-border-color, var(--hr-color, var(--background-modifier-border))) !important;
-    }
-    .dashboard-home .dh-trainings-hub table.dh-table thead th {
-      color: var(--table-header-color, var(--icon-color)) !important;
-      font-weight: var(--table-header-weight, var(--font-medium)) !important;
-      text-transform: none !important;
-    }
-    .dashboard-home .dh-trainings-hub table.dh-table tbody tr {
-      border-bottom: none !important;
-    }
-    .dashboard-home .dh-trainings-hub table.dh-table tbody tr:nth-child(even) {
-      background: var(--table-row-bg, var(--trans-faint-00, transparent));
-    }
-    .dashboard-home .dh-trainings-hub table.dh-table tbody td {
-      border-left: 1px solid var(--table-border-color, var(--trans-faint-20, var(--background-modifier-border)));
-    }
-    .dashboard-home .dh-trainings-hub table.dh-table tbody td:first-child {
-      border-left: none;
-    }
-
-    /* === Адаптивность и iPadOS / Touch === */
-    body.is-mobile .dashboard-home button.dh-dyn-pill {
-      height: 36px !important;
-      min-height: 36px !important;
-      padding: 0 13px !important;
-    }
-    body.is-mobile .dashboard-home button.dh-seg-item {
-      height: 32px !important;
-      min-height: 32px !important;
-      padding: 0 12px !important;
-    }
-    body.is-mobile .dashboard-home select.dh-ex-select {
-      height: 38px !important;
-      min-height: 38px !important;
-    }
-    @media (max-width: 920px) {
-      .dashboard-home .dh-health-analytics-layout {
-        grid-template-columns: minmax(0, 1fr);
-      }
-    }
-    @media (max-width: 560px) {
-      .dashboard-home .dh-ex-selects-row {
-        grid-template-columns: minmax(0, 1fr);
-      }
-      .dashboard-home .dh-chart-footer {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 6px;
-      }
-      .dashboard-home .dh-chart-stat {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1px;
-        padding: 6px 8px;
-      }
-      .dashboard-home .dh-dyn-hero-val,
-      .dashboard-home .dh-ex-hero-val {
-        font-size: 1.45rem;
-      }
-    }
-  `;
-  if (!document.head.contains(styleEl)) {
-    document.head.appendChild(styleEl);
-  }
+ensureHealthStyles();
 
   // Очистка анимации счётчика при перерисовке блока динамики
   if (window.__dhDynCountRaf) {
