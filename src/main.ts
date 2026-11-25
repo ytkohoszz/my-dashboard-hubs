@@ -56,25 +56,12 @@ class HubBlockRenderer extends MarkdownRenderChild {
     this.plugin.activeRenderers.add(this);
     void this.renderBlock();
 
-    this.registerEvent(
-      this.plugin.app.metadataCache.on("resolved", () => {
-        this.scheduleSmartRefresh();
-      })
-    );
-
     if (this.plugin.settings.autoRefreshOnMetadataChange) {
       this.registerEvent(
         this.plugin.app.metadataCache.on("changed", (file) => {
           this.scheduleSmartRefresh(file.path);
         })
       );
-      const onVaultChange = (file: { path?: string; extension?: string }) => {
-        if (file?.extension && file.extension !== "md") return;
-        this.scheduleSmartRefresh(file?.path);
-      };
-      this.registerEvent(this.plugin.app.vault.on("create", onVaultChange));
-      this.registerEvent(this.plugin.app.vault.on("delete", onVaultChange));
-      this.registerEvent(this.plugin.app.vault.on("rename", onVaultChange));
     }
   }
 
@@ -131,11 +118,6 @@ class HubBlockRenderer extends MarkdownRenderChild {
         return;
       }
 
-      const scroller = this.containerEl.closest(
-        ".cm-scroller, .markdown-preview-view, .view-content"
-      ) as HTMLElement | null;
-      const prevScrollTop = scroller ? scroller.scrollTop : 0;
-
       const prevHeight = this.containerEl.offsetHeight;
       if (prevHeight > 40) {
         this.containerEl.style.minHeight = `${prevHeight}px`;
@@ -147,12 +129,6 @@ class HubBlockRenderer extends MarkdownRenderChild {
       const dvShim = buildDvShim(this.plugin.app, this.containerEl, this.ctx, this);
       await runBundledHubModule(codeBody, this.plugin.app, dvShim, { section: params.section });
       this.containerEl.style.minHeight = "";
-
-      if (scroller) {
-        window.requestAnimationFrame(() => {
-          if (scroller.isConnected) scroller.scrollTop = prevScrollTop;
-        });
-      }
     } catch (err: unknown) {
       this.containerEl.style.minHeight = "";
       const msg = err instanceof Error ? (err.stack ?? err.message) : String(err);

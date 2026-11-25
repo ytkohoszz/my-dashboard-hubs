@@ -3,7 +3,6 @@ import path from "path";
 
 const RAW_DIR = "raw-scripts";
 const RAW_DIR_CANDIDATES = [RAW_DIR, "Raw Scripts"];
-const STYLES_DIR = "src/styles";
 
 if (!existsSync(RAW_DIR)) {
   mkdirSync(RAW_DIR, { recursive: true });
@@ -43,14 +42,6 @@ const extractedCssChunks = [
 ];
 
 for (const [modKey, fileNames] of Object.entries(FILES_MAP)) {
-  const externalCssPath = path.join(STYLES_DIR, `${modKey}.css`);
-  if (existsSync(externalCssPath)) {
-    const extCss = readFileSync(externalCssPath, "utf8").trim();
-    if (extCss) {
-      extractedCssChunks.push(`/* --- Module External CSS: ${modKey} --- */\n` + extCss);
-    }
-  }
-
   const foundPath = findScript(fileNames);
 
   if (!foundPath) {
