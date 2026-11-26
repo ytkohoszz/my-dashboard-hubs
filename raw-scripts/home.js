@@ -3861,21 +3861,21 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
   .dashboard-home .dhp-groups {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
   }
   .dashboard-home .dh-pins-island button.dhp-chip {
     height: 26px;
     padding: 0 10px;
     border-radius: var(--pill-radius, var(--radius-l, 18px));
-    background: var(--background-primary);
+    background: transparent;
     color: var(--icon-color, var(--text-muted));
-    font-size: 0.76rem;
-    box-shadow: 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border));
+    font-size: 0.77rem;
+    box-shadow: none;
     text-box-trim: trim-both;
     text-box-edge: cap alphabetic;
   }
   .dashboard-home .dh-pins-island button.dhp-chip:hover {
-    background: var(--interactive-hover);
+    background: var(--trans-faint-10, var(--background-modifier-hover));
     color: var(--text-normal);
   }
   .dashboard-home .dh-pins-island button.dhp-chip.is-active {
@@ -3884,6 +3884,14 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     box-shadow:
       var(--glass-base, none),
       inset 0 0 0 1px var(--color-accent-3, var(--interactive-accent));
+  }
+  .dashboard-home .dhp-chip-count {
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.6;
+  }
+  .dashboard-home .dh-pins-island button.dhp-chip.is-active .dhp-chip-count {
+    opacity: 0.85;
   }
   .dashboard-home .dh-pins-island button.dhp-chip.is-draggable {
     cursor: grab;
@@ -3922,21 +3930,19 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
   /* Сетка карточек */
   .dashboard-home .dhp-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 6px;
   }
   .dashboard-home .dhp-card {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    min-height: 48px;
-    padding: 9px 12px;
-    border-radius: var(--radius-sm, 10px);
+    min-height: 36px;
+    padding: 7px 10px;
+    border-radius: var(--radius-s, 8px);
     background: var(--background-primary);
-    box-shadow:
-      inset 2.5px 0 0 0 color-mix(in oklab, var(--pin-color, var(--interactive-accent)) 85%, transparent),
-      var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+    box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
     cursor: pointer;
     -electron-corner-smoothing: var(--corner-smoothing, 60%);
     transition:
@@ -3944,21 +3950,19 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
   .dashboard-home .dhp-card:hover {
-    background: color-mix(in oklab, var(--pin-color, var(--interactive-accent)) 7%, var(--background-primary));
-    box-shadow:
-      inset 2.5px 0 0 0 var(--pin-color, var(--interactive-accent)),
-      0 0 0 0.5px color-mix(in oklab, var(--pin-color, var(--interactive-accent)) 45%, transparent);
+    background: color-mix(in oklab, var(--pin-color, var(--interactive-accent)) 6%, var(--background-primary));
+    box-shadow: 0 0 0 0.5px color-mix(in oklab, var(--pin-color, var(--interactive-accent)) 45%, var(--trans-faint-30, var(--background-modifier-border)));
   }
   .dashboard-home .dhp-card-main {
     display: flex;
     align-items: center;
-    gap: 9px;
+    gap: 8px;
     min-width: 0;
     flex: 1 1 auto;
   }
   .dashboard-home .dhp-card-dot {
-    width: 7px;
-    height: 7px;
+    width: 6px;
+    height: 6px;
     border-radius: 999px;
     background: var(--pin-color, var(--interactive-accent));
     flex-shrink: 0;
@@ -3966,28 +3970,43 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
   .dashboard-home .dhp-card-text {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     min-width: 0;
   }
   .dashboard-home .dhp-card-title {
-    font-size: 0.86rem;
-    font-weight: var(--font-semibold, 600);
+    font-size: 0.83rem;
+    font-weight: var(--font-semi-medium, 500);
     line-height: 1.3;
     color: var(--color-base-100, var(--text-normal));
     overflow-wrap: anywhere;
   }
   .dashboard-home .dhp-card-sub {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     color: var(--text-faint);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .dashboard-home .dhp-card-arrow {
+    font-size: 0.72rem;
+    color: var(--text-faint);
+    opacity: 0;
+    flex-shrink: 0;
+    transition: opacity var(--anim-super-smooth, 75ms ease-out);
+  }
+  .dashboard-home .dhp-card:hover .dhp-card-arrow {
+    opacity: 0.75;
   }
   .dashboard-home .dhp-card-tools {
     display: inline-flex;
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
+  }
+  body.is-mobile .dashboard-home .dhp-card,
+  body.is-tablet .dashboard-home .dhp-card {
+    min-height: 40px;
+    padding: 8px 12px;
   }
 
   /* Форма добавления / редактирования */
@@ -4416,12 +4435,18 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
   };
 
   if (uniqueGroups.length > 0) {
+    const groupCounts = new Map();
+    for (const it of pinState.items) {
+      if (it.group) groupCounts.set(it.group, (groupCounts.get(it.group) || 0) + 1);
+    }
+
     const groupsRow = root.createDiv({ cls: "dhp-groups" });
     const allChip = groupsRow.createEl("button", {
       cls: "dhp-btn dhp-chip" + (pinState.activeGroup === "all" ? " is-active" : ""),
-      text: "Все",
       attr: { type: "button" }
     });
+    allChip.createSpan({ text: "Все" });
+    allChip.createSpan({ cls: "dhp-chip-count", text: String(pinState.items.length) });
     allChip.onclick = () => {
       pinState.activeGroup = "all";
       renderHomeDashboard();
@@ -4443,13 +4468,14 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
 
       const chip = container.createEl("button", {
         cls: "dhp-btn dhp-chip is-draggable" + (pinState.activeGroup === grp ? " is-active" : ""),
-        text: grp,
         attr: {
           type: "button",
           draggable: "true",
           title: "Перетащи, чтобы изменить порядок фильтров"
         }
       });
+      chip.createSpan({ text: grp });
+      chip.createSpan({ cls: "dhp-chip-count", text: String(groupCounts.get(grp) || 0) });
 
       chip.onclick = () => {
         pinState.activeGroup = grp;
@@ -4540,7 +4566,9 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
         textWrap.createDiv({ cls: "dhp-card-sub", text: item.group });
       }
 
-      if (pinState.editMode) {
+      if (!pinState.editMode) {
+        card.createSpan({ cls: "dhp-card-arrow", text: "↗" });
+      } else {
         const tools = card.createDiv({ cls: "dhp-card-tools" });
         const fullIdx = pinState.items.findIndex(x => x.id === item.id);
 
