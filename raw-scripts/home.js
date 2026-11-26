@@ -2797,7 +2797,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     const daySavoring = vcStore.getSavoringByDate(activeISO);
 
     if (!window.__dhValuesHomeUi) {
-      window.__dhValuesHomeUi = { selectedDomainId: "", isNewStep: false };
+      window.__dhValuesHomeUi = { selectedDomainId: "" };
     }
     const vcUi = window.__dhValuesHomeUi;
 
@@ -2810,11 +2810,11 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
 
     const vcStyle = root.createEl("style");
     vcStyle.textContent = `
-    /* === Остров «Ценности» на главной (Velocity 2.1.0) === */
+    /* === Остров «Ценности» на главной (Velocity 2.1.0, v2 Minimal) === */
     .dashboard-home .dh-values-island {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 12px;
       padding: calc(var(--vl-layout-padding, 8px) * 2) calc(var(--vl-layout-padding, 8px) * 2 + 2px);
       margin: 0 0 22px 0 !important;
       border: none !important;
@@ -2855,17 +2855,18 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
         background-color var(--anim-super-smooth, 75ms ease-out),
         color var(--anim-super-smooth, 75ms ease-out),
         box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
+        opacity var(--anim-super-smooth, 75ms ease-out),
         filter var(--anim-super-smooth, 75ms ease-out);
     }
 
-    /* Шапка острова */
+    /* Шапка */
     .dashboard-home .dhv-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 10px;
-      padding-bottom: 11px;
+      padding-bottom: 10px;
       border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border));
     }
     .dashboard-home .dhv-head-left {
@@ -2912,7 +2913,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       padding: 0 10px;
       border-radius: var(--radius-s, 8px);
       color: var(--icon-color, var(--text-muted));
-      font-size: 0.79rem;
+      font-size: 0.8rem;
       text-box-trim: trim-both;
       text-box-edge: cap alphabetic;
     }
@@ -2924,8 +2925,8 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       filter: opacity(65%);
     }
     .dashboard-home .dh-values-island button.dhv-icon-btn {
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
       border-radius: var(--radius-xxl, 22px);
       color: var(--control-icon-color, var(--icon-color, var(--text-muted)));
       flex-shrink: 0;
@@ -2939,33 +2940,34 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       transform: scale3d(0.8, 0.8, 0.8);
     }
 
-    /* Полоска фокуса (Level 2) */
+    /* Фокусные ценности (минималистичный ряд) */
     .dashboard-home .dhv-focus-list {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px;
     }
     .dashboard-home .dhv-focus-card {
       display: flex;
       flex-direction: column;
-      gap: 7px;
-      padding: 10px 13px;
+      gap: 4px;
+      padding: 9px 12px;
       border-radius: var(--radius-sm, 10px);
       background: var(--background-primary);
-      box-shadow:
-        inset 2.5px 0 0 0 color-mix(in oklab, var(--interactive-accent) 85%, transparent),
-        var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
       -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      transition:
+        background-color var(--anim-super-smooth, 75ms ease-out),
+        box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+    }
+    .dashboard-home .dhv-focus-card:hover {
+      box-shadow: 0 0 0 0.5px var(--trans-faint-35, var(--background-modifier-border));
     }
     .dashboard-home .dhv-focus-top {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: 6px;
       cursor: pointer;
-    }
-    .dashboard-home .dhv-focus-top:hover .dhv-focus-name {
-      color: var(--color-accent-1, var(--text-accent));
     }
     .dashboard-home .dhv-focus-name-wrap {
       display: flex;
@@ -2981,32 +2983,48 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       flex-shrink: 0;
     }
     .dashboard-home .dhv-focus-name {
-      font-size: 0.85rem;
+      font-size: 0.84rem;
       font-weight: var(--font-semibold, 600);
       color: var(--color-base-100, var(--text-normal));
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       transition: color var(--anim-super-smooth, 75ms ease-out);
     }
+    .dashboard-home .dhv-focus-top:hover .dhv-focus-name {
+      color: var(--color-accent-1, var(--text-accent));
+    }
     .dashboard-home .dhv-focus-arrow {
-      font-size: 0.75rem;
+      font-size: 0.74rem;
       color: var(--text-faint);
+      opacity: 0;
+      transition: opacity var(--anim-super-smooth, 75ms ease-out);
+    }
+    .dashboard-home .dhv-focus-card:hover .dhv-focus-arrow {
+      opacity: 0.8;
     }
     .dashboard-home .dhv-focus-summary {
-      font-size: 0.81rem;
-      line-height: 1.42;
-      color: var(--icon-color, var(--text-muted));
+      font-size: 0.78rem;
+      line-height: 1.38;
+      color: var(--text-muted);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
     .dashboard-home .dhv-focus-steps {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
+      margin-top: 4px;
       padding-top: 6px;
-      border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+      border-top: 1px solid var(--trans-faint-15, var(--background-modifier-border));
     }
     .dashboard-home .dhv-step-item {
       display: flex;
       align-items: center;
       gap: 7px;
-      font-size: 0.8rem;
+      font-size: 0.79rem;
       color: var(--text-normal);
       cursor: pointer;
       min-height: 22px;
@@ -3017,73 +3035,51 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       cursor: pointer;
     }
 
-    /* Поле быстрого ввода и чипы сфер */
+    /* Единый комбайнер ввода (поле + тулбар сфер) */
     .dashboard-home .dhv-composer {
       display: flex;
       flex-direction: column;
-      gap: 9px;
-    }
-    .dashboard-home .dhv-composer-row {
-      display: flex;
-      align-items: center;
       gap: 8px;
       padding: 3px;
       margin: -3px;
     }
-    .dashboard-home .dh-values-island input.dhv-input {
-      flex: 1 1 auto;
-      width: 100% !important;
-      height: 34px !important;
-      padding: 0 12px !important;
-      border: none !important;
-      outline: none !important;
-      border-radius: var(--input-radius, var(--radius-s, 8px)) !important;
-      background: var(--background-primary) !important;
-      color: var(--text-normal) !important;
-      font-family: var(--font-interface);
-      font-size: 0.85rem !important;
-      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border))) !important;
+    .dashboard-home .dhv-composer-box {
+      display: flex;
+      flex-direction: column;
+      border-radius: var(--radius-sm, 10px);
+      background: var(--background-primary);
+      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)));
       -electron-corner-smoothing: var(--corner-smoothing, 60%);
       transition: box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
     }
-    .dashboard-home .dh-values-island input.dhv-input:focus {
-      box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent)) !important;
+    .dashboard-home .dhv-composer-box:focus-within {
+      box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent));
     }
-    .dashboard-home .dh-values-island input.dhv-input::placeholder {
-      color: var(--text-faint);
+    .dashboard-home .dhv-composer-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 5px 4px 12px;
     }
-    .dashboard-home .dh-values-island button.dhv-chip {
-      height: 28px;
-      padding: 0 11px;
-      border-radius: var(--pill-radius, var(--radius-l, 18px));
-      background: var(--background-primary);
-      color: var(--icon-color, var(--text-muted));
-      font-size: 0.78rem;
-      box-shadow: 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border));
-      flex-shrink: 0;
-      text-box-trim: trim-both;
-      text-box-edge: cap alphabetic;
-    }
-    .dashboard-home .dh-values-island button.dhv-chip:hover {
-      background: var(--interactive-hover);
-      color: var(--text-normal);
-    }
-    .dashboard-home .dh-values-island button.dhv-chip.is-active {
-      background: var(--color-accent-4, var(--background-modifier-active-hover));
-      color: var(--color-accent-1, var(--text-accent));
-      box-shadow:
-        var(--glass-base, none),
-        inset 0 0 0 1px var(--color-accent-3, var(--interactive-accent));
-    }
-    .dashboard-home .dh-values-island button.dhv-newstep-btn {
-      height: 34px;
-      padding: 0 11px;
+    .dashboard-home .dh-values-island input.dhv-input-bare {
+      flex: 1 1 auto;
+      width: 100% !important;
+      height: 32px !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      background: transparent !important;
+      color: var(--text-normal) !important;
+      font-family: var(--font-interface);
+      font-size: 0.86rem !important;
     }
     .dashboard-home .dh-values-island button.dhv-submit-btn {
-      width: 34px;
-      height: 34px;
+      width: 28px;
+      height: 28px;
       flex-shrink: 0;
-      border-radius: var(--radius-s, 8px);
+      border-radius: var(--radius-xs, 6px);
       background: var(--interactive-accent);
       color: var(--text-on-accent);
       box-shadow: var(--shadow-button, none);
@@ -3094,17 +3090,42 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     .dashboard-home .dh-values-island button.dhv-submit-btn:active {
       filter: brightness(1.0625) opacity(70%);
     }
-    .dashboard-home .dhv-chips-strip {
+    .dashboard-home .dhv-chips-bar {
       display: flex;
+      align-items: center;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 4px;
+      padding: 6px 8px;
+      border-top: 1px solid var(--trans-faint-15, var(--background-modifier-border));
+    }
+    .dashboard-home .dh-values-island button.dhv-chip {
+      height: 25px;
+      padding: 0 9px;
+      border-radius: var(--pill-radius, var(--radius-l, 18px));
+      background: transparent;
+      color: var(--icon-color, var(--text-muted));
+      font-size: 0.77rem;
+      flex-shrink: 0;
+      text-box-trim: trim-both;
+      text-box-edge: cap alphabetic;
+    }
+    .dashboard-home .dh-values-island button.dhv-chip:hover {
+      background: var(--trans-faint-10, var(--background-modifier-hover));
+      color: var(--text-normal);
+    }
+    .dashboard-home .dh-values-island button.dhv-chip.is-active {
+      background: var(--color-accent-4, var(--background-modifier-active-hover));
+      color: var(--color-accent-1, var(--text-accent));
+      box-shadow:
+        var(--glass-base, none),
+        inset 0 0 0 1px var(--color-accent-3, var(--interactive-accent));
     }
     .dashboard-home .dhv-suggest-strip {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
       gap: 6px;
-      padding-top: 2px;
+      padding: 0 2px;
     }
     .dashboard-home .dhv-suggest-label {
       font-size: 0.74rem;
@@ -3113,11 +3134,11 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       white-space: nowrap;
     }
     .dashboard-home .dh-values-island button.dhv-suggest-chip {
-      height: 25px;
+      height: 24px;
       padding: 0 9px;
       border-radius: var(--pill-radius, var(--radius-l, 18px));
       background: var(--trans-faint-05, var(--background-primary));
-      box-shadow: inset 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border));
+      box-shadow: inset 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border));
       color: var(--icon-color, var(--text-muted));
       font-size: 0.75rem;
       max-width: 100%;
@@ -3129,28 +3150,35 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       color: var(--text-normal);
     }
 
-    /* Лог записанных шагов (показывается только когда есть записи) */
+    /* Компактный плоский список записанных шагов */
     .dashboard-home .dhv-logs {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      padding: 0 2px;
     }
     .dashboard-home .dhv-log-item {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      padding: 8px 11px;
-      border-radius: var(--radius-sm, 10px);
-      background: var(--background-primary);
-      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
-      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      padding: 5px 4px;
+      min-height: 30px;
+      border-radius: var(--radius-xs, 6px);
+      transition: background-color var(--anim-super-smooth, 75ms ease-out);
+    }
+    .dashboard-home .dhv-log-item + .dhv-log-item {
+      border-top: 1px solid var(--trans-faint-15, var(--background-modifier-border));
+      border-top-left-radius: 0;
+      border-top-right-radius: 0;
+    }
+    .dashboard-home .dhv-log-item:hover {
+      background: var(--trans-faint-05, var(--background-modifier-hover));
     }
     .dashboard-home .dhv-log-body {
       display: flex;
       align-items: center;
       flex-wrap: wrap;
-      gap: 7px;
+      gap: 8px;
       min-width: 0;
       flex: 1 1 auto;
     }
@@ -3160,7 +3188,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       height: 20px;
       padding: 0 8px;
       border-radius: var(--pill-radius, var(--radius-l, 18px));
-      background: var(--trans-faint-05, var(--background-secondary));
+      background: var(--background-primary);
       box-shadow: 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border));
       font-size: 0.72rem;
       font-weight: var(--font-semi-medium, 500);
@@ -3169,34 +3197,25 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       text-box-trim: trim-both;
       text-box-edge: cap alphabetic;
     }
-    .dashboard-home .dhv-newstep-tag {
-      display: inline-flex;
-      align-items: center;
-      height: 20px;
-      padding: 0 7px;
-      border-radius: var(--pill-radius, var(--radius-l, 18px));
-      background: color-mix(in oklab, var(--color-green, #4aab80) 16%, transparent);
-      color: var(--color-green, #4aab80);
-      font-size: 0.71rem;
-      font-weight: var(--font-semi-medium, 500);
-      flex-shrink: 0;
-      text-box-trim: trim-both;
-      text-box-edge: cap alphabetic;
-    }
     .dashboard-home .dhv-log-text {
       font-size: 0.84rem;
-      line-height: 1.38;
+      line-height: 1.35;
       color: var(--text-normal);
       word-break: break-word;
     }
     .dashboard-home .dhv-log-del {
-      opacity: 0.35;
+      opacity: 0;
     }
-    .dashboard-home .dhv-log-item:hover .dhv-log-del {
-      opacity: 1;
+    .dashboard-home .dhv-log-item:hover .dhv-log-del,
+    .dashboard-home .dhv-log-item:focus-within .dhv-log-del {
+      opacity: 0.75;
+    }
+    .dashboard-home .dhv-log-del:hover {
+      opacity: 1 !important;
+      color: var(--color-red, #d85b57) !important;
     }
 
-    /* Нижняя строка: Момент присутствия (в рифму с «Главным событием») */
+    /* Момент присутствия (выровненная типографика) */
     .dashboard-home .dhv-savoring-row {
       display: grid;
       grid-template-columns: auto 1fr;
@@ -3204,21 +3223,39 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       gap: 12px;
       padding: 11px 3px 3px;
       margin: 0 -3px -3px;
-      border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+      border-top: 1px solid var(--trans-faint-15, var(--background-modifier-border));
     }
     .dashboard-home .dhv-savoring-label {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      font-size: var(--font-ui-small, 13px);
+      font-size: 0.85rem;
       font-weight: var(--font-semi-medium, 500);
       color: var(--icon-color, var(--text-muted));
       white-space: nowrap;
     }
     .dashboard-home .dhv-savoring-saved {
-      font-size: 0.72rem;
+      font-size: 0.75rem;
       color: var(--color-green, #4aab80);
       min-width: 10px;
+    }
+    .dashboard-home .dh-values-island input.dhv-input {
+      width: 100% !important;
+      height: 34px !important;
+      padding: 0 12px !important;
+      border: none !important;
+      outline: none !important;
+      border-radius: var(--input-radius, var(--radius-s, 8px)) !important;
+      background: var(--background-primary) !important;
+      color: var(--text-normal) !important;
+      font-family: var(--font-interface);
+      font-size: 0.85rem !important;
+      box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border))) !important;
+      -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      transition: box-shadow var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+    }
+    .dashboard-home .dh-values-island input.dhv-input:focus {
+      box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent)) !important;
     }
 
     /* Адаптация под узкие экраны и iPadOS */
@@ -3227,31 +3264,24 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
         grid-template-columns: 1fr;
         gap: 6px;
       }
-      .dashboard-home .dhv-composer-row {
-        flex-wrap: wrap;
-      }
-      .dashboard-home .dhv-composer-row input.dhv-input {
-        flex: 1 1 100%;
-      }
     }
+    body.is-mobile .dashboard-home .dh-values-island input.dhv-input-bare,
+    body.is-tablet .dashboard-home .dh-values-island input.dhv-input-bare,
     body.is-mobile .dashboard-home .dh-values-island input.dhv-input,
-    body.is-tablet .dashboard-home .dh-values-island input.dhv-input,
-    body.is-mobile .dashboard-home .dh-values-island button.dhv-newstep-btn,
-    body.is-tablet .dashboard-home .dh-values-island button.dhv-newstep-btn,
-    body.is-mobile .dashboard-home .dh-values-island button.dhv-submit-btn,
-    body.is-tablet .dashboard-home .dh-values-island button.dhv-submit-btn {
+    body.is-tablet .dashboard-home .dh-values-island input.dhv-input {
       height: 38px !important;
     }
     body.is-mobile .dashboard-home .dh-values-island button.dhv-submit-btn,
     body.is-tablet .dashboard-home .dh-values-island button.dhv-submit-btn {
-      width: 38px;
+      width: 34px;
+      height: 34px;
     }
     body.is-mobile .dashboard-home .dh-values-island button.dhv-chip,
     body.is-tablet .dashboard-home .dh-values-island button.dhv-chip,
     body.is-mobile .dashboard-home .dh-values-island button.dhv-suggest-chip,
     body.is-tablet .dashboard-home .dh-values-island button.dhv-suggest-chip {
-      height: 34px;
-      padding: 0 12px;
+      height: 32px;
+      padding: 0 11px;
     }
     body.is-mobile .dashboard-home .dh-values-island button.dhv-nav-link,
     body.is-tablet .dashboard-home .dh-values-island button.dhv-nav-link {
@@ -3260,12 +3290,14 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     }
     body.is-mobile .dashboard-home .dh-values-island button.dhv-icon-btn,
     body.is-tablet .dashboard-home .dh-values-island button.dhv-icon-btn {
-      width: 36px;
-      height: 36px;
+      width: 34px;
+      height: 34px;
     }
     body.is-mobile .dashboard-home .dhv-log-del,
-    body.is-tablet .dashboard-home .dhv-log-del {
-      opacity: 0.8;
+    body.is-tablet .dashboard-home .dhv-log-del,
+    body.is-mobile .dashboard-home .dhv-focus-arrow,
+    body.is-tablet .dashboard-home .dhv-focus-arrow {
+      opacity: 0.6;
     }
     `;
 
@@ -3325,7 +3357,6 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
           fCard.createDiv({ cls: "dhv-focus-summary", text: domain.compassSummary });
         }
 
-        // Ближайшие невыполненные шаги из immediate / short целей (макс. 4, чтобы не перегружать)
         const pendingSteps = [];
         const domainGoals = (vcStore.getGoalsByDomain(domain.id) || []).filter(
           g => g.status === "active" && (g.horizon === "immediate" || g.horizon === "short")
@@ -3360,45 +3391,34 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       }
     }
 
-    // --- Быстрый ввод действия ---
+    // --- Единый комбайнер быстрого ввода ---
     if (visibleDomains.length > 0) {
       const composer = root.createDiv({ cls: "dhv-composer" });
-      const row = composer.createDiv({ cls: "dhv-composer-row" });
+      const composerBox = composer.createDiv({ cls: "dhv-composer-box" });
+      const topRow = composerBox.createDiv({ cls: "dhv-composer-top" });
 
-      const actionInput = row.createEl("input", {
-        cls: "dhv-input",
+      const actionInput = topRow.createEl("input", {
+        cls: "dhv-input-bare",
         attr: {
           type: "text",
           "aria-label": "Ценностное действие"
         }
       });
 
-      const newStepBtn = row.createEl("button", {
-        cls: "dhv-btn dhv-chip dhv-newstep-btn" + (vcUi.isNewStep ? " is-active" : ""),
-        attr: { type: "button", title: "Отметить, если попробовал что-то новое" }
-      });
-      newStepBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg><span>Новый шаг</span>`;
-      newStepBtn.onclick = () => {
-        vcUi.isNewStep = !vcUi.isNewStep;
-        newStepBtn.classList.toggle("is-active", vcUi.isNewStep);
-      };
-
-      const submitBtn = row.createEl("button", {
+      const submitBtn = topRow.createEl("button", {
         cls: "dhv-btn dhv-submit-btn",
         attr: { type: "button", "aria-label": "Записать действие" }
       });
-      submitBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`;
+      submitBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`;
 
       const commitAction = async () => {
         const text = actionInput.value.trim();
         if (!text || !vcUi.selectedDomainId) return;
         actionInput.value = "";
-        const isNew = vcUi.isNewStep;
-        vcUi.isNewStep = false;
         await vcStore.addLog({
           domainId: vcUi.selectedDomainId,
           text,
-          isNewStep: isNew,
+          isNewStep: false,
           date: activeISO
         });
       };
@@ -3411,13 +3431,13 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
         }
       };
 
-      // Чипы сфер (фокусные первыми)
+      // Чипы сфер внутри комбайнера (фокусные первыми)
       const sortedDomains = [...visibleDomains].sort((a, b) =>
         a.isFocus === b.isFocus ? 0 : a.isFocus ? -1 : 1
       );
-      const chipsWrap = composer.createDiv({ cls: "dhv-chips-strip" });
+      const chipsBar = composerBox.createDiv({ cls: "dhv-chips-bar" });
       for (const domain of sortedDomains) {
-        const chip = chipsWrap.createEl("button", {
+        const chip = chipsBar.createEl("button", {
           cls: "dhv-btn dhv-chip" + (domain.id === vcUi.selectedDomainId ? " is-active" : ""),
           attr: { type: "button" }
         });
@@ -3425,12 +3445,13 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
         chip.createSpan({ text: domain.name });
         chip.onclick = () => {
           vcUi.selectedDomainId = domain.id;
-          chipsWrap.querySelectorAll(".dhv-chip").forEach(el => el.classList.remove("is-active"));
+          chipsBar.querySelectorAll(".dhv-chip").forEach(el => el.classList.remove("is-active"));
           chip.classList.add("is-active");
+          actionInput.focus();
         };
       }
 
-      // Однотаповые подсказки «Из дня:» (тренировки и фокус-сессии)
+      // Однотаповые подсказки «Из дня:»
       const existingLogTexts = new Set(
         dayLogs.map(entry => String(entry.text || "").trim().toLowerCase())
       );
@@ -3521,7 +3542,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       }
     }
 
-    // --- Список действий за день (без пустой заглушки, если 0) ---
+    // --- Компактный список действий за день ---
     if (dayLogs.length > 0) {
       const logsWrap = root.createDiv({ cls: "dhv-logs" });
       for (const entry of dayLogs) {
@@ -3530,16 +3551,13 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
 
         const body = item.createDiv({ cls: "dhv-log-body" });
         body.createSpan({ cls: "dhv-tag", text: domain?.name || "Сфера" });
-        if (entry.isNewStep) {
-          body.createSpan({ cls: "dhv-newstep-tag", text: "Новый шаг" });
-        }
         body.createSpan({ cls: "dhv-log-text", text: entry.text });
 
         const delBtn = item.createEl("button", {
           cls: "dhv-btn dhv-icon-btn dhv-log-del",
           attr: { type: "button", title: "Удалить запись" }
         });
-        delBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+        delBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
         delBtn.onclick = () => { void vcStore.deleteLog(entry.id); };
       }
     }
