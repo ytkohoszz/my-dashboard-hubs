@@ -1249,20 +1249,57 @@ const HUB_CSS_TEXT = [
   ".dashboard-home .dh-english-hub button.dhe-book-read-btn:active { transform: scale(0.985); }",
   ".dashboard-home .dh-english-hub .dhe-book-card { padding: 12px 14px; background: var(--background-primary); border: none; border-radius: var(--radius-sm, 10px); box-shadow: inset 2.5px 0 0 0 color-mix(in oklab, var(--book-accent, #e5a158) 85%, transparent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); display: flex; flex-direction: column; justify-content: space-between; gap: 8px; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
   ".dashboard-home .dh-english-hub .dhe-book-card.is-finished { background: color-mix(in oklab, var(--color-green, #4aab80) 6%, var(--background-primary)); }",
-  ".dashboard-home .dh-english-hub .dhe-quote-card { padding: 13px 15px; background: var(--background-primary); border: none; border-radius: var(--radius-sm, 10px); box-shadow: inset 2.5px 0 0 0 color-mix(in oklab, var(--quote-accent, #e5a158) 85%, transparent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); display: flex; flex-direction: column; justify-content: space-between; gap: 9px; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
-  ".dashboard-home .dh-english-hub .dhe-quote-card.is-editing { box-shadow: var(--shadow-input-active, 0 0 0 2px var(--quote-accent, var(--interactive-accent))); }",
-  ".dashboard-home .dh-english-hub .dhe-quote-source { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: var(--font-semibold, 600); line-height: 1.35; color: var(--color-base-100, var(--text-normal)); overflow-wrap: anywhere; }",
+  ".dashboard-home .dh-english-hub .dhe-quotes-masonry { column-width: 300px; column-gap: 6px; margin: -3px; }",
+  ".dashboard-home .dh-english-hub .dhe-quotes-masonry.is-few { column-width: auto; column-count: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start; gap: 6px; }",
+  ".dashboard-home .dh-english-hub .dhe-quotes-masonry.is-single { column-width: auto; column-count: 1; display: block; }",
+  ".dashboard-home .dh-english-hub .dhe-quote-item { break-inside: avoid; -webkit-column-break-inside: avoid; padding: 3px; margin-bottom: 4px; box-sizing: border-box; }",
+  ".dashboard-home .dh-english-hub .dhe-quotes-masonry.is-few .dhe-quote-item, .dashboard-home .dh-english-hub .dhe-quotes-masonry.is-single .dhe-quote-item { margin-bottom: 0; }",
+  ".dashboard-home .dh-english-hub .dhe-quote-card { padding: 14px 16px 12px; background: var(--background-primary); border: none; border-radius: var(--radius-m, 12px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); display: flex; flex-direction: column; gap: 11px; -electron-corner-smoothing: var(--corner-smoothing, 60%); transition: box-shadow var(--anim-duration-fast, 150ms) var(--dhe-ease); }",
+  ".dashboard-home .dh-english-hub .dhe-quote-card:hover { box-shadow: 0 0 0 0.5px var(--trans-faint-35, var(--background-modifier-border)), var(--shadow-s, none); }",
+  ".dashboard-home .dh-english-hub .dhe-quote-card.is-editing { box-shadow: var(--shadow-input-active, 0 0 0 2px var(--interactive-accent)); }",
+  ".dashboard-home .dh-english-hub .dhe-quote-text { font-size: 0.875rem; line-height: 1.54; color: var(--color-base-100, var(--text-normal)); font-style: normal; letter-spacing: -0.004em; overflow-wrap: anywhere; }",
+  ".dashboard-home .dh-english-hub .dhe-quote-footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding-top: 9px; border-top: 1px solid var(--trans-faint-15, var(--background-modifier-border)); }",
+  ".dashboard-home .dh-english-hub .dhe-quote-source { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: var(--font-semibold, 600); line-height: 1.35; color: var(--text-normal); overflow-wrap: anywhere; }",
+  ".dashboard-home .dh-english-hub .dhe-quote-source .dhe-ico { color: var(--icon-color, var(--text-muted)); }",
+  ".dashboard-home .dh-english-hub .dhe-quote-meta { font-size: 0.71rem; line-height: 1.35; color: var(--text-faint); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }",
+  ".dashboard-home .dh-english-hub .dhe-quote-actions { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }",
+  ".dashboard-home .dh-english-hub .dhe-quote-actions button.dhe-icon-btn:not(.is-fav) { color: var(--text-faint); }",
+  ".dashboard-home .dh-english-hub .dhe-quote-card:hover .dhe-quote-actions button.dhe-icon-btn:not(.is-fav) { color: var(--icon-color, var(--text-muted)); }",
+  ".dashboard-home .dh-english-hub .dhe-thought-badge { font-size: 0.66rem; font-weight: var(--font-semi-medium, 500); padding: 2px 8px; border-radius: var(--pill-radius, var(--radius-l, 18px)); background: var(--trans-faint-08, var(--background-secondary)); color: var(--icon-color, var(--text-muted)); box-shadow: inset 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)); white-space: nowrap; text-box-trim: trim-both; text-box-edge: cap alphabetic; }",
   ".dashboard-home .dh-english-hub input:not([type='checkbox']), .dashboard-home .dh-english-hub select, .dashboard-home .dh-english-hub textarea { border: none !important; outline: none !important; border-radius: var(--input-radius, var(--radius-s, 8px)); background-color: var(--background-primary); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-30, var(--background-modifier-border))); transition: box-shadow var(--anim-duration-fast, 150ms) var(--dhe-ease); }",
   ".dashboard-home .dh-english-hub input:not([type='checkbox']):focus, .dashboard-home .dh-english-hub select:focus, .dashboard-home .dh-english-hub textarea:focus { box-shadow: var(--shadow-input-active, 0 0 0 2.5px var(--interactive-accent)) !important; }",
   ".dashboard-home .dh-english-hub .dhe-chart-tiles { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }",
   ".dashboard-home .dh-english-hub .dhe-smooth-tile { display: inline-flex; align-items: center; gap: 10px; padding: 6px 13px; border: none; border-radius: var(--radius-m, 12px); background: var(--background-primary); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
-  ".dashboard-home .dh-english-hub .dhe-smooth-tile.is-active-target { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-green, #4aab80) 45%, transparent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); }",
+  ".dashboard-home .dh-english-hub .dhe-smooth-tile.is-active-target { box-shadow: inset 0 0 0 1px var(--trans-faint-35, var(--background-modifier-border)), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); }",
   ".dashboard-home .dh-english-hub .dhe-smooth-label { font-size: 0.72rem; font-weight: var(--font-semi-medium, 500); color: var(--icon-color, var(--text-muted)); white-space: nowrap; }",
   ".dashboard-home .dh-english-hub .dhe-smooth-val { font-size: 0.94rem; font-weight: var(--font-bold, 700); color: var(--color-base-100, var(--text-normal)); font-variant-numeric: tabular-nums; white-space: nowrap; }",
   ".dashboard-home .dh-english-hub .dhe-target-controls { display: inline-flex; align-items: center; gap: 4px; }",
   ".dashboard-home .dh-english-hub button.dhe-step-btn { appearance: none; width: 24px; height: 24px; min-height: 24px; padding: 0; border: none; border-radius: var(--radius-xxl, 22px); background: var(--trans-faint-10, var(--background-secondary)); color: var(--text-muted); font-size: 0.84rem; font-weight: var(--font-bold, 700); line-height: 1; cursor: pointer; box-shadow: none; transition: background-color var(--anim-super-smooth, 75ms ease-out), color var(--anim-super-smooth, 75ms ease-out); }",
   ".dashboard-home .dh-english-hub button.dhe-step-btn:hover { background: var(--trans-faint-25, var(--background-modifier-hover)); color: var(--text-normal); }",
-  ".dashboard-home .dh-english-hub input.dhe-target-input { width: 54px; height: 24px; padding: 0 4px; border-radius: var(--radius-xs, 6px); background: var(--trans-faint-05, var(--background-secondary)); color: var(--color-green, #4aab80); font-size: 0.82rem; font-weight: var(--font-bold, 700); text-align: center; font-variant-numeric: tabular-nums; }",
+  ".dashboard-home .dh-english-hub input.dhe-target-input { width: 54px; height: 24px; padding: 0 4px; border-radius: var(--radius-xs, 6px); background: var(--trans-faint-05, var(--background-secondary)); color: var(--text-muted); font-size: 0.82rem; font-weight: var(--font-bold, 700); text-align: center; font-variant-numeric: tabular-nums; }",
+  ".dashboard-home .dh-english-hub .dhe-smooth-tile.is-active-target input.dhe-target-input { color: var(--color-base-100, var(--text-normal)); }",
+  ".dashboard-home .dh-english-hub .dhe-chart-stage { padding: 16px 12px 12px; background: var(--background-primary); border: none; border-radius: var(--radius-m, 12px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+  ".dashboard-home .dh-english-hub .dhe-chart-plot { position: relative; height: 140px; display: flex; align-items: flex-end; gap: 6px; padding-top: 22px; border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border)); }",
+  ".dashboard-home .dh-english-hub .dhe-chart-midline { position: absolute; left: 0; right: 0; bottom: 52px; height: 1px; background: var(--trans-faint-10, transparent); pointer-events: none; z-index: 1; }",
+  ".dashboard-home .dh-english-hub .dhe-target-line { position: absolute; left: 0; right: 0; height: 1px; background: repeating-linear-gradient(to right, var(--trans-faint-40, var(--text-faint)) 0 3px, transparent 3px 7px); pointer-events: none; z-index: 4; }",
+  ".dashboard-home .dh-english-hub .dhe-target-badge { position: absolute; top: -10px; font-size: 0.64rem; font-weight: var(--font-semi-medium, 500); font-variant-numeric: tabular-nums; color: var(--icon-color, var(--text-muted)); background: var(--background-primary); box-shadow: 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)); padding: 2px 6px; border-radius: var(--radius-xs, 6px); line-height: 1.1; }",
+  ".dashboard-home .dh-english-hub .dhe-bar-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; z-index: 2; }",
+  ".dashboard-home .dh-english-hub .dhe-bar-val { font-size: 0.67rem; font-weight: var(--font-semi-medium, 500); font-variant-numeric: tabular-nums; color: var(--text-faint); margin-bottom: 5px; line-height: 1; transition: color var(--anim-duration-fast, 150ms) var(--dhe-ease); }",
+  ".dashboard-home .dh-english-hub .dhe-bar-col.is-reached .dhe-bar-val { color: var(--text-muted); font-weight: var(--font-semibold, 600); }",
+  ".dashboard-home .dh-english-hub .dhe-bar-col.is-today .dhe-bar-val { color: var(--color-base-100, var(--text-normal)); font-weight: var(--font-bold, 700); }",
+  ".dashboard-home .dh-english-hub .dhe-bar-col:hover .dhe-bar-val { color: var(--color-base-100, var(--text-normal)); }",
+  ".dashboard-home .dh-english-hub .dhe-bar { width: 100%; max-width: 14px; border-radius: 5px 5px 2px 2px; background: color-mix(in oklab, var(--text-muted) 40%, transparent); opacity: 0.85; transition: opacity var(--anim-duration-fast, 150ms) var(--dhe-ease), background-color var(--anim-duration-fast, 150ms) var(--dhe-ease); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
+  ".dashboard-home .dh-english-hub .dhe-bar.is-empty { height: 2px; border-radius: 2px; background: var(--trans-faint-15, var(--background-modifier-border)); opacity: 1; }",
+  ".dashboard-home .dh-english-hub .dhe-bar.is-reached { background: color-mix(in oklab, var(--color-base-100, var(--text-normal)) 64%, transparent); opacity: 0.9; }",
+  ".dashboard-home .dh-english-hub .dhe-bar.is-today { background: var(--interactive-accent); opacity: 1; }",
+  ".dashboard-home .dh-english-hub .dhe-bar.is-today.is-reached { background: color-mix(in oklab, var(--color-green, #4aab80) 80%, var(--background-primary)); opacity: 1; }",
+  ".dashboard-home .dh-english-hub .dhe-bar-col:hover .dhe-bar:not(.is-empty) { opacity: 1; }",
+  ".dashboard-home .dh-english-hub .dhe-chart-axis { display: flex; gap: 6px; margin-top: 7px; }",
+  ".dashboard-home .dh-english-hub .dhe-axis-col { flex: 1; min-width: 0; text-align: center; display: flex; flex-direction: column; gap: 1px; line-height: 1.2; }",
+  ".dashboard-home .dh-english-hub .dhe-axis-date { font-size: 0.68rem; font-weight: var(--font-semi-medium, 500); font-variant-numeric: tabular-nums; color: var(--text-muted); }",
+  ".dashboard-home .dh-english-hub .dhe-axis-col.is-today .dhe-axis-date { color: var(--color-base-100, var(--text-normal)); font-weight: var(--font-semibold, 600); }",
+  ".dashboard-home .dh-english-hub .dhe-axis-day { font-size: 0.62rem; color: var(--text-faint); }",
+  ".dashboard-home .dh-english-hub .dhe-axis-col.is-today .dhe-axis-day { color: var(--color-accent-1, var(--interactive-accent)); font-weight: var(--font-semi-medium, 500); }",
   ".dashboard-home .dh-english-hub .dhe-word-form { margin-top: 12px; padding: 13px 15px; background: var(--background-primary); border: none; border-radius: var(--radius-m, 12px); box-shadow: inset 0 2px 0 0 var(--interactive-accent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border))); display: flex; flex-direction: column; gap: 8px; -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
   ".dashboard-home .dh-english-hub .dhe-details { margin-top: 10px; padding: 9px 13px; background: var(--background-primary); border: none; border-radius: var(--radius-sm, 10px); box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border))); -electron-corner-smoothing: var(--corner-smoothing, 60%); }",
   ".dashboard-home .dh-english-hub .dhe-details > summary { font-size: 0.78rem; font-weight: var(--font-semi-medium, 500); color: var(--icon-color, var(--text-muted)); cursor: pointer; user-select: none; display: flex; justify-content: space-between; align-items: center; gap: 8px; list-style: none; }",
@@ -1278,10 +1315,14 @@ const HUB_CSS_TEXT = [
   ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-english-hub button.dhe-icon-btn { width: 36px; height: 36px; min-width: 36px; min-height: 36px; background: var(--trans-faint-05, transparent); }",
   ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-english-hub button.dhe-book-read-btn { min-height: 40px; }",
   ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-english-hub button.dhe-step-btn { width: 34px; height: 34px; min-height: 34px; }",
+  ":is(body.is-mobile, body.is-tablet) .dashboard-home .dh-english-hub .dhe-quote-actions button.dhe-icon-btn:not(.is-fav) { color: var(--icon-color, var(--text-muted)); }",
   "@media (max-width: 640px) {",
   "  .dashboard-home .dh-english-hub .dhe-panel { padding: 12px; }",
   "  .dashboard-home .dh-english-hub .dhe-today-bar { grid-template-columns: 1fr; gap: 8px; }",
   "  .dashboard-home .dh-english-hub .dhe-actions-box { padding: 10px; }",
+  "  .dashboard-home .dh-english-hub .dhe-quotes-masonry { column-width: auto; column-count: 1; }",
+  "  .dashboard-home .dh-english-hub .dhe-chart-stage { padding: 12px 8px 10px; }",
+  "  .dashboard-home .dh-english-hub .dhe-bar { max-width: 11px; }",
   "}"
 ].join("\n");
 
@@ -2790,11 +2831,10 @@ createMiniStat(
     }
 
     if (ui.isQuoteFormOpen) {
-      const formAccent = ui.quoteFormType === "Книга" ? "var(--color-orange, #e5a158)" : "var(--color-green, #4aab80)";
       const formPanel = quotesSection.createDiv({
         cls: "dhe-subpanel",
         attr: {
-          style: "margin-bottom: 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: inset 0 2px 0 0 " + formAccent + ", var(--shadow-input, 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)));"
+          style: "margin-bottom: 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: inset 0 2px 0 0 var(--interactive-accent), var(--shadow-input, 0 0 0 0.5px var(--trans-faint-25, var(--background-modifier-border)));"
         }
       });
 
@@ -3043,13 +3083,12 @@ createMiniStat(
 
     function renderQuoteCard(parentGrid, q) {
       const isBook = q.category === "Книга";
-      const accentColor = isBook ? "#e5a158" : "#4aab80";
       const isEditing = ui.editingQuoteLineIndex === q.lineIndex;
 
-      const card = parentGrid.createDiv({
+      const itemWrap = parentGrid.createDiv({ cls: "dhe-quote-item" });
+      const card = itemWrap.createDiv({
         cls: "dh-card dhe-quote-card" + (isEditing ? " is-editing" : "")
       });
-      card.style.setProperty("--quote-accent", accentColor);
 
       if (isEditing) {
         const editWrap = card.createDiv({ attr: { style: "display: flex; flex-direction: column; gap: 8px;" } });
@@ -3148,15 +3187,10 @@ createMiniStat(
         return;
       }
 
-      const topContent = card.createDiv({ attr: { style: "display: flex; flex-direction: column; gap: 7px;" } });
-      const quoteBody = topContent.createDiv({
-        attr: { style: "font-size: 0.87rem; line-height: 1.45; color: var(--text-normal); font-style: italic;" }
-      });
+      const quoteBody = card.createDiv({ cls: "dhe-quote-text" });
       quoteBody.setText("«" + q.text + "»");
 
-      const footer = card.createDiv({
-        attr: { style: "display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border)); padding-top: 8px;" }
-      });
+      const footer = card.createDiv({ cls: "dhe-quote-footer" });
 
       const metaLeft = footer.createDiv({ attr: { style: "min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px;" } });
       const titleLine = metaLeft.createDiv({ cls: "dhe-quote-source" });
@@ -3187,29 +3221,17 @@ createMiniStat(
 
       if (subParts.length) {
         metaLeft.createDiv({
-          text: subParts.join(" · "),
-          attr: { style: "font-size: 0.72rem; line-height: 1.35; color: var(--text-muted); overflow-wrap: anywhere;" }
+          cls: "dhe-quote-meta",
+          text: subParts.join(" · ")
         });
       }
 
-      const rightFooter = footer.createDiv({ attr: { style: "display: flex; align-items: center; gap: 4px; flex-shrink: 0;" } });
+      const rightFooter = footer.createDiv({ cls: "dhe-quote-actions" });
 
       if (!isBook && q.displayStatus) {
-        const badgeColor = STATUS_COLORS[q.displayStatus] || accentColor;
         rightFooter.createSpan({
-          text: q.displayStatus,
-          attr: {
-            style: [
-              "font-size: 0.67rem;",
-              "font-weight: 600;",
-              "padding: 1px 7px;",
-              "border-radius: 4px;",
-              "background: " + badgeColor + "22;",
-              "color: " + badgeColor + ";",
-              "border: 1px solid " + badgeColor + "44;",
-              "white-space: nowrap;"
-            ].join(" ")
-          }
+          cls: "dhe-thought-badge",
+          text: q.displayStatus
         });
       }
 
@@ -3257,11 +3279,12 @@ createMiniStat(
           : "В этой выборке пока нет записей."
       });
     } else {
-      const cardsGrid = quotesSection.createDiv({
-        attr: {
-          style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(" + (ui.showRandom ? "100%" : "320px") + ", 1fr)); gap: 10px;"
-        }
-      });
+      const gridCls = ui.showRandom || displayedQuotes.length === 1
+        ? "dhe-quotes-masonry is-single"
+        : displayedQuotes.length <= 2
+          ? "dhe-quotes-masonry is-few"
+          : "dhe-quotes-masonry";
+      const cardsGrid = quotesSection.createDiv({ cls: gridCls });
       displayedQuotes.forEach(q => renderQuoteCard(cardsGrid, q));
 
       if (!ui.showRandom && filteredQuotes.length > QUOTES_DISPLAY_LIMIT) {
@@ -3296,9 +3319,8 @@ createMiniStat(
       renderLucideIcon(archSum, "chevron-down", 14, "dhe-chevron");
 
       const archGrid = archDetails.createDiv({
-        attr: {
-          style: "display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; margin-top: 8px;"
-        }
+        cls: archivedQuotes.length <= 2 ? "dhe-quotes-masonry is-few" : "dhe-quotes-masonry",
+        attr: { style: "margin-top: 8px;" }
       });
 
       archivedQuotes.forEach(q => renderQuoteCard(archGrid, q));
@@ -3374,8 +3396,7 @@ createMiniStat(
       recordTile.createSpan({ cls: "dhe-smooth-label", text: "Рекорд за всё время" });
       recordTile.createSpan({
         cls: "dhe-smooth-val",
-        text: allTimeRecord.toLocaleString("ru-RU"),
-        attr: { style: "color: #e5a158;" }
+        text: allTimeRecord.toLocaleString("ru-RU")
       });
 
       const targetTile = tilesRow.createDiv({
@@ -3450,114 +3471,64 @@ createMiniStat(
         renderHub();
       };
 
-      const chartBox = chartPanel.createDiv({
-        attr: {
-          style: "position: relative; height: 145px; display: flex; align-items: flex-end; gap: 6px; padding-top: 22px; border-bottom: 1px solid var(--background-modifier-border);"
-        }
-      });
+      const chartStage = chartPanel.createDiv({ cls: "dhe-chart-stage" });
+      const chartBox = chartStage.createDiv({ cls: "dhe-chart-plot" });
+      chartBox.createDiv({ cls: "dhe-chart-midline" });
 
       if (ui.showDailyTargetLine) {
         const targetRatio = Math.min(1, currentTarget / maxVal);
-        const targetBottomPx = Math.round(targetRatio * 108);
+        const targetBottomPx = Math.round(targetRatio * 104);
         const rightBarsHigh = dailySeries.slice(-2).some(d => d.count >= currentTarget * 0.8);
 
         const targetLine = chartBox.createDiv({
-          attr: {
-            style: [
-              "position: absolute;",
-              "left: 0;",
-              "right: 0;",
-              "bottom: " + targetBottomPx + "px;",
-              "border-top: 1px dashed rgba(74, 171, 128, 0.65);",
-              "pointer-events: none;",
-              "z-index: 4;"
-            ].join(" ")
-          }
+          cls: "dhe-target-line",
+          attr: { style: "bottom: " + targetBottomPx + "px;" }
         });
         targetLine.createSpan({
+          cls: "dhe-target-badge",
           text: "цель " + currentTarget,
-          attr: {
-            style: [
-              "position: absolute;",
-              rightBarsHigh ? "left: 4px;" : "right: 4px;",
-              "top: -10px;",
-              "font-size: 0.65rem;",
-              "font-weight: 600;",
-              "color: #4aab80;",
-              "background: var(--background-secondary);",
-              "border: 1px solid rgba(74, 171, 128, 0.4);",
-              "padding: 1px 6px;",
-              "border-radius: 4px;",
-              "line-height: 1.2;"
-            ].join(" ")
-          }
+          attr: { style: rightBarsHigh ? "left: 4px;" : "right: 4px;" }
         });
       }
 
       dailySeries.forEach(item => {
+        const isTargetReached = ui.showDailyTargetLine && item.count >= currentTarget;
+        const colCls = "dhe-bar-col" + (item.isToday ? " is-today" : "") + (isTargetReached ? " is-reached" : "");
         const col = chartBox.createDiv({
+          cls: colCls,
           attr: {
-            title: item.dateLabel + " (" + item.weekdayLabel + "): " + item.count + " повторений",
-            style: "flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; position: relative; z-index: 2;"
+            title: item.dateLabel + " (" + item.weekdayLabel + "): " + item.count + " повторений"
           }
         });
 
-        const barHeightPx = item.count > 0 ? Math.max(8, Math.round((item.count / maxVal) * 108)) : 3;
-        const isTargetReached = ui.showDailyTargetLine && item.count >= currentTarget;
-        const barColor = item.count === 0
-          ? "var(--background-modifier-border)"
-          : isTargetReached
-            ? "#4aab80"
-            : item.isToday
-              ? "#e5a158"
-              : "#599ed6";
+        const barHeightPx = item.count > 0 ? Math.max(6, Math.round((item.count / maxVal) * 104)) : 2;
 
         if (item.count > 0) {
           col.createDiv({
-            text: String(item.count),
-            attr: {
-              style: [
-                "font-size: 0.71rem;",
-                "font-weight: " + (item.isToday || isTargetReached ? "700" : "600") + ";",
-                "color: " + (isTargetReached ? "#4aab80" : item.isToday ? "var(--text-normal)" : "var(--text-muted)") + ";",
-                "margin-bottom: 4px;",
-                "line-height: 1;"
-              ].join(" ")
-            }
+            cls: "dhe-bar-val",
+            text: String(item.count)
           });
         }
 
+        const barCls = "dhe-bar" +
+          (item.count === 0 ? " is-empty" : "") +
+          (item.isToday ? " is-today" : "") +
+          (isTargetReached ? " is-reached" : "");
+
         col.createDiv({
-          attr: {
-            style: [
-              "width: 100%;",
-              "max-width: 38px;",
-              "height: " + barHeightPx + "px;",
-              "background: " + barColor + ";",
-              "border-radius: 4px 4px 0 0;",
-              "opacity: " + (item.isToday ? "1" : item.count > 0 ? "0.85" : "0.4") + ";",
-              item.isToday ? "box-shadow: 0 0 0 1px var(--text-normal);" : ""
-            ].join(" ")
-          }
+          cls: barCls,
+          attr: { style: "height: " + barHeightPx + "px;" }
         });
       });
 
-      const xAxis = chartPanel.createDiv({
-        attr: { style: "display: flex; gap: 6px; margin-top: 6px;" }
-      });
+      const xAxis = chartStage.createDiv({ cls: "dhe-chart-axis" });
 
       dailySeries.forEach(item => {
         const labelCol = xAxis.createDiv({
-          attr: { style: "flex: 1; min-width: 0; text-align: center; display: flex; flex-direction: column; line-height: 1.2;" }
+          cls: "dhe-axis-col" + (item.isToday ? " is-today" : "")
         });
-        labelCol.createSpan({
-          text: item.dateLabel,
-          attr: { style: "font-size: 0.7rem; font-weight: " + (item.isToday ? "700" : "500") + "; color: " + (item.isToday ? "var(--text-normal)" : "var(--text-muted)") + ";" }
-        });
-        labelCol.createSpan({
-          text: item.weekdayLabel,
-          attr: { style: "font-size: 0.64rem; color: " + (item.isToday ? "var(--interactive-accent)" : "var(--text-faint)") + ";" }
-        });
+        labelCol.createSpan({ cls: "dhe-axis-date", text: item.dateLabel });
+        labelCol.createSpan({ cls: "dhe-axis-day", text: item.weekdayLabel });
       });
     }
 
