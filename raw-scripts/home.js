@@ -1053,9 +1053,9 @@ let selectedISO =
     color: var(--icon-color, var(--text-muted));
   }
   .dashboard-home .dh-plan-bar-track {
-    height: 5px;
+    height: 3px;
     border-radius: var(--radius-l, 18px);
-    background: var(--trans-faint-20, var(--background-modifier-border));
+    background: var(--trans-faint-15, var(--background-modifier-border));
     overflow: hidden;
   }
   .dashboard-home .dh-plan-bar-fill {
@@ -1065,41 +1065,54 @@ let selectedISO =
   }
   .dashboard-home .dh-plan-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 6px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 16px;
+    row-gap: 2px;
+    align-items: start;
   }
   .dashboard-home .dh-plan-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 8px;
-    padding: 7px 10px;
+    padding: 6px 8px;
+    margin: 0 -4px;
     border: none;
     border-radius: var(--radius-s, 8px);
-    background: var(--trans-faint-05, var(--background-secondary));
-    box-shadow: inset 0 0 0 0.5px var(--trans-faint-10, transparent);
+    background: transparent;
+    box-shadow: none;
     font-size: 0.82rem;
     cursor: pointer;
     user-select: none;
-    transition: background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
+    -electron-corner-smoothing: var(--corner-smoothing, 60%);
+    transition:
+      background-color var(--anim-super-smooth, 75ms ease-out),
+      opacity var(--anim-super-smooth, 75ms ease-out);
   }
   .dashboard-home .dh-plan-item:hover {
-    background: var(--trans-faint-10, var(--background-modifier-hover));
+    background: var(--trans-faint-05, var(--background-modifier-hover));
   }
   .dashboard-home .dh-plan-item.is-done {
-    background: color-mix(in oklab, var(--color-green, #4aab80) 8%, transparent);
+    background: transparent;
+    opacity: 0.65;
+  }
+  .dashboard-home .dh-plan-item.is-done:hover {
+    opacity: 0.9;
+    background: var(--trans-faint-05, var(--background-modifier-hover));
   }
   .dashboard-home .dh-plan-item-left {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    align-items: flex-start;
+    gap: 9px;
     min-width: 0;
+    flex: 1 1 auto;
   }
   .dashboard-home .dh-plan-item-right {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     flex-shrink: 0;
+    min-height: 19px;
   }
   .dashboard-home .dh-plan-focus-btn {
     height: 22px !important;
@@ -1118,26 +1131,27 @@ let selectedISO =
       opacity var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1)),
       background-color var(--anim-duration-fast, 150ms) var(--vl-ease-out, cubic-bezier(0.3, 0.75, 0, 1));
   }
-  body:not(.is-mobile) .dashboard-home .dh-plan-focus-btn.is-empty {
+  body:not(.is-mobile):not(.is-tablet) .dashboard-home .dh-plan-focus-btn.is-empty {
     opacity: 0;
   }
-  body:not(.is-mobile) .dashboard-home .dh-plan-item:hover .dh-plan-focus-btn.is-empty,
-  body:not(.is-mobile) .dashboard-home .dh-plan-item:focus-within .dh-plan-focus-btn.is-empty {
+  body:not(.is-mobile):not(.is-tablet) .dashboard-home .dh-plan-item:hover .dh-plan-focus-btn.is-empty,
+  body:not(.is-mobile):not(.is-tablet) .dashboard-home .dh-plan-item:focus-within .dh-plan-focus-btn.is-empty {
     opacity: 1;
   }
   .dashboard-home .dh-plan-focus-btn:hover {
     background: color-mix(in oklab, var(--color-purple, #9c83e8) 26%, transparent) !important;
   }
   .dashboard-home .dh-plan-check {
-    width: 17px;
-    height: 17px;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
     border-radius: var(--checkbox-radius, 50%);
     border: none;
     box-shadow: inset 0 0 0 1.5px var(--checkbox-border-color, var(--text-faint));
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.68rem;
+    font-size: 0.66rem;
     flex-shrink: 0;
     color: transparent;
     background: transparent;
@@ -1153,9 +1167,9 @@ let selectedISO =
   }
   .dashboard-home .dh-plan-text {
     color: var(--text-normal);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    line-height: 1.38;
+    white-space: normal;
+    word-break: break-word;
   }
   .dashboard-home .dh-plan-item.is-done .dh-plan-text {
     color: var(--checklist-done-color, var(--text-faint));
