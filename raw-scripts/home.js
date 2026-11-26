@@ -2589,7 +2589,6 @@ const renderSleepUnifiedCard = (m) => {
         cls: "dh-plan-add-input",
         attr: {
           type: "text",
-          placeholder: "+ Добавить задачу дня…",
           "aria-label": "Добавить задачу дня"
         }
       });
@@ -2659,7 +2658,6 @@ const renderSleepUnifiedCard = (m) => {
       cls: "dh-event-input",
       attr: {
         type: "text",
-        placeholder: "Коротко запиши главное событие или итог дня…",
         "aria-label": "Главное событие дня"
       }
     });
@@ -3371,9 +3369,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
         cls: "dhv-input",
         attr: {
           type: "text",
-          placeholder: isSelectedToday
-            ? "Что сделал сегодня в согласии со своими ценностями?"
-            : "Записать ценностное действие за этот день..."
+          "aria-label": "Ценностное действие"
         }
       });
 
@@ -3558,7 +3554,7 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       cls: "dhv-input",
       attr: {
         type: "text",
-        placeholder: "Что сегодня удалось по-настоящему заметить или прожить…"
+        "aria-label": "Момент присутствия"
       }
     });
     savInput.value = daySavoring?.text || "";
