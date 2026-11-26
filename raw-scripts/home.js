@@ -3624,10 +3624,11 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
 }
 
 // ========================================================
-// 3. ОСТРОВ «БЫСТРЫЙ ДОСТУП» (ЗАКРЕПЛЁННЫЕ ЗАМЕТКИ, СИНХРОН В _system/home-pins.json)
+// 3. ОСТРОВ «БЫСТРЫЙ ДОСТУП» (ЗАКРЕПЛЁННЫЕ ЗАМЕТКИ, СИНХРОН В _system/home-pins.md)
 // ========================================================
 {
-  const PINS_FILE_PATH = "_system/home-pins.json";
+  const PINS_FILE_PATH = "_system/home-pins.md";
+  const PINS_LEGACY_PATH = "_system/home-pins.json";
   const PIN_COLORS = [
     { id: "accent", label: "Акцент", css: "var(--interactive-accent)" },
     { id: "blue", label: "Синий", css: "var(--color-blue, #599ed6)" },
@@ -3650,12 +3651,37 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
       formOpen: false,
       editingId: null,
       activeGroup: "all",
-      draftColor: "accent"
+      draftColor: "accent",
+      lastWrittenContent: null,
+      saveQueue: Promise.resolve()
     };
   }
   const pinState = window.__dhHomePinsState;
   if (typeof pinState.collapsed !== "boolean") pinState.collapsed = false;
   if (!Array.isArray(pinState.groupOrder)) pinState.groupOrder = [];
+  if (!pinState.saveQueue) pinState.saveQueue = Promise.resolve();
+
+  function serializePins(items, groupOrder) {
+    const json = JSON.stringify({ version: 1, items, groupOrder }, null, 2);
+    return `---\ntype: home-pins-data\n---\n\n\`\`\`json\n${json}\n\`\`\`\n`;
+  }
+
+  function parsePins(raw) {
+    const fenced = raw.match(/```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```/i);
+    const jsonText = (fenced?.[1] ?? raw).trim();
+    return JSON.parse(jsonText);
+  }
+
+  async function readVaultText(path) {
+    const file = app.vault.getAbstractFileByPath(path);
+    if (file && typeof file.extension === "string") {
+      return await app.vault.read(file);
+    }
+    if (await app.vault.adapter.exists(path)) {
+      return await app.vault.adapter.read(path);
+    }
+    return null;
+  }
 
   async function ensurePinsFolder() {
     const parts = PINS_FILE_PATH.split("/");
@@ -3663,46 +3689,82 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
     let acc = "";
     for (const part of parts) {
       acc = acc ? `${acc}/${part}` : part;
-      if (!(await app.vault.adapter.exists(acc))) {
-        await app.vault.adapter.mkdir(acc);
+      const existing = app.vault.getAbstractFileByPath(acc);
+      if (!existing && !(await app.vault.adapter.exists(acc))) {
+        try {
+          await app.vault.createFolder(acc);
+        } catch {}
       }
     }
   }
 
-  async function persistPins() {
-    try {
-      await ensurePinsFolder();
-      await app.vault.adapter.write(
-        PINS_FILE_PATH,
-        JSON.stringify({ version: 1, items: pinState.items, groupOrder: pinState.groupOrder }, null, 2)
-      );
-    } catch (err) {
-      notify("Не удалось сохранить закладки: " + (err?.message || err));
-    }
-  }
-
-  if (!pinState.loaded && !pinState.loading) {
-    pinState.loading = true;
-    (async () => {
-      try {
-        if (await app.vault.adapter.exists(PINS_FILE_PATH)) {
-          const raw = await app.vault.adapter.read(PINS_FILE_PATH);
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed?.items)) {
-            pinState.items = parsed.items;
-          }
-          if (Array.isArray(parsed?.groupOrder)) {
-            pinState.groupOrder = parsed.groupOrder;
+  function persistPins() {
+    const serialized = serializePins(pinState.items, pinState.groupOrder);
+    pinState.lastWrittenContent = serialized;
+    pinState.saveQueue = pinState.saveQueue
+      .catch(() => {})
+      .then(async () => {
+        await ensurePinsFolder();
+        const existing = app.vault.getAbstractFileByPath(PINS_FILE_PATH);
+        if (existing && typeof existing.extension === "string") {
+          await app.vault.modify(existing, serialized);
+        } else if (await app.vault.adapter.exists(PINS_FILE_PATH)) {
+          await app.vault.adapter.write(PINS_FILE_PATH, serialized);
+        } else {
+          try {
+            await app.vault.create(PINS_FILE_PATH, serialized);
+          } catch {
+            await app.vault.adapter.write(PINS_FILE_PATH, serialized);
           }
         }
-      } catch (err) {
-        console.log("[Home Pins] Load error:", err);
-      } finally {
-        pinState.loaded = true;
-        pinState.loading = false;
-        scheduleHomeRender(30);
+      })
+      .catch(err => {
+        notify("Не удалось сохранить закладки: " + (err?.message || err));
+      });
+    return pinState.saveQueue;
+  }
+
+  async function loadPins(isExternal = false) {
+    if (pinState.loading) return;
+    pinState.loading = true;
+    try {
+      if (isExternal) {
+        await pinState.saveQueue;
       }
-    })();
+      const raw = await readVaultText(PINS_FILE_PATH);
+      if (raw !== null) {
+        if (isExternal && raw === pinState.lastWrittenContent) return;
+        const parsed = parsePins(raw);
+        pinState.items = Array.isArray(parsed?.items) ? parsed.items : [];
+        pinState.groupOrder = Array.isArray(parsed?.groupOrder) ? parsed.groupOrder : [];
+        pinState.lastWrittenContent = raw;
+        scheduleHomeRender(30);
+        return;
+      }
+
+      if (!isExternal) {
+        const legacyRaw = await readVaultText(PINS_LEGACY_PATH);
+        if (legacyRaw !== null) {
+          const parsed = parsePins(legacyRaw);
+          pinState.items = Array.isArray(parsed?.items) ? parsed.items : [];
+          pinState.groupOrder = Array.isArray(parsed?.groupOrder) ? parsed.groupOrder : [];
+          await persistPins();
+          notify("Быстрый доступ: закладки перенесены в .md для синхронизации");
+          scheduleHomeRender(30);
+        }
+      }
+    } catch (err) {
+      console.log("[Home Pins] Load error:", err);
+    } finally {
+      pinState.loaded = true;
+      pinState.loading = false;
+    }
+  }
+
+  pinState.reloadExternal = () => { void loadPins(true); };
+
+  if (!pinState.loaded && !pinState.loading) {
+    void loadPins(false);
   }
 
   const root = dv.container.createDiv({
@@ -4286,7 +4348,9 @@ if (trainings.length > 0 && states.get("тренировка") !== true) {
 
     const updateSuggestions = () => {
       const q = pathInput.value.trim().toLowerCase();
-      const files = app.vault.getMarkdownFiles();
+      const files = app.vault
+        .getMarkdownFiles()
+        .filter(f => f.path !== PINS_FILE_PATH && f.path !== "_system/values-compass.md");
       const matches = (q
         ? files.filter(f =>
             f.basename.toLowerCase().includes(q) || f.path.toLowerCase().includes(q)
@@ -4676,6 +4740,25 @@ if (!hostContainer.dataset.dhHomeBound) {
     scheduleHomeRender(100);
   };
 
+  let pinsReloadTimer = null;
+  const onPinsFileSynced = (file, oldPath) => {
+    if (!hostContainer.isConnected) {
+      app.vault.off("modify", onPinsFileSynced);
+      app.vault.off("create", onPinsFileSynced);
+      app.vault.off("rename", onPinsFileSynced);
+      if (pinsReloadTimer) clearTimeout(pinsReloadTimer);
+      return;
+    }
+    const target = "_system/home-pins.md";
+    if (file?.path !== target && oldPath !== target) return;
+    if (pinsReloadTimer) clearTimeout(pinsReloadTimer);
+    pinsReloadTimer = setTimeout(() => {
+      pinsReloadTimer = null;
+      if (!hostContainer.isConnected) return;
+      window.__dhHomePinsState?.reloadExternal?.();
+    }, 200);
+  };
+
   const onFileChanged = (file) => {
     if (!hostContainer.isConnected) {
       app.vault.off("create", onFileChanged);
@@ -4684,6 +4767,7 @@ if (!hostContainer.dataset.dhHomeBound) {
       return;
     }
     if (file && file.extension && file.extension !== "md") return;
+    if (file?.path === "_system/home-pins.md") return;
     // Не перерисовываем во время активного ввода текста в поле главной или в острове ценностей
     if (window.__dhTodayDrafts?.activeKey && document.activeElement?.closest?.(".dh-today")) return;
     if (document.activeElement?.closest?.(".dh-values-island")) return;
@@ -4692,6 +4776,9 @@ if (!hostContainer.dataset.dhHomeBound) {
   };
 
   app.metadataCache.on("resolved", onResolved);
+  app.vault.on("modify", onPinsFileSynced);
+  app.vault.on("create", onPinsFileSynced);
+  app.vault.on("rename", onPinsFileSynced);
   app.vault.on("create", onFileChanged);
   app.vault.on("delete", onFileChanged);
   app.vault.on("rename", onFileChanged);
