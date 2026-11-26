@@ -2830,7 +2830,7 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         max-height: 75vh;
         overflow: auto;
         scrollbar-width: none;
-        padding: 13px 15px;
+        padding: 12px 14px;
         border: 1px solid var(--menu-border-color, var(--trans-faint-30, var(--background-modifier-border)));
         border-radius: var(--menu-radius, var(--radius-ml, 14px));
         background: var(--modal-small-background, var(--background-primary-alt, var(--background-primary)));
@@ -2839,9 +2839,9 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         color: var(--text-normal);
         box-shadow: var(--glass-base-l, none), var(--menu-shadow, 0 10px 28px rgba(0, 0, 0, 0.28));
         font-family: var(--font-interface);
-        font-size: 0.76rem;
-        line-height: 1.4;
-        overflow-wrap: anywhere;
+        font-size: 0.75rem;
+        line-height: 1.35;
+        font-variant-numeric: tabular-nums;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
@@ -2866,101 +2866,156 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
         justify-content: space-between;
         align-items: baseline;
         gap: 8px;
-        margin-bottom: 8px;
-        padding-bottom: 7px;
-        border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+        margin-bottom: 10px;
       }
       .dhhv-popover-v2 .dhhv-pop-title {
         color: var(--dhhv-accent);
-        font-size: 0.85rem;
+        font-size: 0.86rem;
         font-weight: var(--font-semibold, 600);
         font-variation-settings: "opsz" 24;
+        white-space: nowrap;
+        flex-shrink: 0;
       }
       .dhhv-popover-v2 .dhhv-pop-period {
         color: var(--icon-color, var(--text-muted));
-        font-size: 0.69rem;
-        white-space: nowrap;
-      }
-      .dhhv-popover-v2 .dhhv-pop-section {
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
-      }
-      .dhhv-popover-v2 .dhhv-pop-section:first-of-type {
-        margin-top: 0;
-        padding-top: 0;
-        border-top: none;
-      }
-      .dhhv-popover-v2 .dhhv-pop-sec-title {
-        margin-bottom: 4px;
-        color: var(--icon-color, var(--text-muted));
         font-size: 0.68rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .dhhv-popover-v2 .dhhv-pop-kpis {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+      .dhhv-popover-v2 .dhhv-pop-kpi {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 7px 8px;
+        border: none;
+        border-radius: var(--radius-s, 8px);
+        background: var(--trans-faint-10, var(--background-secondary));
+        box-shadow: inset 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border));
+        min-width: 0;
+        -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      }
+      .dhhv-popover-v2 .dhhv-pop-kpi-val {
+        font-size: 0.94rem;
+        font-weight: var(--font-bold, 700);
+        color: var(--color-base-100, var(--text-normal));
+        line-height: 1.15;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .dhhv-popover-v2 .dhhv-pop-kpi-lbl {
+        font-size: 0.64rem;
+        font-weight: var(--font-semi-medium, 500);
+        color: var(--icon-color, var(--text-muted));
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .dhhv-popover-v2 .dhhv-pop-kpi-sub {
+        font-size: 0.62rem;
+        color: var(--text-faint);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .dhhv-popover-v2 .dhhv-pop-trend {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 7px 9px;
+        margin-bottom: 8px;
+        border: none;
+        border-radius: var(--radius-s, 8px);
+        background: var(--background-primary);
+        box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+        -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      }
+      .dhhv-popover-v2 .dhhv-pop-trend-left {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-width: 0;
+      }
+      .dhhv-popover-v2 .dhhv-pop-trend-k {
+        font-size: 0.63rem;
+        font-weight: var(--font-semi-medium, 500);
+        color: var(--text-faint);
+      }
+      .dhhv-popover-v2 .dhhv-pop-trend-v {
+        font-size: 0.75rem;
         font-weight: var(--font-semibold, 600);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        color: var(--text-normal);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .dhhv-popover-v2 .dhhv-pop-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3px 7px;
+        border-radius: var(--pill-radius, var(--radius-l, 18px));
+        font-size: 0.69rem;
+        font-weight: var(--font-bold, 700);
+        text-box-trim: trim-both;
+        text-box-edge: cap alphabetic;
+        white-space: nowrap;
+        flex-shrink: 0;
+        color: var(--icon-color, var(--text-muted));
+        background: var(--trans-faint-10, var(--background-secondary));
+      }
+      .dhhv-popover-v2 .dhhv-pop-badge.is-good {
+        color: var(--color-green, #4aab80);
+        background: color-mix(in oklab, var(--color-green, #4aab80) 15%, transparent);
+      }
+      .dhhv-popover-v2 .dhhv-pop-badge.is-bad {
+        color: var(--color-red, #d85b57);
+        background: color-mix(in oklab, var(--color-red, #d85b57) 15%, transparent);
+      }
+      .dhhv-popover-v2 .dhhv-pop-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 8px;
       }
       .dhhv-popover-v2 .dhhv-pop-row {
         display: flex;
         justify-content: space-between;
         align-items: baseline;
         gap: 10px;
-        padding: 3px 0;
       }
       .dhhv-popover-v2 .dhhv-pop-label {
         color: var(--text-muted);
+        font-size: 0.71rem;
+        white-space: nowrap;
       }
       .dhhv-popover-v2 .dhhv-pop-value {
+        font-size: 0.72rem;
         font-weight: var(--font-semibold, 600);
         color: var(--color-base-100, var(--text-normal));
         text-align: right;
-        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
       }
-      .dhhv-popover-v2 .dhhv-pop-change-box {
-        padding: 7px 9px;
-        border: none;
-        border-radius: var(--radius-s, 8px);
-        background: var(--trans-faint-10, var(--background-secondary));
-        font-size: 0.74rem;
-        line-height: 1.38;
-      }
-      .dhhv-popover-v2 .dhhv-pop-obs-list {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-      .dhhv-popover-v2 .dhhv-pop-obs-item {
-        position: relative;
-        padding-left: 11px;
-        color: var(--text-normal);
-        font-size: 0.74rem;
-        line-height: 1.38;
-      }
-      .dhhv-popover-v2 .dhhv-pop-obs-item::before {
-        content: "•";
-        position: absolute;
-        left: 0;
-        top: 0;
-        color: var(--dhhv-accent);
-        font-weight: var(--font-bold, 700);
-      }
-      .dhhv-popover-v2 .dhhv-pop-muted {
-        color: var(--text-muted);
-        font-size: 0.73rem;
-      }
+      .dhhv-popover-v2 .dhhv-pop-value.is-good { color: var(--color-green, #4aab80); }
+      .dhhv-popover-v2 .dhhv-pop-value.is-bad { color: var(--color-red, #d85b57); }
       .dhhv-popover-v2 .dhhv-pop-secondary {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 8px;
-        padding-top: 8px;
+        gap: 8px;
+        padding-top: 7px;
         border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
-        color: var(--icon-color, var(--text-muted));
-        font-size: 0.7rem;
+        color: var(--text-faint);
+        font-size: 0.67rem;
+        white-space: nowrap;
       }
       .dh-habits-v2 .dhhv-info-left {
         display: inline-flex;
@@ -3019,10 +3074,9 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
       const evalSlots = (slotList) => {
         const marked = slotList.filter(s => state(s.page, key) !== null);
         const done = marked.filter(s => s.page[key] === true);
-        const explicitMisses = marked.filter(s => s.page[key] === false && s.activeNote);
         const blankTemplateStubs = marked.filter(s => s.page[key] === false && !s.activeNote);
         const rate = marked.length > 0 ? Math.round((done.length / marked.length) * 100) : null;
-        return { totalDays: slotList.length, marked, done, explicitMisses, blankTemplateStubs, rate };
+        return { totalDays: slotList.length, marked, done, blankTemplateStubs, rate };
       };
 
       const s30 = evalSlots(slots30);
@@ -3047,134 +3101,94 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
       const avgRun30 = runs30.length ? average(runs30.map(r => r.len)) : null;
 
       const findLastRecovery = () => {
-        let lastExplicitFalseIdx = -1;
+        let lastFalseIdx = -1;
         for (let i = slots30.length - 1; i >= 0; i--) {
           const s = slots30[i];
           if (state(s.page, key) === false && s.activeNote) {
-            const hasTrueAfter = slots30.slice(i + 1).some(x => state(x.page, key) === true);
-            if (hasTrueAfter) {
-              lastExplicitFalseIdx = i;
+            if (slots30.slice(i + 1).some(x => state(x.page, key) === true)) {
+              lastFalseIdx = i;
               break;
             }
           }
         }
-        if (lastExplicitFalseIdx === -1) return null;
-        const missDate = slots30[lastExplicitFalseIdx].date;
+        if (lastFalseIdx === -1) return null;
         let streakAfter = 0;
-        for (let j = lastExplicitFalseIdx + 1; j < slots30.length; j++) {
+        for (let j = lastFalseIdx + 1; j < slots30.length; j++) {
           if (state(slots30[j].page, key) === true) streakAfter++;
           else if (state(slots30[j].page, key) === false && slots30[j].activeNote) break;
         }
-        return streakAfter > 0 ? { missDate, streakAfter } : null;
+        return streakAfter > 0 ? { missDate: slots30[lastFalseIdx].date, streakAfter } : null;
       };
 
       const getWeekdayWeekendDiff = () => {
         const wdMarked = s30.marked.filter(s => s.date.weekday <= 5);
         const weMarked = s30.marked.filter(s => s.date.weekday >= 6);
         if (wdMarked.length < HABIT_MIN_GROUP_SIZE * 2 || weMarked.length < HABIT_MIN_GROUP_SIZE) return null;
-        const wdDone = wdMarked.filter(s => s.page[key] === true).length;
-        const weDone = weMarked.filter(s => s.page[key] === true).length;
-        const wdRate = Math.round((wdDone / wdMarked.length) * 100);
-        const weRate = Math.round((weDone / weMarked.length) * 100);
+        const wdRate = Math.round((wdMarked.filter(s => s.page[key] === true).length / wdMarked.length) * 100);
+        const weRate = Math.round((weMarked.filter(s => s.page[key] === true).length / weMarked.length) * 100);
         if (Math.abs(wdRate - weRate) < 20) return null;
-        return { wdDone, wdTotal: wdMarked.length, wdRate, weDone, weTotal: weMarked.length, weRate };
+        return { wdRate, weRate };
       };
 
-      const formatFlagWeekComparison = (labelPrefix = "Выполнение") => {
+      const makeFlagTrend = () => {
         if (wCur.marked.length < HABIT_MIN_WEEK_MARKED || wPrev.marked.length < HABIT_MIN_WEEK_MARKED) {
-          return `Мало отмеченных дней для сравнения недель (${wCur.marked.length}/7 и ${wPrev.marked.length}/7, нужно ≥${HABIT_MIN_WEEK_MARKED}).`;
+          return { label: "7 дн. к пред.", value: `${wCur.done.length}/${wCur.marked.length} дн.`, badge: "мало дн.", tone: "" };
         }
-        const curStr = `${wCur.done.length} из ${wCur.marked.length}`;
-        const prevStr = `${wPrev.done.length} из ${wPrev.marked.length}`;
         const comparable = Math.abs(wCur.marked.length - wPrev.marked.length) <= HABIT_MAX_WEEK_GAP;
-        if (comparable && wCur.rate !== null && wPrev.rate !== null) {
-          const diffPP = wCur.rate - wPrev.rate;
-          const ppText = diffPP === 0 ? "без изменений (0 п.п.)" : `${diffPP > 0 ? "+" : "−"}${Math.abs(diffPP)} п.п.`;
-          return `${labelPrefix}: ${curStr} дн. (${curWeekRange}) против ${prevStr} дн. (${prevWeekRange}) · ${ppText}.`;
-        }
-        return `${labelPrefix}: ${curStr} отм. дн. (${curWeekRange}) против ${prevStr} отм. дн. (${prevWeekRange}).`;
+        const diffPP = comparable && wCur.rate !== null && wPrev.rate !== null ? wCur.rate - wPrev.rate : null;
+        return {
+          label: `7 дн. к пред. (${curWeekRange})`,
+          value: `${wCur.done.length}/${wCur.marked.length} vs ${wPrev.done.length}/${wPrev.marked.length} дн.`,
+          badge: diffPP !== null ? (diffPP === 0 ? "0 п.п." : `${diffPP > 0 ? "+" : "−"}${Math.abs(diffPP)} п.п.`) : null,
+          tone: diffPP > 0 ? "is-good" : diffPP < 0 ? "is-bad" : ""
+        };
       };
 
-      const keyMetrics = [];
-      let whatChanged = "";
-      const observations = [];
+      const kpis = [];
+      let trend = null;
+      const rows = [];
 
       if (key === "nofap") {
-        keyMetrics.push({
-          k: "За 30 завершённых дн.",
-          v: s30.marked.length ? `${s30.done.length} из ${s30.marked.length} дн. (${s30.rate}%)` : "Нет данных"
-        });
-        keyMetrics.push({
-          k: "Лучшая серия (30 дн.)",
-          v: maxRun30 ? `${maxRun30.len} дн. подряд` : "0 дн."
-        });
-        keyMetrics.push({
-          k: "Средняя серия (30 дн.)",
-          v: avgRun30 !== null ? `${fmt(avgRun30, 0, 1)} дн. (серий: ${runs30.length})` : "—"
-        });
-
-        whatChanged = formatFlagWeekComparison("Чистые дни");
-
-        if (s30.marked.length >= HABIT_MIN_MONTH_MARKED) {
-          const recovery = findLastRecovery();
-          if (recovery) {
-            observations.push(
-              `После дня без отметки выполнения (${recovery.missDate.toFormat("dd.MM")}) серия возобновлена: ${recovery.streakAfter} дн. подряд.`
-            );
-          }
-          if (runs30.length >= 2) {
-            const lastR = runs30[runs30.length - 1];
-            const prevR = runs30[runs30.length - 2];
-            if (lastR.len !== prevR.len) {
-              observations.push(
-                `Последняя серия в 30-дневном окне (${lastR.len} дн.) ${lastR.len > prevR.len ? "длиннее" : "короче"} предыдущей (${prevR.len} дн.).`
-              );
-            }
-          }
-          if (observations.length < 2 && maxRun30 && maxRun30.len >= 3) {
-            observations.push(
-              `Самая длинная серия за 30 дней — ${maxRun30.len} дн. (${maxRun30.start.toFormat("dd.MM")}–${maxRun30.end.toFormat("dd.MM")}).`
-            );
-          }
+        kpis.push(
+          { val: s30.rate !== null ? `${s30.rate}%` : "—", lbl: "За 30 дн.", sub: `${s30.done.length}/${s30.marked.length} дн.` },
+          { val: maxRun30 ? `${maxRun30.len} дн.` : "0 дн.", lbl: "Лучшая", sub: maxRun30 ? `${maxRun30.start.toFormat("dd.MM")}–${maxRun30.end.toFormat("dd.MM")}` : "30 дн." },
+          { val: avgRun30 !== null ? `${fmt(avgRun30, 0, 1)} дн.` : "—", lbl: "Ср. серия", sub: `серий: ${runs30.length}` }
+        );
+        trend = makeFlagTrend();
+        const recovery = findLastRecovery();
+        if (recovery) {
+          rows.push({ k: `После ${recovery.missDate.toFormat("dd.MM")}`, v: `${recovery.streakAfter} дн. подряд` });
+        }
+        if (runs30.length >= 2) {
+          const lastR = runs30[runs30.length - 1].len;
+          const prevR = runs30[runs30.length - 2].len;
+          rows.push({ k: "Посл. / пред. серия", v: `${lastR} / ${prevR} дн.` });
         }
       } else if (key === "тренировка") {
         const weekCounts = weeks4.map(w => w.stats.done.length);
         const pacePerWeek = (s30.done.length / 30) * 7;
-
-        keyMetrics.push({
-          k: `Последние 7 дн. (${curWeekRange})`,
-          v: `${wCur.done.length} трен.`
-        });
-        keyMetrics.push({
-          k: "За 30 завершённых дн.",
-          v: `${s30.done.length} трен. (~${fmt(pacePerWeek, 1, 1)}/нед.)`
-        });
-        keyMetrics.push({
-          k: "По 4 неделям (ст. → нов.)",
-          v: weekCounts.map(n => `${n}`).join(" → ") + " дн."
-        });
-
+        kpis.push(
+          { val: `${wCur.done.length}`, lbl: "За 7 дн.", sub: curWeekRange },
+          { val: `${s30.done.length}`, lbl: "За 30 дн.", sub: `отм. ${s30.marked.length}` },
+          { val: `${fmt(pacePerWeek, 1, 1)}`, lbl: "В неделю", sub: "средний темп" }
+        );
         if (wCur.marked.length >= HABIT_MIN_WEEK_MARKED && wPrev.marked.length >= HABIT_MIN_WEEK_MARKED) {
           const diffT = wCur.done.length - wPrev.done.length;
-          const diffStr = diffT === 0 ? "столько же, сколько" : `${diffT > 0 ? "на +" + diffT : "на −" + Math.abs(diffT)} дн. к`;
-          whatChanged = `${wCur.done.length} трен. за ${curWeekRange} (${diffStr} неделе ${prevWeekRange}: ${wPrev.done.length} трен.).`;
+          trend = {
+            label: `7 дн. к пред. (${curWeekRange})`,
+            value: `${wCur.done.length} vs ${wPrev.done.length} трен.`,
+            badge: diffT === 0 ? "0" : `${diffT > 0 ? "+" : "−"}${Math.abs(diffT)}`,
+            tone: diffT > 0 ? "is-good" : diffT < 0 ? "is-bad" : ""
+          };
         } else {
-          whatChanged = `За ${curWeekRange} отмечено ${wCur.done.length} трен. (заполнено ${wCur.marked.length}/7 дн. дневника).`;
+          trend = { label: `За ${curWeekRange}`, value: `${wCur.done.length} трен.`, badge: `${wCur.marked.length}/7 дн.`, tone: "" };
         }
-
-        if (s30.marked.length >= HABIT_MIN_MONTH_MARKED && s30.done.length > 0) {
-          const activeWeeks = weekCounts.filter(c => c >= 3).length;
-          const minW = Math.min(...weekCounts);
-          const maxW = Math.max(...weekCounts);
-          observations.push(
-            `В ${activeWeeks} из 4 последних недель было не менее 3 тренировок (разброс от ${minW} до ${maxW} в неделю).`
-          );
-
-          const bestWeekObj = weeks4.reduce((b, w) => (w.stats.done.length > b.stats.done.length ? w : b), weeks4[0]);
-          if (bestWeekObj.stats.done.length >= 2) {
-            observations.push(
-              `Наибольшее число тренировок за месяц — ${bestWeekObj.stats.done.length} дн. на неделе ${bestWeekObj.label}.`
-            );
+        rows.push({ k: "По 4 неделям", v: weekCounts.join(" · ") });
+        if (s30.done.length > 0) {
+          rows.push({ k: "Недель ≥3 трен.", v: `${weekCounts.filter(c => c >= 3).length} из 4` });
+          const bestW = weeks4.reduce((b, w) => (w.stats.done.length > b.stats.done.length ? w : b), weeks4[0]);
+          if (bestW.stats.done.length >= 2) {
+            rows.push({ k: "Лучшая неделя", v: `${bestW.stats.done.length} (${bestW.label})` });
           }
         }
       } else if (key === "чтение") {
@@ -3183,239 +3197,150 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
           .filter(s => s.pages !== null && s.pages > 0);
 
         const pages30 = extractPages(slots30);
-        const sumPages30 = pages30.reduce((acc, x) => acc + x.pages, 0);
+        const sumPages30 = pages30.reduce((a, x) => a + x.pages, 0);
         const avgPages30 = pages30.length ? sumPages30 / pages30.length : null;
-
         const pagesCur7 = extractPages(slotsCur7);
         const pagesPrev7 = extractPages(slotsPrev7);
         const sumCur7 = pagesCur7.reduce((a, x) => a + x.pages, 0);
         const sumPrev7 = pagesPrev7.reduce((a, x) => a + x.pages, 0);
 
-        keyMetrics.push({
-          k: "Дни чтения (флажок)",
-          v: s30.marked.length ? `${s30.done.length} из ${s30.marked.length} отм. дн.` : "Нет данных"
-        });
-        keyMetrics.push({
-          k: "Прочитано за 30 дн.",
-          v: pages30.length ? `${fmt(sumPages30, 0, 0)} стр. (за ${pages30.length} дн.)` : "Страницы не записаны"
-        });
-        keyMetrics.push({
-          k: "Среднее в день чтения",
-          v: avgPages30 !== null ? `${fmt(avgPages30, 0, 1)} стр./день` : "—"
-        });
-
+        kpis.push(
+          { val: s30.rate !== null ? `${s30.rate}%` : "—", lbl: "За 30 дн.", sub: `${s30.done.length}/${s30.marked.length} дн.` },
+          { val: pages30.length ? fmt(sumPages30, 0, 0) : "—", lbl: "Страниц", sub: `за ${pages30.length} дн.` },
+          { val: avgPages30 !== null ? fmt(avgPages30, 0, 1) : "—", lbl: "Стр. / день", sub: "в дни чтения" }
+        );
         if (pagesCur7.length >= 1 || pagesPrev7.length >= 1) {
-          const diffPages = sumCur7 - sumPrev7;
-          whatChanged = `За ${curWeekRange}: ${fmt(sumCur7, 0, 0)} стр. (${pagesCur7.length} дн. с записью стр., флажок ${wCur.done.length}/${wCur.marked.length}) против ${fmt(sumPrev7, 0, 0)} стр. (${pagesPrev7.length} дн.) на прошлой неделе (${formatSigned(diffPages, 0, 0, "стр.")}).`;
+          const diffP = sumCur7 - sumPrev7;
+          trend = {
+            label: `7 дн. к пред. (${curWeekRange})`,
+            value: `${fmt(sumCur7, 0, 0)} vs ${fmt(sumPrev7, 0, 0)} стр.`,
+            badge: formatSigned(diffP, 0, 0, "стр."),
+            tone: diffP > 0 ? "is-good" : diffP < 0 ? "is-bad" : ""
+          };
         } else {
-          whatChanged = formatFlagWeekComparison("Дни чтения");
+          trend = makeFlagTrend();
         }
-
         if (pages30.length >= HABIT_MIN_MONTH_NUMERIC) {
-          const first15 = extractPages(slots30.slice(0, 15));
-          const last15 = extractPages(slots30.slice(15, 30));
-          if (first15.length >= 2 && last15.length >= 2) {
-            const sum1 = first15.reduce((a, x) => a + x.pages, 0);
-            const sum2 = last15.reduce((a, x) => a + x.pages, 0);
-            observations.push(
-              `За последние 15 дн. прочитано ${fmt(sum2, 0, 0)} стр. (${last15.length} дн.) против ${fmt(sum1, 0, 0)} стр. (${first15.length} дн.) в предыдущие 15 дн.`
-            );
-          }
+          const s1 = extractPages(slots30.slice(0, 15)).reduce((a, x) => a + x.pages, 0);
+          const s2 = extractPages(slots30.slice(15, 30)).reduce((a, x) => a + x.pages, 0);
+          rows.push({ k: "Посл. 15 / пред. 15 дн.", v: `${fmt(s2, 0, 0)} / ${fmt(s1, 0, 0)} стр.` });
         }
-
-        const flagWithoutPages = slots30.filter(s => state(s.page, key) === true && !(getPagesRead(s.page) > 0)).length;
-        const pagesWithoutFlag = slots30.filter(s => state(s.page, key) !== true && (getPagesRead(s.page) > 0)).length;
-        if (observations.length < 2 && (flagWithoutPages >= 2 || pagesWithoutFlag >= 2)) {
-          if (flagWithoutPages >= 2) {
-            observations.push(`В ${flagWithoutPages} дн. за месяц отмечен флажок чтения без указания числа страниц.`);
-          } else {
-            observations.push(`В ${pagesWithoutFlag} дн. за месяц записаны прочитанные страницы при неотмеченном флажке.`);
-          }
-        }
-
         const wdDiff = getWeekdayWeekendDiff();
-        if (observations.length < 2 && wdDiff) {
-          observations.push(
-            `В будни чтение отмечено в ${wdDiff.wdDone} из ${wdDiff.wdTotal} дн. (${wdDiff.wdRate}%), в выходные — в ${wdDiff.weDone} из ${wdDiff.weTotal} дн. (${wdDiff.weRate}%).`
-          );
-        }
+        if (wdDiff) rows.push({ k: "Будни / выходные", v: `${wdDiff.wdRate}% / ${wdDiff.weRate}%` });
       } else if (key === "режим_сна") {
         const extractSleep = (slotList) => slotList
           .map(s => ({ ...s, hours: getSleepHours(s.page), flag: state(s.page, key) }))
           .filter(s => s.hours !== null);
 
         const sleep30 = extractSleep(slots30);
-        const hoursList30 = sleep30.map(s => s.hours);
-        const avgSleep30 = average(hoursList30);
-
+        const hours30 = sleep30.map(s => s.hours);
+        const avgSleep30 = average(hours30);
         const sleepCur7 = extractSleep(slotsCur7).map(s => s.hours);
         const sleepPrev7 = extractSleep(slotsPrev7).map(s => s.hours);
         const avgCur7 = average(sleepCur7);
         const avgPrev7 = average(sleepPrev7);
 
-        keyMetrics.push({
-          k: "Соблюдение режима",
-          v: s30.marked.length ? `${s30.done.length} из ${s30.marked.length} дн. (${s30.rate}%)` : "Нет данных"
-        });
-        keyMetrics.push({
-          k: "Средняя длительность",
-          v: avgSleep30 !== null ? `${fmt(avgSleep30, 1, 1)} ч (${sleep30.length} дн.)` : "Нет записей часов"
-        });
-        keyMetrics.push({
-          k: "Разброс (30 дн.)",
-          v: hoursList30.length >= HABIT_MIN_MONTH_NUMERIC
-            ? `${fmt(Math.min(...hoursList30), 0, 1)}–${fmt(Math.max(...hoursList30), 0, 1)} ч`
-            : `Мало данных (<${HABIT_MIN_MONTH_NUMERIC} дн.)`
-        });
-
+        kpis.push(
+          { val: s30.rate !== null ? `${s30.rate}%` : "—", lbl: "Режим", sub: `${s30.done.length}/${s30.marked.length} дн.` },
+          { val: avgSleep30 !== null ? `${fmt(avgSleep30, 1, 1)} ч` : "—", lbl: "Средний", sub: `${sleep30.length} дн.` },
+          { val: hours30.length >= HABIT_MIN_MONTH_NUMERIC ? `${fmt(Math.min(...hours30), 0, 1)}–${fmt(Math.max(...hours30), 0, 1)}` : "—", lbl: "Разброс, ч", sub: "30 дн." }
+        );
         if (sleepCur7.length >= HABIT_MIN_WEEK_NUMERIC && sleepPrev7.length >= HABIT_MIN_WEEK_NUMERIC) {
           const diffH = avgCur7 - avgPrev7;
-          whatChanged = `Режим: ${wCur.done.length}/${wCur.marked.length} дн. против ${wPrev.done.length}/${wPrev.marked.length} · длительность: ср. ${fmt(avgCur7, 1, 1)} ч (${sleepCur7.length} дн.) против ${fmt(avgPrev7, 1, 1)} ч (${sleepPrev7.length} дн., ${formatSigned(diffH, 1, 1, "ч")}).`;
+          trend = {
+            label: `Сон 7 дн. · режим ${wCur.done.length}/${wCur.marked.length}`,
+            value: `${fmt(avgCur7, 1, 1)} vs ${fmt(avgPrev7, 1, 1)} ч`,
+            badge: formatSigned(diffH, 1, 1, "ч"),
+            tone: ""
+          };
         } else {
-          whatChanged = formatFlagWeekComparison("Режим сна");
+          trend = makeFlagTrend();
         }
-
-        const sleepWhenTrue = sleep30.filter(s => s.flag === true).map(s => s.hours);
-        const sleepWhenFalse = sleep30.filter(s => s.flag === false && s.activeNote).map(s => s.hours);
-        if (sleepWhenTrue.length >= HABIT_MIN_GROUP_SIZE && sleepWhenFalse.length >= HABIT_MIN_GROUP_SIZE) {
-          const mTrue = average(sleepWhenTrue);
-          const mFalse = average(sleepWhenFalse);
-          observations.push(
-            `В дни с отмеченным режимом средняя длительность сна — ${fmt(mTrue, 1, 1)} ч (n=${sleepWhenTrue.length}), без отметки — ${fmt(mFalse, 1, 1)} ч (n=${sleepWhenFalse.length}).`
-          );
+        const slTrue = sleep30.filter(s => s.flag === true).map(s => s.hours);
+        const slFalse = sleep30.filter(s => s.flag === false && s.activeNote).map(s => s.hours);
+        if (slTrue.length >= HABIT_MIN_GROUP_SIZE && slFalse.length >= HABIT_MIN_GROUP_SIZE) {
+          rows.push({ k: "С режимом / без", v: `${fmt(average(slTrue), 1, 1)} / ${fmt(average(slFalse), 1, 1)} ч` });
         }
-
-        const sleepWd = sleep30.filter(s => s.date.weekday <= 5).map(s => s.hours);
-        const sleepWe = sleep30.filter(s => s.date.weekday >= 6).map(s => s.hours);
-        if (observations.length < 2 && sleepWd.length >= HABIT_MIN_GROUP_SIZE * 2 && sleepWe.length >= HABIT_MIN_GROUP_SIZE) {
-          const mWd = average(sleepWd);
-          const mWe = average(sleepWe);
+        const slWd = sleep30.filter(s => s.date.weekday <= 5).map(s => s.hours);
+        const slWe = sleep30.filter(s => s.date.weekday >= 6).map(s => s.hours);
+        if (slWd.length >= HABIT_MIN_GROUP_SIZE * 2 && slWe.length >= HABIT_MIN_GROUP_SIZE) {
+          const mWd = average(slWd);
+          const mWe = average(slWe);
           if (Math.abs(mWd - mWe) >= 0.4) {
-            observations.push(
-              `Средний сон в будни — ${fmt(mWd, 1, 1)} ч (n=${sleepWd.length}), в выходные — ${fmt(mWe, 1, 1)} ч (n=${sleepWe.length}).`
-            );
+            rows.push({ k: "Будни / выходные", v: `${fmt(mWd, 1, 1)} / ${fmt(mWe, 1, 1)} ч` });
           }
-        }
-
-        const wdDiff = getWeekdayWeekendDiff();
-        if (observations.length < 2 && wdDiff) {
-          observations.push(
-            `Режим сна в будни отмечен в ${wdDiff.wdDone} из ${wdDiff.wdTotal} дн. (${wdDiff.wdRate}%), в выходные — в ${wdDiff.weDone} из ${wdDiff.weTotal} дн. (${wdDiff.weRate}%).`
-          );
         }
       } else if (key === "диета") {
-        const extractCal = (slotList) => slotList
-          .map(s => ({ ...s, cal: getCalories(s.page) }))
-          .filter(s => s.cal !== null);
-
-        const cal30 = extractCal(slots30).map(s => s.cal);
+        const extractCal = (slotList) => slotList.map(s => getCalories(s.page)).filter(v => v !== null);
+        const cal30 = extractCal(slots30);
         const avgCal30 = average(cal30);
-
-        const calCur7 = extractCal(slotsCur7).map(s => s.cal);
-        const calPrev7 = extractCal(slotsPrev7).map(s => s.cal);
+        const calCur7 = extractCal(slotsCur7);
+        const calPrev7 = extractCal(slotsPrev7);
         const avgCalCur7 = average(calCur7);
         const avgCalPrev7 = average(calPrev7);
+        const steadyWeeks = weeks4.filter(w => w.stats.done.length >= 5).length;
 
-        const weekDietStr = weeks4
-          .map(w => w.stats.marked.length ? `${w.stats.done.length}/${w.stats.marked.length}` : "—")
-          .join(" → ");
-
-        keyMetrics.push({
-          k: "Выполнение (30 дн.)",
-          v: s30.marked.length ? `${s30.done.length} из ${s30.marked.length} дн. (${s30.rate}%)` : "Нет данных"
+        kpis.push(
+          { val: s30.rate !== null ? `${s30.rate}%` : "—", lbl: "За 30 дн.", sub: `${s30.done.length}/${s30.marked.length} дн.` },
+          { val: avgCal30 !== null ? fmt(Math.round(avgCal30), 0, 0) : "—", lbl: "Ср. ккал", sub: `${cal30.length} дн.` },
+          { val: `${steadyWeeks}/4`, lbl: "Недель ≥5 д.", sub: "стабильность" }
+        );
+        trend = makeFlagTrend();
+        rows.push({
+          k: "По 4 неделям",
+          v: weeks4.map(w => w.stats.marked.length ? `${w.stats.done.length}/${w.stats.marked.length}` : "—").join(" · ")
         });
-        keyMetrics.push({
-          k: "По 4 неделям (ст. → нов.)",
-          v: weekDietStr
-        });
-        keyMetrics.push({
-          k: "Калории (справочно, 30 дн.)",
-          v: avgCal30 !== null ? `ср. ${fmt(Math.round(avgCal30), 0, 0)} ккал (${cal30.length} дн.)` : "Не записаны"
-        });
-
-        const baseDietChange = formatFlagWeekComparison("Диета");
         if (calCur7.length >= HABIT_MIN_WEEK_NUMERIC && calPrev7.length >= HABIT_MIN_WEEK_NUMERIC) {
-          const diffCal = Math.round(avgCalCur7 - avgCalPrev7);
-          whatChanged = `${baseDietChange.replace(/\.$/, "")} · калории: ср. ${fmt(Math.round(avgCalCur7), 0, 0)} против ${fmt(Math.round(avgCalPrev7), 0, 0)} ккал (${formatSigned(diffCal, 0, 0, "ккал")}).`;
-        } else {
-          whatChanged = baseDietChange;
+          rows.push({
+            k: "Калории (7 дн.)",
+            v: `${fmt(Math.round(avgCalCur7), 0, 0)} (${formatSigned(Math.round(avgCalCur7 - avgCalPrev7), 0, 0)})`
+          });
         }
-
-        if (s30.marked.length >= HABIT_MIN_MONTH_MARKED) {
-          const steadyWeeks = weeks4.filter(w => w.stats.done.length >= 5).length;
-          const bestDietWeek = weeks4.reduce((b, w) => (w.stats.done.length > b.stats.done.length ? w : b), weeks4[0]);
-          if (bestDietWeek.stats.marked.length > 0) {
-            observations.push(
-              `Недель с выполнением ≥5 дней: ${steadyWeeks} из 4 (лучшая — ${bestDietWeek.label}: ${bestDietWeek.stats.done.length} из ${bestDietWeek.stats.marked.length} дн.).`
-            );
-          }
-
-          const wdDiff = getWeekdayWeekendDiff();
-          if (wdDiff) {
-            observations.push(
-              `В будни диета отмечена в ${wdDiff.wdDone} из ${wdDiff.wdTotal} дн. (${wdDiff.wdRate}%), в выходные — в ${wdDiff.weDone} из ${wdDiff.weTotal} дн. (${wdDiff.weRate}%).`
-            );
-          } else {
-            const recovery = findLastRecovery();
-            if (recovery) {
-              observations.push(
-                `После перерыва (${recovery.missDate.toFormat("dd.MM")}) соблюдение диеты возобновлено: ${recovery.streakAfter} дн. подряд.`
-              );
-            }
-          }
-        }
+        const wdDiff = getWeekdayWeekendDiff();
+        if (wdDiff) rows.push({ k: "Будни / выходные", v: `${wdDiff.wdRate}% / ${wdDiff.weRate}%` });
       } else if (key === "без_соцсетей") {
-        const socialList30 = slots30.map(s => getSocialMin(s.page)).filter(v => v !== null);
-        const avgSocial30 = socialList30.length ? average(socialList30) : null;
-        const inLimit30 = socialList30.filter(v => v <= SOCIAL_LIMIT_MIN).length;
+        const soc30 = slots30.map(s => getSocialMin(s.page)).filter(v => v !== null);
+        const avgSoc30 = soc30.length ? average(soc30) : null;
+        const inLimit30 = soc30.filter(v => v <= SOCIAL_LIMIT_MIN).length;
+        const inLimitPct = soc30.length ? Math.round((inLimit30 / soc30.length) * 100) : s30.rate;
+        const socCur7 = slotsCur7.map(s => getSocialMin(s.page)).filter(v => v !== null);
+        const socPrev7 = slotsPrev7.map(s => getSocialMin(s.page)).filter(v => v !== null);
+        const avgSocCur7 = average(socCur7);
+        const avgSocPrev7 = average(socPrev7);
 
-        const socialCur7 = slotsCur7.map(s => getSocialMin(s.page)).filter(v => v !== null);
-        const socialPrev7 = slotsPrev7.map(s => getSocialMin(s.page)).filter(v => v !== null);
-        const avgSocCur7 = average(socialCur7);
-        const avgSocPrev7 = average(socialPrev7);
-
-        keyMetrics.push({
-          k: `В лимите ≤${SOCIAL_LIMIT_MIN} мин (30 дн.)`,
-          v: socialList30.length
-            ? `${inLimit30} из ${socialList30.length} дн. (${Math.round((inLimit30 / socialList30.length) * 100)}%)`
-            : s30.marked.length
-              ? `${s30.done.length} из ${s30.marked.length} дн. (${s30.rate}%)`
-              : "—"
-        });
-        keyMetrics.push({
-          k: "Средний скроллинг (30 дн.)",
-          v: avgSocial30 !== null ? `${Math.round(avgSocial30)} мин/день` : "—"
-        });
-        keyMetrics.push({
-          k: "Лучшая серия (30 дн.)",
-          v: maxRun30 ? `${maxRun30.len} дн.` : "—"
-        });
-
-        if (socialCur7.length >= HABIT_MIN_WEEK_NUMERIC && socialPrev7.length >= HABIT_MIN_WEEK_NUMERIC) {
+        kpis.push(
+          { val: inLimitPct !== null ? `${inLimitPct}%` : "—", lbl: `В лимите ≤${SOCIAL_LIMIT_MIN}`, sub: soc30.length ? `${inLimit30}/${soc30.length} дн.` : `${s30.done.length}/${s30.marked.length}` },
+          { val: avgSoc30 !== null ? `${Math.round(avgSoc30)} м` : "—", lbl: "Ср. / день", sub: "за 30 дн." },
+          { val: maxRun30 ? `${maxRun30.len} дн.` : "0 дн.", lbl: "Лучшая", sub: "серия 30 дн." }
+        );
+        if (socCur7.length >= HABIT_MIN_WEEK_NUMERIC && socPrev7.length >= HABIT_MIN_WEEK_NUMERIC) {
           const diffSoc = Math.round(avgSocCur7 - avgSocPrev7);
-          whatChanged = `Скроллинг: ср. ${Math.round(avgSocCur7)} мин/д (${curWeekRange}) против ${Math.round(avgSocPrev7)} мин/д (${prevWeekRange}) · ${formatSigned(diffSoc, 0, 0, "мин")}.`;
-        } else if (avgSocCur7 !== null) {
-          whatChanged = `За ${curWeekRange}: ср. ${Math.round(avgSocCur7)} мин/д (${socialCur7.length} дн.). Для тренда к прошлой неделе нужно ≥${HABIT_MIN_WEEK_NUMERIC} дн. в каждой.`;
+          trend = {
+            label: `7 дн. к пред. (${curWeekRange})`,
+            value: `${Math.round(avgSocCur7)} vs ${Math.round(avgSocPrev7)} мин/д`,
+            badge: formatSigned(diffSoc, 0, 0, "мин"),
+            tone: diffSoc < 0 ? "is-good" : diffSoc > 0 ? "is-bad" : ""
+          };
         } else {
-          whatChanged = formatFlagWeekComparison("Без соцсетей");
+          trend = makeFlagTrend();
         }
-
-        if (avgSocial30 !== null) {
-          observations.push(
-            avgSocial30 <= SOCIAL_LIMIT_MIN
-              ? `В среднем ${Math.round(avgSocial30)} мин/день — в пределах лимита ≤${SOCIAL_LIMIT_MIN} мин.`
-              : `В среднем ${Math.round(avgSocial30)} мин/день — выше лимита на +${Math.round(avgSocial30 - SOCIAL_LIMIT_MIN)} мин.`
-          );
+        if (avgSoc30 !== null) {
+          const over = Math.round(avgSoc30 - SOCIAL_LIMIT_MIN);
+          rows.push({
+            k: `К лимиту ≤${SOCIAL_LIMIT_MIN} мин`,
+            v: over <= 0 ? "в норме" : `+${over} мин`,
+            tone: over <= 0 ? "is-good" : "is-bad"
+          });
         }
       }
 
       return {
         name: h.name,
         color: h.color,
-        periodLabel: `30 завершённых дн. (${completed30RangeStr})`,
-        keyMetrics: keyMetrics.slice(0, 3),
-        whatChanged,
-        observations: observations.slice(0, 2),
+        periodLabel: `30 дн. · ${completed30RangeStr}`,
+        kpis: kpis.slice(0, 3),
+        trend,
+        rows: rows.slice(0, 3),
         bestAllTime,
         totalAllTime,
         blankStubsCount: s30.blankTemplateStubs.length
@@ -3527,43 +3452,50 @@ yearSubLabel.textContent = `${cur.recordsCount}/${cur.totalCalendarDays}`;
 
       popover.replaceChildren();
       popover.style.setProperty("--dhhv-accent", data.color);
-      popover.setAttribute("aria-label", `${data.name}: подробная статистика`);
+      popover.setAttribute("aria-label", `${data.name}: статистика`);
 
       const headRow = popover.createDiv({ cls: "dhhv-pop-head" });
       headRow.createSpan({ cls: "dhhv-pop-title", text: data.name });
       headRow.createSpan({ cls: "dhhv-pop-period", text: data.periodLabel });
 
-      const secA = popover.createDiv({ cls: "dhhv-pop-section" });
-      secA.createDiv({ cls: "dhhv-pop-sec-title", text: "Ключевые показатели" });
-      data.keyMetrics.forEach(item => {
-        const r = secA.createDiv({ cls: "dhhv-pop-row" });
-        r.createSpan({ cls: "dhhv-pop-label", text: item.k });
-        r.createSpan({ cls: "dhhv-pop-value", text: item.v });
+      const kpiGrid = popover.createDiv({ cls: "dhhv-pop-kpis" });
+      data.kpis.forEach(item => {
+        const box = kpiGrid.createDiv({ cls: "dhhv-pop-kpi" });
+        box.createSpan({ cls: "dhhv-pop-kpi-val", text: item.val });
+        box.createSpan({ cls: "dhhv-pop-kpi-lbl", text: item.lbl });
+        if (item.sub) box.createSpan({ cls: "dhhv-pop-kpi-sub", text: item.sub });
       });
 
-      const secB = popover.createDiv({ cls: "dhhv-pop-section" });
-      secB.createDiv({ cls: "dhhv-pop-sec-title", text: "Что изменилось · 7 дн. к пред. 7 дн." });
-      secB.createDiv({ cls: "dhhv-pop-change-box", text: data.whatChanged });
+      if (data.trend) {
+        const tr = popover.createDiv({ cls: "dhhv-pop-trend" });
+        const left = tr.createDiv({ cls: "dhhv-pop-trend-left" });
+        left.createSpan({ cls: "dhhv-pop-trend-k", text: data.trend.label });
+        left.createSpan({ cls: "dhhv-pop-trend-v", text: data.trend.value });
+        if (data.trend.badge) {
+          tr.createSpan({
+            cls: `dhhv-pop-badge${data.trend.tone ? " " + data.trend.tone : ""}`,
+            text: data.trend.badge
+          });
+        }
+      }
 
-      const secC = popover.createDiv({ cls: "dhhv-pop-section" });
-      secC.createDiv({ cls: "dhhv-pop-sec-title", text: "Наблюдения · 30 дней" });
-      if (data.observations.length > 0) {
-        const ul = secC.createEl("ul", { cls: "dhhv-pop-obs-list" });
-        data.observations.forEach(obs => {
-          ul.createEl("li", { cls: "dhhv-pop-obs-item", text: obs });
+      if (data.rows.length > 0) {
+        const list = popover.createDiv({ cls: "dhhv-pop-rows" });
+        data.rows.forEach(item => {
+          const r = list.createDiv({ cls: "dhhv-pop-row" });
+          r.createSpan({ cls: "dhhv-pop-label", text: item.k });
+          r.createSpan({
+            cls: `dhhv-pop-value${item.tone ? " " + item.tone : ""}`,
+            text: item.v
+          });
         });
-      } else {
-        secC.createDiv({ cls: "dhhv-pop-muted", text: "Пока мало данных для наблюдений" });
       }
 
       const secFooter = popover.createDiv({ cls: "dhhv-pop-secondary" });
-      secFooter.createSpan({ text: `За всё время: ${data.totalAllTime} дн.` });
-      secFooter.createSpan({ text: `Рекорд серии: ${data.bestAllTime} дн.` });
+      secFooter.createSpan({ text: `Всего: ${data.totalAllTime} дн.` });
+      secFooter.createSpan({ text: `Рекорд: ${data.bestAllTime} дн.` });
       if (data.blankStubsCount > 0) {
-        secFooter.createDiv({
-          text: `В 30-дневном окне есть ${data.blankStubsCount} дн. с созданной, но не заполненной заметкой (флажки false по шаблону).`,
-          attr: { style: "width: 100%; font-size: 0.67rem; color: var(--text-faint); margin-top: 2px;" }
-        });
+        secFooter.createSpan({ text: `Пустых: ${data.blankStubsCount}` });
       }
 
       popover.setAttribute("aria-hidden", "false");

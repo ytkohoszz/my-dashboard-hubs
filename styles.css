@@ -2086,7 +2086,7 @@
         max-height: 75vh;
         overflow: auto;
         scrollbar-width: none;
-        padding: 13px 15px;
+        padding: 12px 14px;
         border: 1px solid var(--menu-border-color, var(--trans-faint-30, var(--background-modifier-border)));
         border-radius: var(--menu-radius, var(--radius-ml, 14px));
         background: var(--modal-small-background, var(--background-primary-alt, var(--background-primary)));
@@ -2095,9 +2095,9 @@
         color: var(--text-normal);
         box-shadow: var(--glass-base-l, none), var(--menu-shadow, 0 10px 28px rgba(0, 0, 0, 0.28));
         font-family: var(--font-interface);
-        font-size: 0.76rem;
-        line-height: 1.4;
-        overflow-wrap: anywhere;
+        font-size: 0.75rem;
+        line-height: 1.35;
+        font-variant-numeric: tabular-nums;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
@@ -2122,101 +2122,156 @@
         justify-content: space-between;
         align-items: baseline;
         gap: 8px;
-        margin-bottom: 8px;
-        padding-bottom: 7px;
-        border-bottom: 1px solid var(--trans-faint-20, var(--background-modifier-border));
+        margin-bottom: 10px;
       }
       .dhhv-popover-v2 .dhhv-pop-title {
         color: var(--dhhv-accent);
-        font-size: 0.85rem;
+        font-size: 0.86rem;
         font-weight: var(--font-semibold, 600);
         font-variation-settings: "opsz" 24;
+        white-space: nowrap;
+        flex-shrink: 0;
       }
       .dhhv-popover-v2 .dhhv-pop-period {
         color: var(--icon-color, var(--text-muted));
-        font-size: 0.69rem;
-        white-space: nowrap;
-      }
-      .dhhv-popover-v2 .dhhv-pop-section {
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
-      }
-      .dhhv-popover-v2 .dhhv-pop-section:first-of-type {
-        margin-top: 0;
-        padding-top: 0;
-        border-top: none;
-      }
-      .dhhv-popover-v2 .dhhv-pop-sec-title {
-        margin-bottom: 4px;
-        color: var(--icon-color, var(--text-muted));
         font-size: 0.68rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .dhhv-popover-v2 .dhhv-pop-kpis {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+      .dhhv-popover-v2 .dhhv-pop-kpi {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 7px 8px;
+        border: none;
+        border-radius: var(--radius-s, 8px);
+        background: var(--trans-faint-10, var(--background-secondary));
+        box-shadow: inset 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border));
+        min-width: 0;
+        -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      }
+      .dhhv-popover-v2 .dhhv-pop-kpi-val {
+        font-size: 0.94rem;
+        font-weight: var(--font-bold, 700);
+        color: var(--color-base-100, var(--text-normal));
+        line-height: 1.15;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .dhhv-popover-v2 .dhhv-pop-kpi-lbl {
+        font-size: 0.64rem;
+        font-weight: var(--font-semi-medium, 500);
+        color: var(--icon-color, var(--text-muted));
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .dhhv-popover-v2 .dhhv-pop-kpi-sub {
+        font-size: 0.62rem;
+        color: var(--text-faint);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .dhhv-popover-v2 .dhhv-pop-trend {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 7px 9px;
+        margin-bottom: 8px;
+        border: none;
+        border-radius: var(--radius-s, 8px);
+        background: var(--background-primary);
+        box-shadow: var(--shadow-input, 0 0 0 0.5px var(--trans-faint-20, var(--background-modifier-border)));
+        -electron-corner-smoothing: var(--corner-smoothing, 60%);
+      }
+      .dhhv-popover-v2 .dhhv-pop-trend-left {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-width: 0;
+      }
+      .dhhv-popover-v2 .dhhv-pop-trend-k {
+        font-size: 0.63rem;
+        font-weight: var(--font-semi-medium, 500);
+        color: var(--text-faint);
+      }
+      .dhhv-popover-v2 .dhhv-pop-trend-v {
+        font-size: 0.75rem;
         font-weight: var(--font-semibold, 600);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        color: var(--text-normal);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .dhhv-popover-v2 .dhhv-pop-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 3px 7px;
+        border-radius: var(--pill-radius, var(--radius-l, 18px));
+        font-size: 0.69rem;
+        font-weight: var(--font-bold, 700);
+        text-box-trim: trim-both;
+        text-box-edge: cap alphabetic;
+        white-space: nowrap;
+        flex-shrink: 0;
+        color: var(--icon-color, var(--text-muted));
+        background: var(--trans-faint-10, var(--background-secondary));
+      }
+      .dhhv-popover-v2 .dhhv-pop-badge.is-good {
+        color: var(--color-green, #4aab80);
+        background: color-mix(in oklab, var(--color-green, #4aab80) 15%, transparent);
+      }
+      .dhhv-popover-v2 .dhhv-pop-badge.is-bad {
+        color: var(--color-red, #d85b57);
+        background: color-mix(in oklab, var(--color-red, #d85b57) 15%, transparent);
+      }
+      .dhhv-popover-v2 .dhhv-pop-rows {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 8px;
       }
       .dhhv-popover-v2 .dhhv-pop-row {
         display: flex;
         justify-content: space-between;
         align-items: baseline;
         gap: 10px;
-        padding: 3px 0;
       }
       .dhhv-popover-v2 .dhhv-pop-label {
         color: var(--text-muted);
+        font-size: 0.71rem;
+        white-space: nowrap;
       }
       .dhhv-popover-v2 .dhhv-pop-value {
+        font-size: 0.72rem;
         font-weight: var(--font-semibold, 600);
         color: var(--color-base-100, var(--text-normal));
         text-align: right;
-        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
       }
-      .dhhv-popover-v2 .dhhv-pop-change-box {
-        padding: 7px 9px;
-        border: none;
-        border-radius: var(--radius-s, 8px);
-        background: var(--trans-faint-10, var(--background-secondary));
-        font-size: 0.74rem;
-        line-height: 1.38;
-      }
-      .dhhv-popover-v2 .dhhv-pop-obs-list {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-      .dhhv-popover-v2 .dhhv-pop-obs-item {
-        position: relative;
-        padding-left: 11px;
-        color: var(--text-normal);
-        font-size: 0.74rem;
-        line-height: 1.38;
-      }
-      .dhhv-popover-v2 .dhhv-pop-obs-item::before {
-        content: "•";
-        position: absolute;
-        left: 0;
-        top: 0;
-        color: var(--dhhv-accent);
-        font-weight: var(--font-bold, 700);
-      }
-      .dhhv-popover-v2 .dhhv-pop-muted {
-        color: var(--text-muted);
-        font-size: 0.73rem;
-      }
+      .dhhv-popover-v2 .dhhv-pop-value.is-good { color: var(--color-green, #4aab80); }
+      .dhhv-popover-v2 .dhhv-pop-value.is-bad { color: var(--color-red, #d85b57); }
       .dhhv-popover-v2 .dhhv-pop-secondary {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-top: 8px;
-        padding-top: 8px;
+        gap: 8px;
+        padding-top: 7px;
         border-top: 1px solid var(--trans-faint-20, var(--background-modifier-border));
-        color: var(--icon-color, var(--text-muted));
-        font-size: 0.7rem;
+        color: var(--text-faint);
+        font-size: 0.67rem;
+        white-space: nowrap;
       }
       .dh-habits-v2 .dhhv-info-left {
         display: inline-flex;
